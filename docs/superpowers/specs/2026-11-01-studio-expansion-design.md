@@ -314,16 +314,20 @@ The line that holds it together: the work is not an escape from the room. It is 
 
 Frames total 1800. The 600 frame pilot is s01, s02 and s08 (25 seconds). The pilot sets final quality and measures per frame time before the rest is rendered.
 
+### Face rule
+
+The face has to look good and still read as the owner. How each shot achieves that is open: a real photo plate, a carefully enhanced plate, a depth displaced portrait, or a matched double kept in silhouette. Enhancement, upscaling or restoration is allowed when it makes the face look better without changing who it is. Anything that melts, warps or replaces the face is discarded. No shot shows a synthetic front lit face just to prove a technique. Face frames are reviewed at 100 percent against the source portrait, and the final check is a direct comparison.
+
 ### Likeness pipeline
 
 The single photo route is split so each shot uses the tool that can actually deliver it.
 
-- **Photo plate (close ups)**: the public chest up portrait, upscaled locally, cut into layers, and displaced with a locally generated monocular depth map. Camera moves are limited to a few centimetres and a few degrees so the parallax reads as breathing and a slight turn, not as a popped cardboard cutout. Real skin, real eyes, real hair.
+- **Photo plate (close ups)**: the public chest up portrait, used at native scale or with a reviewed, face preserving upscale, cut into layers, and displaced with a locally generated monocular depth map. Camera moves are limited to a few centimetres and a few degrees so the parallax reads as breathing and a slight turn, not as a popped cardboard cutout. Real skin, real eyes, real hair.
 - **Double (movement)**: a sculpted figure built from primitives and metaballs, matched to the portrait's skin tone, hair silhouette and clothing palette. Shown from behind, in three quarter silhouette, in shadow or at distance. Never a front lit close up.
 - **Match cuts**: the cut from the double to the photo happens on a turn away, a lantern flare or a light change, so the audience never gets a clean comparison.
 - **Guardrail**: no shot promises a photoreal front lit face. The site copy calls the film a stylised portrait built from a real photograph.
 
-Tools: MiDaS for depth (MIT, verified in Phase 3), Real-ESRGAN for upscale (BSD-3), both local. If either fails, the fallback is a hand cut parallax from the portrait plus a still photo insert, which still reads well.
+Tools: MiDaS for depth (MIT), both local. Real-ESRGAN (BSD-3) is optional and only kept if the reviewed result preserves likeness. If either fails, the fallback is a hand cut parallax from the portrait plus a still photo insert, which still reads well.
 
 ### Realism stack
 
@@ -400,7 +404,7 @@ Target 75 seconds. Minimum 60 seconds. The pilot decides. Films ship MP4 and Web
 1. `pytest`, `studio validate`, `studio assets verify --offline` pass.
 2. Every rendered film passes ffprobe spec, loudness and frame checks at the declared size.
 3. Every rendered project has a poster and a project page. A blocked engine has a page that states the blocker and the measured reason.
-4. The film has been viewed end to end and reads clearly at desktop and mobile widths.
+4. The film has been viewed end to end, the face compared against the source portrait, and it reads clearly at desktop and mobile widths.
 5. `studio publish` runs and the site builds.
 6. The deployed site, film, and every playable build have been opened in a real browser.
 7. Credits are generated and accurate, including engine versions and every repo asset.
@@ -426,7 +430,7 @@ Target 75 seconds. Minimum 60 seconds. The pilot decides. Films ship MP4 and Web
 ## Success criteria
 
 - Every engine adapter is probed by one command, and the owner can point at all seven engines in one repo.
-- The film runs 60 to 75 seconds at 1080p with original score and a cloned or absent voice, and it is clearly about the owner without overclaiming realism.
+- The film runs 60 to 75 seconds at 1080p with original score and a cloned or absent voice. The face reads as the owner, never looks distorted, and is clearly about the owner without overclaiming realism.
 - Every engine either has a published artifact or an honest measured blocker in the docs.
 - A stranger can clone the repo, run `studio doctor`, and understand exactly what will and will not run on their machine.
 - No unlicensed asset, no private file, no raw frame, and no build output beyond the web build exemption enters git.
