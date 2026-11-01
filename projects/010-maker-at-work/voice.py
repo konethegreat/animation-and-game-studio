@@ -121,6 +121,7 @@ def pitch_report(path: Path) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--test", action="store_true", help="render the A/B variants only")
+    parser.add_argument("--line", default="", help="render one line by id")
     args = parser.parse_args()
 
     original = reference()
@@ -134,8 +135,11 @@ def main() -> int:
         return 0
 
     _, exaggeration, cfg = CHOSEN
+    chosen = [line for line in LINES if args.line in ("", line[0])]
+    if not chosen:
+        raise SystemExit(f"unknown line {args.line}")
     OUT.mkdir(parents=True, exist_ok=True)
-    for line_id, text, _ in LINES:
+    for line_id, text, _ in chosen:
         path = speak(tts, text, original, OUT / f"{line_id}.wav", exaggeration, cfg)
         print(pitch_report(path))
     return 0

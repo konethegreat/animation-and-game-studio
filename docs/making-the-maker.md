@@ -46,10 +46,10 @@ The reference sits at 90.9 Hz, and the two halves of the reference match each ot
 | Line | Text | Length | Speaker match |
 | --- | --- | --- | --- |
 | l01 | This is where the work begins. | 2.5 s | 0.884 |
-| l02 | A desk, a lamp, and a little patience. | 3.4 s | 0.891 |
+| l02 | A desk, a lamp, and a little patience. | 3.5 s | 0.916 |
 | l03 | Everything I make starts here. | 2.4 s | 0.890 |
 
-`mix.py` highpasses the voice at 90 Hz, adds a short room at 16% and places the lines at 7.4, 11.6 and 18.4 seconds. The score ducks to 55% under each line and returns over 120 ms, so the bed never fights the words. The mix is committed as `audio/pilot-mix.flac` at 25.00 seconds.
+`mix.py` highpasses the voice at 90 Hz, lifts presence above 2 kHz, adds a short room at 16% and places the lines at 7.4, 11.6 and 18.4 seconds. The score ducks to 58% under each line and returns over 120 ms, so the bed never fights the words. The mixed track was transcribed again after the music went in: all three lines come back word for word, which is how the balance was fixed rather than guessed. The mix is committed as `audio/pilot-mix.flac` at 25.00 seconds.
 
 ## The render
 

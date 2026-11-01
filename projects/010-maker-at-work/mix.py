@@ -84,10 +84,14 @@ def main() -> int:
             line = np.repeat(line, 2, axis=1)
         sos = signal.butter(2, 90 / (RATE / 2), btype="high", output="sos")
         line = signal.sosfilt(sos, line, axis=0)
+        presence = signal.sosfilt(
+            signal.butter(2, 2000 / (RATE / 2), btype="high", output="sos"), line, axis=0
+        )
+        line = line + 0.35 * presence
         line = room(line)
         peak = float(np.max(np.abs(line)))
         if peak > 1e-9:
-            line *= 0.78 / peak
+            line *= 0.86 / peak
         first = int(start * RATE)
         if first >= size:
             continue
@@ -101,7 +105,7 @@ def main() -> int:
         print(f"no voice lines in {VOICE}; the score stays as it is")
         return 0
 
-    ducked = score * envelope(len(score), starts, lengths, depth=0.55)[:, None]
+    ducked = score * envelope(len(score), starts, lengths, depth=0.42)[:, None]
     mix = ducked + placed
     peak = float(np.max(np.abs(mix)))
     mix = mix / max(peak, 1e-9) * 0.89
