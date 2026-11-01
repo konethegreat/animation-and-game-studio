@@ -23,11 +23,27 @@ def test_probe_reports_missing_tool(monkeypatch):
     assert probe.blockers == ("unity not found",)
 
 
-def test_probe_reports_found_tool(monkeypatch, tmp_path):
+def test_unity_reports_licence_blocker(monkeypatch, tmp_path):
     fake = tmp_path / "Unity.exe"
     fake.write_text("", encoding="utf-8")
     monkeypatch.setattr(config, "find_tool", lambda name: fake)
     monkeypatch.setattr(config, "tool_version", lambda name, exe: "6000.3.27f2")
+    monkeypatch.setattr("studio.lib.engines.base.UNITY_LICENSES", tmp_path / "licenses")
+    probe = engines.get("unity").probe()
+    assert probe.ok is False
+    assert "licence" in probe.blockers[0]
+    assert probe.version == "6000.3.27f2"
+
+
+def test_probe_reports_found_tool(monkeypatch, tmp_path):
+    fake = tmp_path / "Unity.exe"
+    fake.write_text("", encoding="utf-8")
+    licenses = tmp_path / "licenses"
+    licenses.mkdir()
+    (licenses / "Unity_lic.ulf").write_text("licence", encoding="utf-8")
+    monkeypatch.setattr(config, "find_tool", lambda name: fake)
+    monkeypatch.setattr(config, "tool_version", lambda name, exe: "6000.3.27f2")
+    monkeypatch.setattr("studio.lib.engines.base.UNITY_LICENSES", licenses)
     probe = engines.get("unity").probe()
     assert probe.ok is True
     assert probe.version == "6000.3.27f2"

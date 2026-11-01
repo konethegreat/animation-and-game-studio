@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import os
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from .. import config
+
+UNITY_LICENSES = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "Unity" / "licenses"
 
 
 @dataclass(frozen=True)
@@ -82,3 +85,15 @@ class ProbeOnlyAdapter(EngineAdapter):
         self.name = name
         self.tool = tool
         self.kinds = frozenset(kinds)
+
+
+class UnityAdapter(ProbeOnlyAdapter):
+    def probe(self) -> Probe:
+        probe = super().probe()
+        if not probe.ok or any(UNITY_LICENSES.glob("*")):
+            return probe
+        return replace(
+            probe,
+            ok=False,
+            blockers=("Unity licence not activated; sign in to Unity Hub",),
+        )

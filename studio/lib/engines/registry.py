@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .base import EngineAdapter, Probe, ProbeOnlyAdapter
+from .base import EngineAdapter, Probe, ProbeOnlyAdapter, UnityAdapter
 from .blender import BlenderAdapter
 from .godot import GodotAdapter
 from .pillow import PythonAdapter
@@ -15,11 +15,12 @@ SPECS: dict[str, tuple[str, set[str]]] = {
 
 ADAPTERS: dict[str, EngineAdapter] = {
     adapter.name: adapter
-    for adapter in (PythonAdapter(), BlenderAdapter(), GodotAdapter())
+    for adapter in (PythonAdapter(), BlenderAdapter(), GodotAdapter(), UnityAdapter("unity", "unity", {"film", "game"}))
 }
 ADAPTERS.update({
     name: ProbeOnlyAdapter(name, tool, kinds)
     for name, (tool, kinds) in SPECS.items()
+    if name not in ADAPTERS
 })
 
 
