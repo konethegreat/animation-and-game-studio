@@ -179,6 +179,22 @@ def build(scene, args):
     film.world(scene, color=(0.010, 0.014, 0.030), strength=0.30)
     film.haze(scene, size=(12.0, 20.0, 8.0), center=(0.0, 3.0, 2.4), density=0.008, color=(0.55, 0.62, 1.0), anisotropy=0.55)
 
+    lantern = film.lantern((0.0, 2.80, 1.55))
+    for key in ("handle", "cap", "glass", "base"):
+        lantern[key].scale = (1.1, 1.1, 1.1)
+    lantern["light"].data.energy = 16
+    lantern["light"].data.color = (0.66, 1.0, 0.34)
+    lantern["glass"].data.materials[0].node_tree.nodes["Principled BSDF"].inputs[
+        "Emission Strength"
+    ].default_value = 1.6
+    drift = film.empty("LanternDrift", (0.0, 2.80, 1.55))
+    for key in ("handle", "cap", "glass", "base", "light"):
+        film.parent_keep(lantern[key], drift)
+    film.keyframe(drift, "location", 1, (0.10, 2.40, 1.48))
+    film.keyframe(drift, "location", 120, (0.04, 4.60, 1.66))
+    film.keyframe(drift, "location", 240, (0.00, 7.10, 1.92))
+    film.ease(drift)
+
     rig = film.camera(
         (-0.25, -3.60, 1.25), (0.05, 3.2, 1.45),
         lens=32, fstop=2.0,

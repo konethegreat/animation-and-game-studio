@@ -260,6 +260,22 @@ def build(scene, args):
 
     motes = film.dust(scene, count=32, center=(0.0, 2.6, 1.6), spread=(2.2, 3.4, 1.6), seed=21)
 
+    lantern = film.lantern((0.18, 1.30, 1.24))
+    for key in ("handle", "cap", "glass", "base"):
+        lantern[key].scale = (1.1, 1.1, 1.1)
+    lantern["light"].data.energy = 12
+    lantern["light"].data.color = (0.66, 1.0, 0.34)
+    lantern["glass"].data.materials[0].node_tree.nodes["Principled BSDF"].inputs[
+        "Emission Strength"
+    ].default_value = 2.2
+    drift = film.empty("LanternDrift", (0.18, 1.30, 1.24))
+    for key in ("handle", "cap", "glass", "base", "light"):
+        film.parent_keep(lantern[key], drift)
+    film.keyframe(drift, "location", 1, (0.30, 1.20, 1.28))
+    film.keyframe(drift, "location", 120, (0.22, 3.60, 1.50))
+    film.keyframe(drift, "location", 240, (0.12, 6.10, 1.86))
+    film.ease(drift)
+
     rig = film.camera(
         (-0.45, -3.60, 1.20), (-0.05, 3.0, 1.52),
         lens=35, fstop=2.6,
