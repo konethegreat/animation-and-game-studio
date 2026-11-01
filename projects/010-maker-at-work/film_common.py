@@ -305,6 +305,13 @@ def lamp(location=(0.56, 0.12, 0.78)):
     return {"base": base, "shade": shade, "inner": inner, "bulb": bulb, "light": practical, "stem": stem, "arm": arm, "elbow": elbow}
 
 
+def portrait_print() -> Path:
+    # portrait.py grades the full photograph for the desk print so it sits in
+    # the same warm world as the film; the raw source is the fallback.
+    graded = PRIVATE / "portrait_graded.png"
+    return graded if graded.exists() else PRIVATE / "portrait.png"
+
+
 def portrait_frame(location=(-0.52, 0.12, 0.79), size=(0.34, 0.44), tilt=12.0):
     x, y, z = location
     pivot = empty("PortraitPivot", (x, y, z))
@@ -318,7 +325,7 @@ def portrait_frame(location=(-0.52, 0.12, 0.79), size=(0.34, 0.44), tilt=12.0):
     box("FrameBottom", (w, 0.014, border), (0, 0, border / 2), brass, bevel=0.002).parent = pivot
     photo = plane(
         "PortraitPhoto", (w - border * 2, h - border * 2), (0, -0.002, h / 2),
-        textured_material("PortraitPhotoMat", PRIVATE / "portrait.png", emission_strength=0.22, roughness=0.62),
+        textured_material("PortraitPhotoMat", portrait_print(), emission_strength=0.15, roughness=0.62),
         rotation=(math.radians(90), 0, 0),
     )
     photo.parent = pivot

@@ -1,0 +1,15 @@
+# .venv-ml only: depth estimation and local voice cloning.
+# Install the CUDA build first so torch sees the RTX laptop GPU:
+#   py -3.13 -m venv .venv-ml
+#   .venv-ml/Scripts/python -m pip install torch==2.6.0+cu124 torchaudio==2.6.0+cu124 --index-url https://download.pytorch.org/whl/cu124
+#   .venv-ml/Scripts/python -m pip install -r requirements-ml.txt
+torch==2.6.0+cu124
+torchaudio==2.6.0+cu124
+torchvision==0.21.0
+transformers==5.2.0
+chatterbox-tts==0.1.7
+librosa==0.11.0
+soundfile==0.14.0
+numpy==2.5.4
+scipy==1.18.1
+Pillow==12.3.0

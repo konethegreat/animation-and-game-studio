@@ -23,6 +23,7 @@ ROOT = PROJECT.parents[1]
 PRIVATE = ROOT / "assets" / "private"
 SOURCE = PRIVATE / "portrait.png"
 PLATE = PRIVATE / "portrait_plate.png"
+FRAMED = PRIVATE / "portrait_graded.png"
 QA = PRIVATE / "qa"
 ML_PYTHON = ROOT / ".venv-ml" / "Scripts" / "python.exe"
 
@@ -58,6 +59,11 @@ def prepare() -> Path:
         image = image.convert("RGB")
         box = crop_box(image.size)
         face = image.crop(box)
+        framed = grade(image)
+        framed = ImageEnhance.Brightness(framed).enhance(0.86)
+        framed = ImageEnhance.Color(framed).enhance(0.9)
+    framed.save(FRAMED, quality=95)
+    print(f"framed print {framed.width}x{framed.height} {FRAMED}")
     scale = OUT_WIDTH / face.width
     height = round(face.height * scale)
     plate = face.resize((OUT_WIDTH, height), Image.LANCZOS)
