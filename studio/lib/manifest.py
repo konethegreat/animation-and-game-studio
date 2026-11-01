@@ -24,6 +24,7 @@ class Project:
     resolution: tuple[int, int]
     fps: int
     frames: int
+    poster_time: float
     outputs: list[str]
     root: Path = field(default=ROOT)
 
@@ -47,6 +48,7 @@ def load(project_dir: Path) -> Project:
         resolution=(int(resolution[0]), int(resolution[1])),
         fps=int(render.get("fps", 24)),
         frames=int(render.get("frames", 1)),
+        poster_time=float(render.get("poster_time", 1.0)),
         outputs=[str(o) for o in data.get("outputs") or []],
         root=project_dir,
     )

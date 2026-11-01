@@ -81,7 +81,12 @@ def _run(cmd: list[str]) -> None:
 
 
 def encode(
-    frames_dir: Path, out_dir: Path, fps: int, width: int, height: int
+    frames_dir: Path,
+    out_dir: Path,
+    fps: int,
+    width: int,
+    height: int,
+    poster_time: float = 1.0,
 ) -> dict[str, Path]:
     ffmpeg = find_tool("ffmpeg")
     if not ffmpeg:
@@ -107,19 +112,19 @@ def encode(
     palette = out_dir / "_palette.png"
     _run([
         str(ffmpeg), "-y", "-i", str(outs["mp4"]), "-vf",
-        "fps=24,scale=960:-1:flags=lanczos,palettegen=max_colors=128",
+        "fps=24,scale=720:-1:flags=lanczos,palettegen=max_colors=128",
         str(palette),
     ])
     _run([
         str(ffmpeg), "-y", "-i", str(outs["mp4"]), "-i", str(palette), "-lavfi",
-        "fps=24,scale=960:-1:flags=lanczos[x];[x][1:v]"
+        "fps=24,scale=720:-1:flags=lanczos[x];[x][1:v]"
         "paletteuse=dither=bayer:bayer_scale=3",
         str(outs["gif"]),
     ])
     palette.unlink(missing_ok=True)
     _run([
-        str(ffmpeg), "-y", "-ss", "1", "-i", str(outs["mp4"]), "-frames:v", "1",
-        "-q:v", "3", str(outs["poster"]),
+        str(ffmpeg), "-y", "-ss", f"{poster_time:g}", "-i", str(outs["mp4"]),
+        "-frames:v", "1", "-q:v", "3", str(outs["poster"]),
     ])
     info = assert_spec(outs["mp4"], width, height, fps)
     for key in ("webm", "gif", "poster"):

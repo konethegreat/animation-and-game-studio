@@ -47,5 +47,7 @@ def run(project: Project) -> Path:
             f"{project.id} produced {len(produced)} frames, expected {project.frames}"
         )
 
-    media.encode(frames, project.media_dir, project.fps, width, height)
+    media.encode(
+        frames, project.media_dir, project.fps, width, height, project.poster_time
+    )
     return frames

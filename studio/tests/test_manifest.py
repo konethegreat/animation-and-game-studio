@@ -17,7 +17,7 @@ outputs: [media/009-demo/demo.mp4]
 
 def write(tmp_path: Path, body: str) -> Path:
     project = tmp_path / "p"
-    project.mkdir()
+    project.mkdir(exist_ok=True)
     (project / "project.yaml").write_text(body, encoding="utf-8")
     (project / "render.py").write_text("", encoding="utf-8")
     return project
@@ -29,6 +29,14 @@ def test_loads_valid_manifest(tmp_path):
     assert project.fps == 24
     assert project.resolution == (1280, 720)
     assert manifest.validate(project) == []
+
+
+def test_poster_time_defaults_and_parses(tmp_path):
+    project = manifest.load(write(tmp_path, GOOD))
+    assert project.poster_time == 1.0
+    tuned = GOOD.replace("frames: 48", "frames: 48, poster_time: 4.4")
+    project = manifest.load(write(tmp_path, tuned))
+    assert project.poster_time == 4.4
 
 
 def test_rejects_engine_type_mismatch(tmp_path):

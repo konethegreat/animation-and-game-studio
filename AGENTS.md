@@ -38,7 +38,7 @@ projects/<id>/
 
 Starter templates live in `studio/templates/{2d,3d,game}`. They use `__ID__` and `__TITLE__` placeholders that `studio new` substitutes. `studio/tests/test_templates.py` keeps them valid.
 
-Manifest rules: id is `NNN-lowercase-name`, type is `2d | 3d | game`, engine must be `python | blender | godot` respectively. Resolution never exceeds 1920x1080. Outputs are repo-relative paths. Blender exports go to the declared `.glb` output.
+Manifest rules: id is `NNN-lowercase-name`, type is `2d | 3d | game`, engine must be `python | blender | godot` respectively. Resolution never exceeds 1920x1080. Outputs are repo-relative paths. Blender exports go to the declared `.glb` output. Optional `render.poster_time` (seconds, default 1) picks the poster frame.
 
 ## Media rules
 
