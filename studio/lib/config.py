@@ -4,6 +4,7 @@ import glob
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -12,6 +13,7 @@ PROGRAMFILES = Path(os.environ.get("ProgramFiles", "C:/Program Files"))
 TOOLS = Path(os.environ.get("USERPROFILE", "C:/Users/Konet")) / "Tools"
 
 CANDIDATES: dict[str, list[str]] = {
+    "python": [sys.executable, "python3", "python"],
     "blender": [
         str(TOOLS / "**" / "blender.exe"),
         "blender",
@@ -30,7 +32,42 @@ CANDIDATES: dict[str, list[str]] = {
         str(LOCALAPPDATA / "Microsoft" / "WinGet" / "Packages" / "**" / "ffmpeg.exe"),
         str(PROGRAMFILES / "ffmpeg" / "**" / "ffmpeg.exe"),
     ],
+    "dotnet": [
+        str(PROGRAMFILES / "dotnet" / "dotnet.exe"),
+        "dotnet",
+        str(TOOLS / "**" / "dotnet.exe"),
+    ],
+    "love": [
+        str(TOOLS / "**" / "love.exe"),
+        "love",
+        str(PROGRAMFILES / "LOVE" / "love.exe"),
+        str(LOCALAPPDATA / "Programs" / "LOVE" / "love.exe"),
+        str(LOCALAPPDATA / "Microsoft" / "WinGet" / "Packages" / "Love2d.Love2d*" / "**" / "love.exe"),
+    ],
+    "gdevelop": [
+        str(TOOLS / "**" / "GDevelop.exe"),
+        "gdevelop",
+        str(LOCALAPPDATA / "Programs" / "GDevelop" / "GDevelop.exe"),
+        str(LOCALAPPDATA / "Programs" / "GDevelop" / "**" / "GDevelop.exe"),
+        str(PROGRAMFILES / "GDevelop" / "**" / "GDevelop.exe"),
+        str(LOCALAPPDATA / "Microsoft" / "WinGet" / "Packages" / "GDevelop.GDevelop*" / "**" / "GDevelop.exe"),
+    ],
+    "unity_hub": [
+        str(PROGRAMFILES / "Unity Hub" / "Unity Hub.exe"),
+        str(LOCALAPPDATA / "Programs" / "Unity Hub" / "Unity Hub.exe"),
+        str(TOOLS / "**" / "Unity Hub.exe"),
+    ],
+    "unity": [
+        str(PROGRAMFILES / "Unity" / "Hub" / "Editor" / "*" / "Editor" / "Unity.exe"),
+        str(TOOLS / "**" / "Unity.exe"),
+    ],
+    "unreal": [
+        str(PROGRAMFILES / "Epic Games" / "UE_*" / "Engine" / "Binaries" / "Win64" / "UnrealEditor-Cmd.exe"),
+        str(TOOLS / "**" / "UnrealEditor-Cmd.exe"),
+    ],
 }
+
+VERSION_ARGS = {"ffmpeg": "-version", "unity": "-version", "unreal": "-version"}
 
 
 def find_tool(name: str) -> Path | None:
@@ -59,8 +96,25 @@ def find_ffprobe() -> Path | None:
     return Path(found) if found else None
 
 
+def gpu_name() -> str:
+    exe = shutil.which("nvidia-smi")
+    if not exe:
+        return ""
+    try:
+        result = subprocess.run(
+            [exe, "--query-gpu=name,memory.total", "--format=csv,noheader"],
+            capture_output=True, text=True, timeout=20,
+        )
+    except Exception:
+        return ""
+    if result.returncode != 0:
+        return ""
+    lines = [line.strip() for line in (result.stdout or "").splitlines() if line.strip()]
+    return lines[0] if lines else ""
+
+
 def tool_version(name: str, exe: Path) -> str:
-    flag = "-version" if name == "ffmpeg" else "--version"
+    flag = VERSION_ARGS.get(name, "--version")
     try:
         out = subprocess.run(
             [str(exe), flag], capture_output=True, text=True, timeout=45
