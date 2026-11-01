@@ -532,6 +532,22 @@ def world(scene, color=(0.012, 0.014, 0.020), strength=0.35):
     background.inputs[1].default_value = strength
 
 
+def glow(scene, threshold=0.85, size=9, mix=-0.7):
+    scene.use_nodes = True
+    tree = scene.node_tree
+    tree.nodes.clear()
+    layers = tree.nodes.new("CompositorNodeRLayers")
+    glare = tree.nodes.new("CompositorNodeGlare")
+    glare.glare_type = "FOG_GLOW"
+    glare.quality = "HIGH"
+    glare.threshold = threshold
+    glare.size = size
+    glare.mix = mix
+    composite = tree.nodes.new("CompositorNodeComposite")
+    tree.links.new(layers.outputs["Image"], glare.inputs["Image"])
+    tree.links.new(glare.outputs["Image"], composite.inputs["Image"])
+
+
 def title_text(body: str, location, size=0.12, color=(0.93, 0.87, 0.74), strength=1.4):
     curve = bpy.data.curves.new("TitleCurve", type="FONT")
     curve.body = body

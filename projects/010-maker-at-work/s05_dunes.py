@@ -49,6 +49,17 @@ def terrain(mat, phase=0.4):
     return obj
 
 
+def spurs(mat):
+    for index, (x, y, sx, sy, sz) in enumerate((
+        (-4.6, 0.6, 6.2, 3.8, 0.62),
+        (3.4, -0.2, 5.0, 3.2, 0.52),
+        (-1.2, 1.6, 3.4, 2.2, 0.38),
+        (7.2, 1.1, 5.6, 3.0, 0.58),
+        (-8.4, 0.2, 5.2, 3.4, 0.66),
+    )):
+        film.sphere(f"Spur{index}", (x, y, -0.18), (sx, sy, sz), mat, 48, 24)
+
+
 def sun(name, location, target, energy, color, angle=0.02):
     data = bpy.data.lights.new(name, type="SUN")
     data.energy = energy
@@ -74,6 +85,7 @@ def build(scene, args):
     ember = film.material("Ember", (1.0, 0.55, 0.18), roughness=1.0, emission=(1.0, 0.48, 0.14), strength=2.6)
 
     terrain(sand, phase=0.4)
+    spurs(film.material("DuneSpur", (0.24, 0.15, 0.09), roughness=0.96))
 
     bpy.ops.mesh.primitive_circle_add(
         vertices=96, radius=1.45, fill_type="NGON",
@@ -82,7 +94,7 @@ def build(scene, args):
     moon = bpy.context.object
     moon.name = "Moon"
     moon.data.materials.append(
-        film.material("MoonFace", (0.92, 0.94, 1.0), roughness=0.8, emission=(0.82, 0.88, 1.0), strength=6.0)
+        film.material("MoonFace", (0.92, 0.94, 1.0), roughness=0.8, emission=(0.82, 0.88, 1.0), strength=3.0)
     )
 
     for index in range(90):
@@ -110,9 +122,9 @@ def build(scene, args):
     film.parent_keep(lantern["light"], lantern_pivot)
 
     film.keyframe(lantern_pivot, "location", 1, (0.25, 2.4, 1.72))
-    film.keyframe(lantern_pivot, "location", 90, (0.05, 3.1, 1.80))
-    film.keyframe(lantern_pivot, "location", 170, (0.16, 3.8, 1.76))
-    film.keyframe(lantern_pivot, "location", 240, (0.02, 4.5, 1.86))
+    film.keyframe(lantern_pivot, "location", 90, (0.40, 3.1, 1.80))
+    film.keyframe(lantern_pivot, "location", 170, (0.72, 3.8, 1.76))
+    film.keyframe(lantern_pivot, "location", 240, (1.02, 4.5, 1.86))
     film.ease(lantern_pivot)
 
     ember_pivot = film.empty("EmberDrift", (0.10, 2.6, 1.10))
@@ -126,21 +138,21 @@ def build(scene, args):
         mote = film.sphere(f"Ember{index}", point, (size, size, size), ember, 8, 6)
         film.parent_keep(mote, ember_pivot)
     film.keyframe(ember_pivot, "location", 1, (0.13, 2.55, 1.62))
-    film.keyframe(ember_pivot, "location", 240, (0.02, 3.55, 1.80))
+    film.keyframe(ember_pivot, "location", 240, (0.96, 3.55, 1.80))
     film.keyframe(ember_pivot, "rotation_euler", 1, (0.0, 0.0, 0.0))
     film.keyframe(ember_pivot, "rotation_euler", 240, (0.0, 0.0, math.radians(6)))
     film.ease(ember_pivot)
 
-    sun("Moonlight", (-18.0, -9.0, 11.0), (0.0, 7.0, 0.0), energy=1.2, color=(0.74, 0.72, 0.88), angle=0.07)
+    sun("Moonlight", (-18.0, -9.0, 11.0), (0.0, 7.0, 0.0), energy=1.5, color=(0.74, 0.72, 0.88), angle=0.07)
     film.area_light(
         "MoonRim", (-8.0, 18.0, 9.0), (0.0, 6.0, 0.6),
-        energy=150, size=6.0, color=(0.55, 0.68, 1.0),
+        energy=220, size=6.0, color=(0.55, 0.68, 1.0),
     )
     film.area_light(
         "LanternPool", (0.35, 2.9, 0.95), (0.1, 3.2, 0.2),
-        energy=45, size=1.6, color=(1.0, 0.70, 0.38),
+        energy=26, size=1.0, color=(1.0, 0.70, 0.38),
     )
-    film.world(scene, color=(0.018, 0.028, 0.062), strength=0.45)
+    film.world(scene, color=(0.018, 0.028, 0.062), strength=0.34)
     film.haze(scene, size=(24.0, 30.0, 10.0), center=(0.0, 6.0, 2.0), density=0.0006, color=(0.55, 0.62, 0.85), anisotropy=0.35)
 
     rig = film.camera(
@@ -150,15 +162,17 @@ def build(scene, args):
     camera, target = rig["camera"], rig["target"]
     film.keyframe(camera, "location", 1, (-0.10, -1.20, 1.70))
     film.keyframe(camera, "location", 120, (0.05, -0.20, 1.74))
-    film.keyframe(camera, "location", 240, (0.20, 0.75, 1.78))
+    film.keyframe(camera, "location", 240, (0.22, 0.75, 1.78))
     film.keyframe(target, "location", 1, (0.12, 3.0, 1.60))
-    film.keyframe(target, "location", 120, (0.08, 3.6, 1.68))
-    film.keyframe(target, "location", 240, (0.05, 4.2, 1.76))
+    film.keyframe(target, "location", 120, (0.30, 3.6, 1.68))
+    film.keyframe(target, "location", 240, (0.52, 4.2, 1.76))
     film.ease(camera)
     film.ease(target)
 
     film.pulse(lantern["light"], args.frames_end, base=22.0, amp=3.0, period=64, phase=0.8)
     film.fade(lantern["glass"].data.materials[0], "Emission Strength", [(1, 1.2), (120, 1.6), (240, 1.3)])
+
+    film.glow(scene)
 
     return {"camera": camera, "target": target, "lantern": lantern, "moon": moon}
 

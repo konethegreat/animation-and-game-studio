@@ -70,7 +70,14 @@ def glow_plane(name, location, size, color):
     links.new(coords.outputs["UV"], offset.inputs[0])
     links.new(offset.outputs["Vector"], length.inputs[0])
     links.new(length.outputs["Value"], falloff.inputs["Value"])
-    links.new(falloff.outputs["Result"], mix.inputs["Fac"])
+    alpha = nodes.new("ShaderNodeValue")
+    alpha.name = "Alpha"
+    alpha.outputs[0].default_value = 1.0
+    gate = nodes.new("ShaderNodeMath")
+    gate.operation = "MULTIPLY"
+    links.new(falloff.outputs["Result"], gate.inputs[0])
+    links.new(alpha.outputs[0], gate.inputs[1])
+    links.new(gate.outputs[0], mix.inputs["Fac"])
     links.new(transparent.outputs[0], mix.inputs[1])
     links.new(emission.outputs[0], mix.inputs[2])
     links.new(mix.outputs[0], output.inputs["Surface"])
@@ -195,9 +202,11 @@ def build(scene, args):
 
     halo = glow_plane("NewStarHalo", (0.0, 7.55, 5.15), 1.1, (1.0, 0.90, 0.72))
     emission = halo.data.materials[0].node_tree.nodes["Emission"]
-    for frame, value in ((1, 0.0), (176, 0.0), (236, 2.6)):
-        emission.inputs["Strength"].default_value = value
-        emission.inputs["Strength"].keyframe_insert("default_value", frame=frame)
+    emission.inputs["Strength"].default_value = 2.6
+    for frame, value in ((1, 0.0), (176, 0.0), (236, 1.0)):
+        alpha = halo.data.materials[0].node_tree.nodes["Alpha"]
+        alpha.outputs[0].default_value = value
+        alpha.outputs[0].keyframe_insert("default_value", frame=frame)
 
     spikes = (
         ("NewStarSpikeH", (0.0, 7.52, 5.15), (2.4, 0.075, 1.0)),
@@ -207,9 +216,11 @@ def build(scene, args):
         spike = glow_plane(name, location, 1.0, (1.0, 0.92, 0.76))
         spike.scale = scale
         node = spike.data.materials[0].node_tree.nodes["Emission"]
-        for frame, value in ((1, 0.0), (176, 0.0), (236, 1.8)):
-            node.inputs["Strength"].default_value = value
-            node.inputs["Strength"].keyframe_insert("default_value", frame=frame)
+        node.inputs["Strength"].default_value = 1.8
+        for frame, value in ((1, 0.0), (176, 0.0), (236, 1.0)):
+            alpha = spike.data.materials[0].node_tree.nodes["Alpha"]
+            alpha.outputs[0].default_value = value
+            alpha.outputs[0].keyframe_insert("default_value", frame=frame)
     film.keyframe(new_star, "scale", 1, (0.10, 0.10, 0.10))
     film.keyframe(new_star, "scale", 170, (0.16, 0.16, 0.16))
     film.keyframe(new_star, "scale", 232, (0.34, 0.34, 0.34))

@@ -23,7 +23,7 @@ BARK = (0.28, 0.22, 0.16)
 CROWN_A = (0.44, 0.42, 0.24)
 CROWN_B = (0.64, 0.38, 0.16)
 GROUND = (0.26, 0.20, 0.15)
-PATH = (0.72, 0.65, 0.52)
+PATH = (0.62, 0.55, 0.44)
 LIME = (0.62, 1.0, 0.18)
 BRASS = (0.34, 0.24, 0.11)
 
@@ -99,12 +99,12 @@ def build(scene, args):
 
     bpy.ops.mesh.primitive_circle_add(
         vertices=96, radius=1.35, fill_type="NGON",
-        location=(3.0, 26.0, 3.2), rotation=(math.radians(90), 0, 0),
+        location=(1.9, 26.0, 1.55), rotation=(math.radians(90), 0, 0),
     )
     sun = bpy.context.object
     sun.name = "GroveSun"
     sun.data.materials.append(
-        film.material("GroveSunFace", (1.0, 0.86, 0.62), roughness=0.5, emission=(1.0, 0.72, 0.38), strength=3.0)
+        film.material("GroveSunFace", (1.0, 0.80, 0.52), roughness=0.5, emission=(1.0, 0.58, 0.24), strength=4.0)
     )
 
     hero = film.lantern((0.14, 3.2, 1.30))
@@ -153,13 +153,13 @@ def build(scene, args):
     )
     film.area_light(
         "GroveRim", (0.0, 18.0, 3.6), (0.0, 6.0, 1.2),
-        energy=90, size=4.0, color=(1.0, 0.74, 0.46),
+        energy=150, size=4.0, color=(1.0, 0.66, 0.36),
     )
     film.area_light(
         "GroveFill", (-3.0, -1.0, 2.4), (0.0, 3.0, 1.4),
         energy=26, size=3.0, color=(0.70, 0.78, 1.0),
     )
-    film.world(scene, color=(0.62, 0.64, 0.70), strength=0.45)
+    film.world(scene, color=(0.50, 0.38, 0.32), strength=0.55)
     film.haze(scene, size=(16.0, 24.0, 8.0), center=(0.0, 7.0, 2.4), density=0.0022, color=(1.0, 0.86, 0.70))
 
     rig = film.camera(
@@ -189,6 +189,8 @@ def build(scene, args):
 
     film.pulse(hero["light"], args.frames_end, base=30.0, amp=3.0, period=72, phase=1.2)
     film.fade(hero["glass"].data.materials[0], "Emission Strength", [(1, 1.1), (120, 1.45), (240, 1.15)])
+
+    film.glow(scene, threshold=0.9, size=10, mix=-0.72)
 
     return {"camera": camera, "target": target, "hero": hero, "sun": sun}
 
