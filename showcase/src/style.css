@@ -1339,6 +1339,79 @@ h2 em {
   color: var(--muted);
 }
 
+.film-section {
+  margin-top: clamp(56px, 8vw, 88px);
+  padding-top: clamp(36px, 5vw, 56px);
+  border-top: 1px solid var(--line);
+}
+
+.shot-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.shot-list li {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) auto;
+  gap: clamp(16px, 3vw, 40px);
+  align-items: start;
+  padding: 22px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.shot-list h3 {
+  margin: 0 0 6px;
+  font-size: 19px;
+}
+
+.shot-list p {
+  max-width: 62ch;
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.shot-no {
+  padding-top: 4px;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  color: var(--coral);
+}
+
+.shot-time {
+  padding-top: 5px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.care-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(20px, 3vw, 36px);
+}
+
+.care-grid article {
+  padding-top: 16px;
+  border-top: 2px solid var(--ink);
+}
+
+.care-grid h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.care-grid p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
 .model-section {
   margin-top: clamp(56px, 8vw, 88px);
   padding-top: clamp(36px, 5vw, 56px);
@@ -1801,6 +1874,20 @@ h2 em {
   .play-help {
     grid-template-columns: 1fr;
     gap: 22px;
+  }
+
+  .shot-list li {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 4px 14px;
+  }
+
+  .shot-time {
+    grid-column: 2;
+    padding-top: 0;
+  }
+
+  .care-grid {
+    grid-template-columns: 1fr;
   }
 
   .demo-actions {

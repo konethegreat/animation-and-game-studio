@@ -6,7 +6,7 @@ import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
 
 import { projects, type Project } from "./projects.generated";
-import { ENGINE_LABEL, NOTES, PIPELINE, REPO, TOOLS, TYPE_LABEL } from "./content";
+import { ENGINE_LABEL, FILM, NOTES, PIPELINE, REPO, TOOLS, TYPE_LABEL, type FilmDetail } from "./content";
 import { mountTurntable, type ViewerHandle } from "./viewer";
 
 const BASE = import.meta.env.BASE_URL;
@@ -128,7 +128,7 @@ function card(project: Project, index: number): string {
       ? `<video class="card-preview" data-preview src="${asset(project.mp4)}" muted loop playsinline preload="none" aria-hidden="true"></video>`
       : "";
   return `
-  <article class="card" data-type="${project.type}">
+  <article class="card" data-type="${project.type}" data-kind="${project.kind}">
     <a class="card-media" href="${mediaHref}" ${project.type === "game" && !project.play ? 'data-link' : "data-link"}>
       <img src="${asset(project.poster)}" alt="${esc(project.title)} still" decoding="async" />
       ${preview}
@@ -149,6 +149,10 @@ function card(project: Project, index: number): string {
 
 function home(): string {
   const hero = heroProject;
+  const films = projects.filter((project) => project.kind === "film").length;
+  const ordered = [...projects].sort(
+    (a, b) => Number(b.kind === "film") - Number(a.kind === "film"),
+  );
   const fallback = hero?.hero ?? hero?.poster;
   return `
   ${head()}
@@ -189,11 +193,12 @@ function home(): string {
       </div>
       <div class="filters" role="group" aria-label="Filter work">
         <button type="button" data-filter="all" aria-pressed="true">All <span>${String(projects.length).padStart(2, "0")}</span></button>
+        <button type="button" data-filter="film" aria-pressed="false">Film <span>${String(films).padStart(2, "0")}</span></button>
         <button type="button" data-filter="2d" aria-pressed="false">2D <span>${projects.filter((p) => p.type === "2d").length}</span></button>
         <button type="button" data-filter="3d" aria-pressed="false">3D <span>${projects.filter((p) => p.type === "3d").length}</span></button>
         <button type="button" data-filter="game" aria-pressed="false">Game <span>${projects.filter((p) => p.type === "game").length}</span></button>
       </div>
-      <div class="grid">${projects.map(card).join("")}</div>
+      <div class="grid">${ordered.map(card).join("")}</div>
     </section>
 
     <section class="section pipeline wrap">
@@ -257,8 +262,39 @@ function modelSection(project: Project): string {
   </section>`;
 }
 
+function filmSection(film: FilmDetail): string {
+  return `
+  <section class="film-section" id="shots">
+    <div class="section-head">
+      <div><p class="eyebrow">Pilot cut</p><h2>Shot by shot.</h2></div>
+      <p class="section-note">A shorter cut fixes the look, the sound and the face treatment before the remaining shots join the render queue.</p>
+    </div>
+    <ol class="shot-list">
+      ${film.shotList
+        .map(
+          (shot) => `
+      <li>
+        <span class="mono shot-no">${shot.no}</span>
+        <div><h3>${shot.title}</h3><p>${shot.body}</p></div>
+        <span class="mono shot-time">${shot.time} / ${shot.length}</span>
+      </li>`,
+        )
+        .join("")}
+    </ol>
+  </section>
+  <section class="film-section">
+    <div class="section-head">
+      <div><p class="eyebrow">Care</p><h2>Face, score and consent.</h2></div>
+    </div>
+    <div class="care-grid">
+      ${film.care.map((item) => `<article><h3>${item.label}</h3><p>${item.body}</p></article>`).join("")}
+    </div>
+  </section>`;
+}
+
 function projectPage(project: Project, index: number): string {
   const notes = NOTES[project.id];
+  const film = FILM[project.id];
   const label = TYPE_LABEL[project.type] ?? project.type;
   const engine = ENGINE_LABEL[project.engine] ?? project.engine;
   const next = projects[(index + 1) % projects.length];
@@ -303,6 +339,7 @@ function projectPage(project: Project, index: number): string {
         ? `<figure class="sheet"><img src="${asset(project.sheet)}" alt="Contact sheet of frames from ${esc(project.title)}" loading="lazy" /><figcaption class="mono">Sampled frames from the final render</figcaption></figure>`
         : ""
     }
+    ${film ? filmSection(film) : ""}
     ${modelSection(project)}
     <nav class="next" aria-label="Next project">
       <span class="mono">Next</span>
@@ -450,7 +487,9 @@ function bindHome() {
       const filter = button.dataset.filter ?? "all";
       buttons.forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
       cards.forEach((item) => {
-        item.hidden = filter !== "all" && item.dataset.type !== filter;
+        if (filter === "all") item.hidden = false;
+        else if (filter === "film") item.hidden = item.dataset.kind !== "film";
+        else item.hidden = item.dataset.type !== filter;
       });
     });
   }

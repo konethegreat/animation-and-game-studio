@@ -50,6 +50,61 @@ export const NOTES: Record<string, ProjectNotes> = {
       "The exported glTF is an in place walk loop, so the keeper walks on the spot in the live viewer while you orbit the camera.",
     ],
   },
+  "010-maker-at-work": {
+    madeWith: ["Blender 4.5 LTS", "Cycles", "Python", "Pillow", "FFmpeg"],
+    notes: [
+      "Every set is built in Blender Python. The desk, the lamp, the paper, the lantern and the camera move are keyed in scripts that live next to the shot.",
+      "The pilot covers the opening, the portrait and the return. Each shot renders as an image sequence, then FFmpeg encodes it and ffprobe checks the result before anything is published.",
+      "The portrait shot uses one photograph mounted on a depth displaced plate. The camera moves a few centimetres, so the face keeps its own structure instead of being redrawn by a model.",
+      "Frames render at 1920 by 800 in Cycles, 128 samples with denoising on the graphics card, then encode to MP4, WebM and the poster on this page.",
+    ],
+  },
+};
+
+export type FilmShot = { no: string; title: string; time: string; length: string; body: string };
+export type FilmCare = { label: string; body: string };
+export type FilmDetail = { shotList: FilmShot[]; care: FilmCare[] };
+
+export const FILM: Record<string, FilmDetail> = {
+  "010-maker-at-work": {
+    shotList: [
+      {
+        no: "01",
+        title: "Desk",
+        time: "0:00",
+        length: "7 s",
+        body: "A dark desk at night. Lamp, sketchbook and a framed portrait. The camera creeps in while dust drifts through the lamp light.",
+      },
+      {
+        no: "02",
+        title: "Portrait",
+        time: "0:07",
+        length: "9 s",
+        body: "The framed photograph fills the frame. The plate moves on its depth map, so the face holds its shape while the light travels across the room.",
+      },
+      {
+        no: "08",
+        title: "Return",
+        time: "0:16",
+        length: "9 s",
+        body: "The camera pulls back to the desk. The lantern glows, the title lands and the score resolves on the last chord.",
+      },
+    ],
+    care: [
+      {
+        label: "Likeness",
+        body: "The portrait is one still photograph the owner supplied, graded and mounted on a depth map. No generative model redraws the face. It is treated as a physical print on the desk, and it was checked at full size against the source before it went into a frame.",
+      },
+      {
+        label: "Score",
+        body: "The pilot score is an original cue written in numpy. A low drone, a slow pad, a half time pulse and a small melody, all synthesised from waveforms. No sampled music and no quoted theme.",
+      },
+      {
+        label: "Voice",
+        body: "Three spoken lines in the pilot come from a clone of a short reference the owner recorded for this project. The reference, the model and every raw render stay in a private, gitignored folder. Only the mixed film is published.",
+      },
+    ],
+  },
 };
 
 export const PIPELINE = [
