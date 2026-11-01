@@ -4,6 +4,13 @@
 
 Live showcase: https://konethegreat.github.io/animation-and-game-studio/
 
+## Film
+
+**The Maker at Work** is a short film built from the maker's own photograph and voice, rendered on this laptop with no paid services. The pilot runs 25 seconds across three shots: a night desk that pushes into a framed portrait, the portrait itself moving on a depth map, and the return to the desk with the lantern and the title. The portrait is never redrawn by a model. The face is the real photograph.
+
+- Watch it: https://konethegreat.github.io/animation-and-game-studio/project/010-maker-at-work
+- How it was made: [docs/making-the-maker.md](docs/making-the-maker.md)
+
 ## Work
 
 | Project | Type | What it is |
@@ -12,6 +19,7 @@ Live showcase: https://konethegreat.github.io/animation-and-game-studio/
 | 002 Turntable | 3D | Robot companion turntable modelled and lit in Blender |
 | 003 Orbit Run | Game | One-screen arcade game made with Godot, playable in the browser |
 | 004 Lantern Keeper | 3D | Character walk loop with a spline camera move, exported as GLB |
+| 010 The Maker at Work | Film | Photographic portrait film with an original score and a consented voice |
 
 ## How it works
 
@@ -23,6 +31,21 @@ Everything is authored as code, rendered headless and validated before it ships.
 - ffprobe, frame scans, GLB inspection and build size checks run before a render is accepted.
 - `studio publish` copies curated media into `showcase/public`, regenerates the gallery data and writes third party notices.
 - Vite and Three.js build the showcase, GitHub Actions deploys it to Pages.
+
+## Engine matrix
+
+Measured on this machine. `docs/engines.md` has paths, probe output and blockers.
+
+| Engine | Version | Status | Output |
+| --- | --- | --- | --- |
+| Python and Pillow | 3.15 | Working | 2D frame sequences |
+| Blender | 4.5 LTS | Working | Cycles renders, GLB |
+| Godot | 4.7.2 | Working | Playable web build |
+| LÖVE | 11.5 | Working | Lua game, captured frames |
+| MonoGame | 3.8 on .NET 10 | Working | C# game templates |
+| GDevelop | 5.6 | Installed, export unproven | Event driven web game |
+| Unity | 6.3 LTS | Blocked on licence sign in | WebGL build |
+| Unreal | 5.8 | Not installed | Capability report |
 
 ## Toolchain
 
