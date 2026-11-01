@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from .base import EngineAdapter, Probe, ProbeOnlyAdapter
+from .blender import BlenderAdapter
+from .godot import GodotAdapter
+from .pillow import PythonAdapter
 
 SPECS: dict[str, tuple[str, set[str]]] = {
-    "python": ("python", {"film"}),
-    "blender": ("blender", {"film"}),
-    "godot": ("godot", {"game"}),
     "unity": ("unity", {"film", "game"}),
     "unreal": ("unreal", {"film"}),
     "gdevelop": ("gdevelop", {"game"}),
@@ -14,9 +14,13 @@ SPECS: dict[str, tuple[str, set[str]]] = {
 }
 
 ADAPTERS: dict[str, EngineAdapter] = {
+    adapter.name: adapter
+    for adapter in (PythonAdapter(), BlenderAdapter(), GodotAdapter())
+}
+ADAPTERS.update({
     name: ProbeOnlyAdapter(name, tool, kinds)
     for name, (tool, kinds) in SPECS.items()
-}
+})
 
 
 def get(name: str) -> EngineAdapter:
