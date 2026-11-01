@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from studio.lib import config, engines, godot, manifest, publish, render, sheet, verify  # noqa: E402
+from studio.lib import assets, config, engines, godot, manifest, publish, render, sheet, verify  # noqa: E402
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
@@ -111,6 +111,20 @@ def cmd_publish(_: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_assets(args: argparse.Namespace) -> int:
+    if args.action == "fetch":
+        problems = assets.fetch()
+    elif args.action == "verify":
+        problems = assets.verify(offline=args.offline)
+    else:
+        path = assets.write_credits()
+        print(f"credits -> {path}")
+        return 0
+    for problem in problems:
+        print(f"FAIL {problem}")
+    return 1 if problems else 0
+
+
 def cmd_new(args: argparse.Namespace) -> int:
     template = ROOT / "studio" / "templates" / args.type
     if not template.is_dir():
@@ -170,6 +184,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     publish_cmd = sub.add_parser("publish", help="refresh showcase data")
     publish_cmd.set_defaults(func=cmd_publish)
+
+    assets_cmd = sub.add_parser("assets", help="fetch, verify or credit assets")
+    assets_cmd.add_argument("action", choices=["fetch", "verify", "credits"])
+    assets_cmd.add_argument("--offline", action="store_true", help="skip missing embed and private files")
+    assets_cmd.set_defaults(func=cmd_assets)
     return parser
 
 

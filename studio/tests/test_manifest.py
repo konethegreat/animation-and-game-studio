@@ -140,3 +140,9 @@ def test_rejects_output_outside_repo(tmp_path):
     bad = GOOD.replace("media/009-demo/demo.mp4", "../../escape.mp4")
     project = manifest.load(write(tmp_path, bad))
     assert any("escapes" in error for error in manifest.validate(project))
+
+
+def test_rejects_unknown_asset_id(tmp_path):
+    project = manifest.load(write(tmp_path, V2, ("film.py", "a.py", "b.py")))
+    project.assets = ["not-in-catalog"]
+    assert any("not in assets/catalog.yaml" in error for error in manifest.validate(project))

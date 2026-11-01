@@ -6,7 +6,7 @@ from pathlib import Path
 
 import yaml
 
-from . import engines
+from . import assets, engines
 from .config import ROOT
 
 ID_RE = re.compile(r"^\d{3}-[a-z0-9-]+$")
@@ -162,6 +162,10 @@ def validate(project: Project) -> list[str]:
         target = (project.root / value).resolve()
         if not str(target).startswith(str(project.root.resolve())):
             errors.append(f"audio '{key}' escapes the project root")
+    known_assets = assets.ids()
+    for asset_id in project.assets:
+        if asset_id not in known_assets:
+            errors.append(f"asset '{asset_id}' is not in assets/catalog.yaml")
     return errors
 
 

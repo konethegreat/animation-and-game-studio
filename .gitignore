@@ -18,3 +18,6 @@ media/**/_frames/
 media/**/_preview/
 media/**/_test/
 *.log
+assets/embed/
+assets/private/
+showcase/src/credits.generated.ts
