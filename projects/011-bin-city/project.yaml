@@ -1,0 +1,14 @@
+id: 011-bin-city
+type: game
+title: BIN CITY
+summary: A 3D browser game about one trash collector cleaning a beautiful, ridiculous market before it opens.
+tags: [game, godot, 3d, arcade, browser]
+engine: godot
+entry: project.godot
+render:
+  resolution: [1280, 720]
+  fps: 60
+  frames: 1
+outputs:
+  - media/011-bin-city/poster.jpg
+  - projects/011-bin-city/build/web/index.html
