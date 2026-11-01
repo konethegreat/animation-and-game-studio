@@ -55,7 +55,9 @@ def cmd_render(args: argparse.Namespace) -> int:
     errors = manifest.validate(project)
     if errors:
         raise SystemExit("invalid project:\n  " + "\n  ".join(errors))
-    render.run(project)
+    shot_ids = [args.shot] if args.shot else None
+    resume = args.resume or project.kind == "film"
+    render.run(project, shot_ids=shot_ids, preview=args.preview, resume=resume)
     return 0
 
 
@@ -137,6 +139,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     render_cmd = sub.add_parser("render", help="render a project to media")
     render_cmd.add_argument("id")
+    render_cmd.add_argument("--shot", default="", help="render one shot")
+    render_cmd.add_argument("--resume", action="store_true", help="skip completed shots")
+    render_cmd.add_argument("--preview", action="store_true", help="half resolution preview")
     render_cmd.set_defaults(func=cmd_render)
 
     export = sub.add_parser("export", help="export GLB or web build")

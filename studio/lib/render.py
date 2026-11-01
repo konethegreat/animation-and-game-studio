@@ -1,53 +1,77 @@
 from __future__ import annotations
 
-import subprocess
-import sys
+from dataclasses import replace
 from pathlib import Path
 
-from . import config, media
+from . import engines, media, queue
 from .manifest import Project
 
 
-def _run(cmd: list[str], label: str) -> None:
-    print(f"[{label}] {' '.join(cmd[:4])} ...")
-    result = subprocess.run(cmd)
-    if result.returncode != 0:
-        raise RuntimeError(f"{label} failed with exit code {result.returncode}")
+def run(
+    project: Project,
+    shot_ids: list[str] | None = None,
+    preview: bool = False,
+    resume: bool = True,
+) -> Path:
+    if project.kind != "film":
+        raise ValueError(f"{project.id} is a game; use studio build")
 
-
-def run(project: Project) -> Path:
-    frames = project.media_dir / "_frames"
-    media.clear_dir(frames)
+    adapter = engines.get(project.engine)
     width, height = project.resolution
+    if preview:
+        width = max(2, width // 2)
+        height = max(2, height // 2)
 
-    if project.engine == "python":
-        cmd = [
-            sys.executable, str(project.root / project.entry),
-            "--out", str(frames), "--frames", str(project.frames),
-            "--width", str(width), "--height", str(height),
-        ]
-        _run(cmd, project.id)
-    elif project.engine == "blender":
-        blender = config.find_tool("blender")
-        if not blender:
-            raise RuntimeError("blender not found; run studio doctor")
-        cmd = [
-            str(blender), "-b", "--python", str(project.root / project.entry), "--",
-            "--out", str(frames),
-            "--frames-start", "1", "--frames-end", str(project.frames),
-            "--width", str(width), "--height", str(height),
-        ]
-        _run(cmd, project.id)
-    else:
-        raise ValueError(f"project {project.id} cannot be rendered as video")
+    frames_root = project.media_dir / "_frames"
+    frames_root.mkdir(parents=True, exist_ok=True)
+    state_path = frames_root / "state.json"
+    state = queue.load_state(state_path)
 
-    produced = sorted(frames.glob("frame_*.png"))
-    if len(produced) != project.frames:
-        raise RuntimeError(
-            f"{project.id} produced {len(produced)} frames, expected {project.frames}"
+    selected = project.shots
+    if shot_ids:
+        known = {shot.id for shot in project.shots}
+        missing = [shot_id for shot_id in shot_ids if shot_id not in known]
+        if missing:
+            raise ValueError(f"unknown shot(s): {', '.join(missing)}")
+        selected = [shot for shot in project.shots if shot.id in shot_ids]
+
+    for shot in selected:
+        out = frames_root / shot.id if len(project.shots) > 1 else frames_root
+        source = queue.source_hash(project, shot)
+        settings = queue.settings_hash(project, shot, width, height, preview)
+        if resume and queue.shot_complete(out, shot, state, source, settings):
+            print(f"skip {project.id}/{shot.id}: complete")
+            continue
+        media.clear_dir(out)
+        out.mkdir(parents=True, exist_ok=True)
+        adapter.prepare(project)
+        rendered = replace(project, resolution=(width, height))
+        adapter.render(rendered, shot, out)
+        produced = len(list(out.glob("frame_*.png")))
+        if produced != shot.frames:
+            raise RuntimeError(
+                f"{project.id}/{shot.id} produced {produced} frames, expected {shot.frames}"
+            )
+        queue.mark_complete(state, shot, source, settings)
+        queue.save_state(state_path, state)
+        print(f"done {project.id}/{shot.id}: {produced} frames")
+
+    complete = all(
+        queue.shot_complete(
+            frames_root / shot.id if len(project.shots) > 1 else frames_root,
+            shot,
+            state,
+            queue.source_hash(project, shot),
+            queue.settings_hash(project, shot, width, height, preview),
         )
-
-    media.encode(
-        frames, project.media_dir, project.fps, width, height, project.poster_time
+        for shot in project.shots
     )
-    return frames
+    if not complete:
+        print(f"partial {project.id}: remaining shots are not encoded yet")
+        return frames_root
+
+    if preview:
+        media.encode_preview(project, frames_root, width, height)
+    else:
+        media.encode_project(project, frames_root, width, height)
+    return frames_root
