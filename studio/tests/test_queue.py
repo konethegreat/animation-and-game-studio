@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 from PIL import Image
 
 from studio.lib import queue
@@ -66,6 +67,11 @@ def test_complete_requires_state_and_frames(tmp_path):
 
 
 from studio.lib import render
+
+
+@pytest.fixture(autouse=True)
+def skip_verify(monkeypatch):
+    monkeypatch.setattr(render.verify, "run", lambda *args, **kwargs: [])
 
 
 class FakeAdapter:

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 from pathlib import Path
 
-from . import engines, media, queue
+from . import engines, media, queue, verify
 from .manifest import Project
 
 
@@ -74,4 +74,11 @@ def run(
         media.encode_preview(project, frames_root, width, height)
     else:
         media.encode_project(project, frames_root, width, height)
+        problems = [
+            check for check in verify.run(project, stage="render") if not check.ok
+        ]
+        if problems:
+            raise RuntimeError("verification failed: " + "; ".join(
+                f"{check.name}: {check.detail}" for check in problems
+            ))
     return frames_root

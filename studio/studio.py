@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from studio.lib import config, engines, godot, manifest, publish, render, sheet  # noqa: E402
+from studio.lib import config, engines, godot, manifest, publish, render, sheet, verify  # noqa: E402
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
@@ -59,6 +59,17 @@ def cmd_render(args: argparse.Namespace) -> int:
     resume = args.resume or project.kind == "film"
     render.run(project, shot_ids=shot_ids, preview=args.preview, resume=resume)
     return 0
+
+
+def cmd_verify(args: argparse.Namespace) -> int:
+    project = manifest.find(args.id)
+    checks = verify.run(project, stage="all")
+    failed = False
+    for check in checks:
+        mark = "ok  " if check.ok else "FAIL"
+        print(f"{mark} {check.name:8} {check.detail}")
+        failed = failed or not check.ok
+    return 1 if failed else 0
 
 
 def cmd_export(args: argparse.Namespace) -> int:
@@ -147,6 +158,10 @@ def build_parser() -> argparse.ArgumentParser:
     export = sub.add_parser("export", help="export GLB or web build")
     export.add_argument("id")
     export.set_defaults(func=cmd_export)
+
+    verify_cmd = sub.add_parser("verify", help="verify rendered outputs")
+    verify_cmd.add_argument("id")
+    verify_cmd.set_defaults(func=cmd_verify)
 
     sheet = sub.add_parser("sheet", help="make a contact sheet from a video")
     sheet.add_argument("input")
