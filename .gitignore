@@ -5,7 +5,7 @@ __pycache__/
 node_modules/
 showcase/dist/
 showcase/public/media/
-showcase/public/play/
+showcase/public/builds/
 showcase/public/models/
 showcase/src/projects.generated.ts
 assets/generated/

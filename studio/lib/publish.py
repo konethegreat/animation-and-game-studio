@@ -74,12 +74,12 @@ def run() -> Path:
         if project.type == "game":
             build = project.root / "build" / "web"
             if (build / "index.html").exists():
-                play_dir = PUBLIC / "play" / project.id
+                play_dir = PUBLIC / "builds" / project.id
                 if play_dir.exists():
                     shutil.rmtree(play_dir)
                 shutil.copytree(build, play_dir)
                 (play_dir / ".nojekyll").touch()
-                entry["play"] = f"play/{project.id}/index.html"
+                entry["play"] = f"builds/{project.id}/index.html"
         entries.append(entry)
 
     body = json.dumps(entries, indent=2)
