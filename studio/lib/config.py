@@ -119,7 +119,8 @@ def tool_version(name: str, exe: Path) -> str:
         out = subprocess.run(
             [str(exe), flag], capture_output=True, text=True, timeout=45
         )
-        return (out.stdout or out.stderr).strip().splitlines()[0]
+        lines = (out.stdout or out.stderr).strip().splitlines()
+        return lines[0] if lines else ""
     except Exception as exc:
         return f"error: {exc}"
 

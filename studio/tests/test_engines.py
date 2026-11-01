@@ -109,3 +109,24 @@ def test_godot_build_delegates_to_export_web(tmp_path, monkeypatch):
     target = GodotAdapter().build(project, tmp_path / "build" / "web")
     assert calls == [(tmp_path, tmp_path / "build" / "web")]
     assert target == tmp_path / "build" / "web"
+
+
+from studio import studio as cli
+
+
+def test_doctor_deep_prints_adapters(monkeypatch, capsys):
+    from studio.lib.engines.base import Probe
+
+    monkeypatch.setattr(cli.config, "doctor", lambda: [
+        {"name": "blender", "path": "C:/blender.exe", "version": "4.5.10", "ok": True},
+    ])
+    monkeypatch.setattr(cli.engines, "probe_all", lambda: [
+        Probe("blender", "blender", "C:/blender.exe", "4.5.10", ("film",), True),
+        Probe("unity", "unity", "", "", ("film", "game"), False, ("unity not found",)),
+    ])
+    code = cli.main(["doctor", "--deep"])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "adapters" in out
+    assert "unity" in out
+    assert "unity not found" in out

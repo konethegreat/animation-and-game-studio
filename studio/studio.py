@@ -9,16 +9,29 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from studio.lib import config, godot, manifest, publish, render, sheet  # noqa: E402
+from studio.lib import config, engines, godot, manifest, publish, render, sheet  # noqa: E402
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
     rows = config.doctor()
     for row in rows:
         mark = "ok" if row["ok"] else "missing"
-        print(f"{row['name']:8} {mark:8} {row['path']}")
+        print(f"{row['name']:10} {mark:8} {row['path']}")
         if row["version"]:
-            print(f"         {row['version']}")
+            print(f"           {row['version']}")
+    if args.deep:
+        print("\nadapters")
+        for probe in engines.probe_all():
+            mark = "ok" if probe.ok else "blocked"
+            kinds = ",".join(probe.kinds)
+            print(f"{probe.name:10} {mark:8} {kinds:10} {probe.path}")
+            if probe.version:
+                print(f"           {probe.version}")
+            for blocker in probe.blockers:
+                print(f"           {blocker}")
+        gpu = config.gpu_name()
+        if gpu:
+            print(f"\ngpu        {gpu}")
     ok = all(row["ok"] for row in rows)
     return 0 if ok or args.soft else 1
 
@@ -110,6 +123,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     doctor = sub.add_parser("doctor", help="check installed tools")
     doctor.add_argument("--soft", action="store_true", help="exit 0 even if tools are missing")
+    doctor.add_argument("--deep", action="store_true", help="also probe engine adapters")
     doctor.set_defaults(func=cmd_doctor)
 
     validate = sub.add_parser("validate", help="validate every project manifest")
