@@ -59,6 +59,37 @@ export const NOTES: Record<string, ProjectNotes> = {
       "Frames render at 1920 by 800 in Cycles, 128 samples with denoising on the graphics card, then encode to MP4, WebM and the poster on this page.",
     ],
   },
+  "011-bin-city": {
+    madeWith: ["Godot 4.7.2", "GDScript", "Procedural audio", "Web export"],
+    notes: [
+      "Dawn Market is built at run time from primitives: cobbles, awnings, stalls, a canal and a bridge. There are no imported models or textures in the build.",
+      "Score, vacuum hum and effects are generated as PCM16 waveforms at 22050 Hz. Without image or audio samples the whole web build stays inside the 40 MB budget.",
+      "The collector changes costume at every rank. Rank 1 is a street sweeper with a broom. Rank 2 swaps the cap, adds a coat and widens the carry stack.",
+      "The camera sweeps a sphere against the world so it does not clip through stalls, planters or the skip.",
+    ],
+  },
+};
+
+export type PlayInfo = {
+  hook: string;
+  controls: { label: string; body: string }[];
+  loop: string;
+  credits: string;
+};
+
+export const PLAY: Record<string, PlayInfo> = {
+  "011-bin-city": {
+    hook: "One collector. One cart. One very messy morning.",
+    controls: [
+      { label: "Move", body: "WASD or arrow keys, the left stick on a gamepad, or the on screen stick on touch." },
+      { label: "Vacuum", body: "Hold the left mouse button, RT, or the VAC pad. Short bursts clear a cone of litter." },
+      { label: "Interact", body: "E, X, or USE to lift a heavy load, bag a pile, or sort at a depot." },
+      { label: "Look", body: "Right drag or the right stick. Scroll to pull the camera in and out." },
+      { label: "Run", body: "Shift, LB, or the RUN pad. Rank 2 unlocks a third carry slot." },
+    ],
+    loop: "Vacuum litter, sort it into four depot bins, and carry the heavy things to the skip. Clean 90 percent of Dawn Market before the shutters open.",
+    credits: "Designed, built, written and scored by Kone Tshivhinda. No imported models, textures or audio.",
+  },
 };
 
 export type FilmShot = { no: string; title: string; time: string; length: string; body: string };

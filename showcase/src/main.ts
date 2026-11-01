@@ -6,7 +6,7 @@ import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
 
 import { projects, type Project } from "./projects.generated";
-import { ENGINE_LABEL, FILM, NOTES, PIPELINE, REPO, TOOLS, TYPE_LABEL, type FilmDetail } from "./content";
+import { ENGINE_LABEL, FILM, NOTES, PIPELINE, PLAY, REPO, TOOLS, TYPE_LABEL, type FilmDetail } from "./content";
 import { mountTurntable, type ViewerHandle } from "./viewer";
 
 const BASE = import.meta.env.BASE_URL;
@@ -63,7 +63,7 @@ function head(active?: string): string {
   const nav = [
     { label: "Work", href: `${href()}#work`, key: "work" },
     { label: "3D demo", href: href("demo/three"), key: "demo" },
-    { label: "Play", href: href("play/003-micro-game"), key: "play" },
+    { label: "Play", href: href("play/011-bin-city"), key: "play" },
   ];
   return `
   <a class="skip" href="#main">Skip to content</a>
@@ -99,7 +99,7 @@ function foot(): string {
       <nav class="foot-nav" aria-label="Footer">
         <a href="${href()}#work" data-link>Work</a>
         <a href="${href("demo/three")}" data-link>3D demo</a>
-        <a href="${href("play/003-micro-game")}" data-link>Play</a>
+        <a href="${href("play/011-bin-city")}" data-link>Play</a>
         <a href="${REPO}" target="_blank" rel="noreferrer">GitHub</a>
       </nav>
     </div>
@@ -164,7 +164,7 @@ function home(): string {
         <p class="lede">A working studio for 2D animation, 3D characters and playable games. Everything here is generated from source in one open pipeline. No stock footage, no purchased models.</p>
         <div class="hero-actions">
           <a class="btn btn-ink" href="${href()}#work" data-link>See the work</a>
-          <a class="btn btn-glow" href="${href("play/003-micro-game")}" data-link><span class="play-glyph" aria-hidden="true"></span>Play Orbit Run</a>
+          <a class="btn btn-glow" href="${href("play/011-bin-city")}" data-link><span class="play-glyph" aria-hidden="true"></span>Play BIN CITY</a>
         </div>
         <dl class="hero-stats">
           <div><dt class="mono">Projects</dt><dd>${String(projects.length).padStart(2, "0")}</dd></div>
@@ -187,9 +187,9 @@ function home(): string {
       <div class="section-head">
         <div>
           <p class="eyebrow">Selected work</p>
-          <h2>Three ways to move.</h2>
+          <h2>Work in motion.</h2>
         </div>
-        <p class="section-note">Loops, characters and a game. Each piece runs through the same manifest, render and publish pipeline.</p>
+        <p class="section-note">Loops, characters and playable worlds. Each piece runs through the same manifest, render and publish pipeline.</p>
       </div>
       <div class="filters" role="group" aria-label="Filter work">
         <button type="button" data-filter="all" aria-pressed="true">All <span>${String(projects.length).padStart(2, "0")}</span></button>
@@ -351,6 +351,24 @@ function projectPage(project: Project, index: number): string {
 
 function playPage(project: Project): string {
   const available = Boolean(project.play);
+  const play = PLAY[project.id];
+  const help = play
+    ? `<div class="wrap play-help play-help-game">
+      <div>
+        <p class="eyebrow">Controls</p>
+        <ul class="play-controls">
+          ${play.controls.map((item) => `<li><span class="mono">${esc(item.label)}</span>${esc(item.body)}</li>`).join("")}
+        </ul>
+      </div>
+      <div><p class="eyebrow">The loop</p><p>${esc(play.loop)}</p></div>
+      <div><p class="eyebrow">Credits</p><p>${esc(play.credits)}</p></div>
+      <a class="btn btn-ink" href="${projectHref(project)}" data-link>How it was built</a>
+    </div>`
+    : `<div class="wrap play-help">
+      <div><p class="eyebrow">Controls</p><p>Arrow keys or A and D to move. Drag on touch screens. Space starts the run.</p></div>
+      <div><p class="eyebrow">The loop</p><p>Collect stars, dodge rocks. Every hit costs a life. The best score stays on this device.</p></div>
+      <a class="btn btn-ink" href="${projectHref(project)}" data-link>How it was built</a>
+    </div>`;
   return `
   ${head("play")}
   <main id="main" class="play-view">
@@ -359,6 +377,8 @@ function playPage(project: Project): string {
       <span class="mono dim">${esc(project.title)} / ${esc(ENGINE_LABEL[project.engine] ?? project.engine)}</span>
       <button type="button" class="text-button mono" id="fullscreen">Fullscreen</button>
     </div>
+    ${play ? `<p class="wrap play-hook">${esc(play.hook)}</p>` : ""}
+    <p class="wrap play-mobile-hint mono">Rotate for a wider view. Fullscreen helps.</p>
     <div class="wrap">
       <div class="play-frame">
         ${
@@ -368,11 +388,7 @@ function playPage(project: Project): string {
         }
       </div>
     </div>
-    <div class="wrap play-help">
-      <div><p class="eyebrow">Controls</p><p>Arrow keys or A and D to move. Drag on touch screens. Space starts the run.</p></div>
-      <div><p class="eyebrow">The loop</p><p>Collect stars, dodge rocks. Every hit costs a life. The best score stays on this device.</p></div>
-      <a class="btn btn-ink" href="${projectHref(project)}" data-link>How it was built</a>
-    </div>
+    ${help}
   </main>
   ${foot()}`;
 }
