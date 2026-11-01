@@ -21,3 +21,8 @@ media/**/_test/
 assets/embed/
 assets/private/
 showcase/src/credits.generated.ts
+Temp/
+Library/
+Logs/
+UserSettings/
+projects/**/obj/
