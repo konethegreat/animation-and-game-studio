@@ -94,7 +94,8 @@ class ProbeOnlyAdapter(EngineAdapter):
 class UnityAdapter(ProbeOnlyAdapter):
     def probe(self) -> Probe:
         probe = super().probe()
-        if not probe.ok or any(UNITY_LICENSE_DIRS[0].glob("*")) or any(UNITY_LICENSE_DIRS[1].glob("*")):
+        licensed = any(any(directory.glob("*")) for directory in UNITY_LICENSE_DIRS)
+        if not probe.ok or licensed:
             return probe
         return replace(
             probe,
