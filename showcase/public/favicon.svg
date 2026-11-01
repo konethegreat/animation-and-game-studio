@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Kone Studio">
+  <rect width="64" height="64" rx="18" fill="#15161a"/>
+  <circle cx="32" cy="32" r="15" fill="none" stroke="#c9f24d" stroke-width="5"/>
+  <circle cx="48" cy="16" r="5" fill="#ff5b3d"/>
+</svg>
