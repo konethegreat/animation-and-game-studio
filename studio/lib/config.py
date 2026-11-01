@@ -72,6 +72,22 @@ VERSION_ARGS = {"ffmpeg": "-version", "unity": "-version", "unreal": "-version"}
 NO_VERSION = {"gdevelop", "unity_hub"}
 
 
+def _appx_location(package: str) -> Path | None:
+    # Store apps live under WindowsApps, which glob cannot list. Ask the shell.
+    try:
+        found = subprocess.run(
+            ["powershell", "-NoProfile", "-Command",
+             f"(Get-AppxPackage {package}).InstallLocation"],
+            capture_output=True, text=True, timeout=20,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    location = (found.stdout or "").strip()
+    if found.returncode != 0 or not location:
+        return None
+    return Path(location)
+
+
 def find_tool(name: str) -> Path | None:
     for candidate in CANDIDATES[name]:
         if any(ch in candidate for ch in "*?[]"):
@@ -82,6 +98,8 @@ def find_tool(name: str) -> Path | None:
             found = shutil.which(candidate)
             if found:
                 return Path(found)
+    if name == "unity_hub":
+        return _appx_location("UnityTechnologies.UnityHub")
     return None
 
 

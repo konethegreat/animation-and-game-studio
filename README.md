@@ -44,7 +44,7 @@ Measured on this machine. `docs/engines.md` has paths, probe output and blockers
 | LÖVE | 11.5 | Probed, artifact next | Lua game, captured frames |
 | MonoGame | 3.8 on .NET 10 | Probed, artifact next | C# game templates |
 | GDevelop | 5.6 | Installed, export unproven | Event driven web game |
-| Unity | 6.3 LTS | Blocked on licence sign in | WebGL build |
+| Unity | 6.3 LTS | Licensed, editor runs headless | WebGL build |
 | Unreal | 5.8 | Not installed | Capability report |
 
 ## Toolchain

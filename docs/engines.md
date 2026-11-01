@@ -16,8 +16,8 @@ Every row was probed, not assumed. `studio doctor --deep` prints the same data p
 | MonoGame templates | 3.8.6 | `~/.templateengine/packages` | `monogame`, game | ok, `mgdesktopgl` and friends listed |
 | LÖVE | 11.5 | `C:/Program Files/LOVE/love.exe` | `love`, game | ok, PNG capture proven |
 | GDevelop | 5.6.285 | `C:/Users/Konet/AppData/Local/Programs/GDevelop/GDevelop.exe` | `gdevelop`, game | installed, headless export unproven |
-| Unity | 6.3 LTS 6000.3.27f2 | `C:/Program Files/Unity/Hub/Editor/6000.3.27f2/Editor/Unity.exe` | `unity`, film and game | editor and WebGL module installed, blocked on licence |
-| Unity Hub | 3.22.5 (MSIX) | `C:/Program Files/WindowsApps/UnityTechnologies.UnityHub_3.22.5.65535_x64__2vrhnee42bhxm` | none, sign-in gateway | installed, path not probeable |
+| Unity | 6.3 LTS 6000.3.27f2 | `C:/Program Files/Unity/Hub/Editor/6000.3.27f2/Editor/Unity.exe` | `unity`, film and game | ok, Personal licence active and batch mode runs; adapter is probe only until 005 lands |
+| Unity Hub | 3.22.5 (MSIX) | `C:/Program Files/WindowsApps/UnityTechnologies.UnityHub_3.22.5.65535_x64__2vrhnee42bhxm` | none, sign-in gateway | ok, found through the AppX package query |
 | Unreal | 5.8 target | not installed | `unreal`, film | blocked, see below |
 
 ## Verified probes
@@ -26,7 +26,7 @@ Every row was probed, not assumed. `studio doctor --deep` prints the same data p
 - **Cycles timing**, default scene, 960x540 at 64 samples with denoising off: GPU 0.88 s and 0.85 s on two warm runs, CPU 3.01 s. At 320x180 and 16 samples the first GPU run took 2.22 s because OptiX compiled kernels, then the CPU took 0.25 s. Small resolutions are dominated by setup, so the film benchmarks at 1080p on a real scene before locking sample counts.
 - **LÖVE capture**: a 320x180 probe wrote a valid PNG through `love.graphics.captureScreenshot`, then quit. Frames land in `%APPDATA%/LOVE/<identity>/`, so the adapter must copy from there.
 - **Godot web export**: `studio build 003-micro-game` regenerated `index.wasm` at 38 MB, 39 MB for the whole folder. The verification ceiling is 40 MB per build because the engine, not our content, sets that floor.
-- **Unity batch mode**: `Unity.exe -batchmode -quit -nographics` exits with code 198 and `No valid Unity Editor license found. Please activate your license.` The licensing client is present, the machine has no entitlement. Unity Personal is free but needs the owner to sign in.
+- **Unity batch mode**: `Unity.exe -batchmode -quit -nographics` connects to the licensing client, resolves the entitlement and quits cleanly. Unity 6 stores the entitlement at `%LOCALAPPDATA%/Unity/licenses/UnityEntitlementLicense.xml`; the older `%PROGRAMDATA%/Unity/licenses` layout is checked too, so the probe covers both.
 - **Unity WebGL**: `WebGLSupport` is present next to `windowsstandalonesupport` in the editor playback engines.
 - **MonoGame**: `dotnet new list` shows `mgdesktopgl`, `mgwindowsdx`, `mgdesktopvk`, `mgblank2dstartkit` and the content builder templates. NuGet had no sources configured, so `https://api.nuget.org/v3/index.json` was added as `nuget.org`.
 - **GDevelop**: the executable has file version 5.6.285.40859. It did not answer `--version` within 45 seconds, so the probe skips version calls for GUI tools and reports the file version through the matrix only.
@@ -34,7 +34,7 @@ Every row was probed, not assumed. `studio doctor --deep` prints the same data p
 
 ## Blockers
 
-1. **Unity licence**: open Unity Hub, sign in with a free Unity Personal account, and activate the editor. Then `studio doctor --deep` should show `unity ok`. Until then any Unity artifact can be authored and reviewed but not rendered or built. This is the only blocker that needs the owner.
+1. **Unity licence**: resolved on 2026-11-01. The owner signed in through Unity Hub, the Personal entitlement landed in the user profile, and the adapter now reports `unity ok`. No owner action left.
 2. **Unreal 5.8**: needs an Epic account, the launcher, a 120 GB download and more RAM than the machine has. The 009 artifact becomes a capability report with measured numbers, which is already the spec fallback.
 3. **GDevelop headless export**: 006 must prove a command line export path. If none is reliable, the project file and the export recipe are committed and the artifact ships as video under the web build rule.
 
@@ -51,7 +51,7 @@ https://download.unity3d.com/download_unity/22188f149405/TargetSupportInstaller/
 "C:/Program Files/dotnet/dotnet.exe" new install MonoGame.Templates.CSharp
 ```
 
-The Unity installers were run with `/S` and `/D=C:\Program Files\Unity\Hub\Editor\6000.3.27f2`, which needs an elevation prompt. Unity Hub is a Store MSIX package, so a file path probe cannot see it; the licensing client inside the editor is what matters.
+The Unity installers were run with `/S` and `/D=C:\Program Files\Unity\Hub\Editor\6000.3.27f2`, which needs an elevation prompt. Unity Hub is a Store MSIX package under `WindowsApps`, which `glob` cannot list, so `find_tool` falls back to `Get-AppxPackage` when the normal paths miss.
 
 ## Reproduce
 

@@ -7,7 +7,11 @@ from pathlib import Path
 
 from .. import config
 
-UNITY_LICENSES = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "Unity" / "licenses"
+# Unity 6 keeps entitlements in the user profile; older editors used ProgramData.
+UNITY_LICENSE_DIRS = (
+    Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "Unity" / "licenses",
+    Path(os.environ.get("PROGRAMDATA", "C:/ProgramData")) / "Unity" / "licenses",
+)
 
 
 @dataclass(frozen=True)
@@ -90,7 +94,7 @@ class ProbeOnlyAdapter(EngineAdapter):
 class UnityAdapter(ProbeOnlyAdapter):
     def probe(self) -> Probe:
         probe = super().probe()
-        if not probe.ok or any(UNITY_LICENSES.glob("*")):
+        if not probe.ok or any(UNITY_LICENSE_DIRS[0].glob("*")) or any(UNITY_LICENSE_DIRS[1].glob("*")):
             return probe
         return replace(
             probe,

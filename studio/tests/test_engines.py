@@ -28,7 +28,7 @@ def test_unity_reports_licence_blocker(monkeypatch, tmp_path):
     fake.write_text("", encoding="utf-8")
     monkeypatch.setattr(config, "find_tool", lambda name: fake)
     monkeypatch.setattr(config, "tool_version", lambda name, exe: "6000.3.27f2")
-    monkeypatch.setattr("studio.lib.engines.base.UNITY_LICENSES", tmp_path / "licenses")
+    monkeypatch.setattr("studio.lib.engines.base.UNITY_LICENSE_DIRS", (tmp_path / "exists", tmp_path / "legacy"))
     probe = engines.get("unity").probe()
     assert probe.ok is False
     assert "licence" in probe.blockers[0]
@@ -40,10 +40,10 @@ def test_probe_reports_found_tool(monkeypatch, tmp_path):
     fake.write_text("", encoding="utf-8")
     licenses = tmp_path / "licenses"
     licenses.mkdir()
-    (licenses / "Unity_lic.ulf").write_text("licence", encoding="utf-8")
+    (licenses / "UnityEntitlementLicense.xml").write_text("licence", encoding="utf-8")
     monkeypatch.setattr(config, "find_tool", lambda name: fake)
     monkeypatch.setattr(config, "tool_version", lambda name, exe: "6000.3.27f2")
-    monkeypatch.setattr("studio.lib.engines.base.UNITY_LICENSES", licenses)
+    monkeypatch.setattr("studio.lib.engines.base.UNITY_LICENSE_DIRS", (licenses, tmp_path / "legacy"))
     probe = engines.get("unity").probe()
     assert probe.ok is True
     assert probe.version == "6000.3.27f2"

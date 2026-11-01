@@ -27,4 +27,6 @@ Temp/
 Library/
 Logs/
 UserSettings/
+/Packages/
+/ProjectSettings/
 projects/**/obj/
