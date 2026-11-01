@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from studio.lib import assets, config, engines, manifest, publish, render, sheet, verify  # noqa: E402
+from studio.lib import assets, config, cut, engines, manifest, publish, render, sheet, verify  # noqa: E402
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
@@ -98,6 +98,14 @@ def cmd_export(args: argparse.Namespace) -> int:
     raise SystemExit(f"{project.id} has no export target")
 
 
+def cmd_cut(args: argparse.Namespace) -> int:
+    project = manifest.find(args.id)
+    shots = [part.strip() for part in args.shots.split(",") if part.strip()]
+    audio = Path(args.audio).resolve() if args.audio else None
+    cut.cut(project, shots, Path(args.out).resolve(), audio=audio)
+    return 0
+
+
 def cmd_sheet(args: argparse.Namespace) -> int:
     sheet.contact_sheet(Path(args.input), Path(args.output))
     print(f"sheet -> {args.output}")
@@ -179,10 +187,17 @@ def build_parser() -> argparse.ArgumentParser:
     verify_cmd.add_argument("id")
     verify_cmd.set_defaults(func=cmd_verify)
 
-    sheet = sub.add_parser("sheet", help="make a contact sheet from a video")
-    sheet.add_argument("input")
-    sheet.add_argument("output")
-    sheet.set_defaults(func=cmd_sheet)
+    sheet_cmd = sub.add_parser("sheet", help="make a contact sheet from a video")
+    sheet_cmd.add_argument("input")
+    sheet_cmd.add_argument("output")
+    sheet_cmd.set_defaults(func=cmd_sheet)
+
+    cut_cmd = sub.add_parser("cut", help="assemble a review cut from rendered shots")
+    cut_cmd.add_argument("id")
+    cut_cmd.add_argument("--shots", required=True, help="comma separated shot ids")
+    cut_cmd.add_argument("--out", required=True)
+    cut_cmd.add_argument("--audio", default="")
+    cut_cmd.set_defaults(func=cmd_cut)
 
     publish_cmd = sub.add_parser("publish", help="refresh showcase data")
     publish_cmd.set_defaults(func=cmd_publish)
