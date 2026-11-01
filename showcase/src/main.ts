@@ -185,7 +185,7 @@ function home(): string {
           <p class="eyebrow">Selected work</p>
           <h2>Three ways to move.</h2>
         </div>
-        <p class="section-note">A loop, a character and a game. Each piece runs through the same manifest, render and publish pipeline.</p>
+        <p class="section-note">Loops, characters and a game. Each piece runs through the same manifest, render and publish pipeline.</p>
       </div>
       <div class="filters" role="group" aria-label="Filter work">
         <button type="button" data-filter="all" aria-pressed="true">All <span>${String(projects.length).padStart(2, "0")}</span></button>
@@ -247,7 +247,7 @@ function modelSection(project: Project): string {
   <section class="model-section" id="model">
     <div class="section-head">
       <div><p class="eyebrow">Live model</p><h2>Take it for a spin.</h2></div>
-      <p class="section-note">The exported glTF has the turntable loop baked in. Drag to orbit and scroll to zoom.</p>
+      <p class="section-note">The exported glTF carries its animation baked in. Drag to orbit and scroll to zoom.</p>
     </div>
     <div class="model-stage" id="model-viewer">
       <img class="model-fallback" src="${asset(project.poster)}" alt="${esc(project.title)} studio render" />

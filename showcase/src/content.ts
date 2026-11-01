@@ -42,6 +42,14 @@ export const NOTES: Record<string, ProjectNotes> = {
       "The web build runs at 60 fps in a 960 by 540 canvas and does not need cross-origin isolation headers.",
     ],
   },
+  "004-lantern-keeper": {
+    madeWith: ["Blender 4.5 LTS", "Python", "EEVEE Next", "glTF"],
+    notes: [
+      "The keeper is built from primitives parented to an empty joint chain. There is no armature and no imported model or texture.",
+      "Three steps, a pause and a lantern lift are keyed over five seconds. A spline camera dollies in and arcs about 66 degrees to a three quarter hero angle.",
+      "The exported glTF is an in place walk loop, so the keeper walks on the spot in the live viewer while you orbit the camera.",
+    ],
+  },
 };
 
 export const PIPELINE = [
