@@ -12,6 +12,7 @@ assets/generated/
 projects/**/build/*
 !projects/003-micro-game/build/web/
 projects/**/.godot/
+projects/**/qa/
 projects/**/*.blend1
 media/**/_frames/
 media/**/_preview/

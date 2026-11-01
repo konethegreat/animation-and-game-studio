@@ -1,0 +1,18 @@
+id: 004-lantern-keeper
+type: 3d
+title: Lantern Keeper
+summary: A hooded keeper walks three steps through a cream studio, stops, and lifts a lime lantern while the camera arcs in.
+tags: [3d, blender, character, walk-cycle, camera]
+engine: blender
+entry: scene.py
+render:
+  resolution: [1280, 720]
+  fps: 24
+  frames: 120
+  poster_time: 4.55
+outputs:
+  - media/004-lantern-keeper/reel.mp4
+  - media/004-lantern-keeper/reel.webm
+  - media/004-lantern-keeper/reel.gif
+  - media/004-lantern-keeper/poster.jpg
+  - media/004-lantern-keeper/lantern-keeper.glb
