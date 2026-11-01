@@ -1,6 +1,6 @@
 """Lay the cloned voice over the score with gentle ducking.
 
-The score is the pilot bed; each voice line sits at the moment it belongs to.
+The score is the bed; each voice line sits at the moment it belongs to.
 Ducking is done with a smoothed envelope, the voice gets a small room so it
 belongs in the same space, and the result is written next to the score. If no
 voice lines exist the script says so and leaves the score alone.
@@ -20,9 +20,9 @@ from scipy import signal
 PROJECT = Path(__file__).resolve().parent
 ROOT = PROJECT.parents[1]
 AUDIO = PROJECT / "audio"
-SCORE = AUDIO / "pilot.flac"
+SCORE = AUDIO / "full.flac"
 VOICE = ROOT / "assets" / "private" / "voice"
-OUT = AUDIO / "pilot-mix.flac"
+OUT = AUDIO / "full-mix.flac"
 
 sys.path.insert(0, str(PROJECT))
 from voice import LINES  # noqa: E402
@@ -54,9 +54,9 @@ def room(data: np.ndarray) -> np.ndarray:
     return out
 
 
-def envelope(size: int, starts: list[float], lengths: list[float], depth: float) -> np.ndarray:
+def envelope(size: int, starts: list[float], lengths: list[float], depths: list[float]) -> np.ndarray:
     envelope = np.ones(size)
-    for start, length in zip(starts, lengths):
+    for start, length, depth in zip(starts, lengths, depths):
         first = max(0, int((start - 0.25) * RATE))
         last = min(size, int((start + length + 0.45) * RATE))
         if last <= first:
@@ -91,7 +91,7 @@ def main() -> int:
         line = room(line)
         peak = float(np.max(np.abs(line)))
         if peak > 1e-9:
-            line *= 0.86 / peak
+            line *= 0.95 / peak
         first = int(start * RATE)
         if first >= size:
             continue
@@ -105,7 +105,7 @@ def main() -> int:
         print(f"no voice lines in {VOICE}; the score stays as it is")
         return 0
 
-    ducked = score * envelope(len(score), starts, lengths, depth=0.42)[:, None]
+    ducked = score * envelope(len(score), starts, lengths, [0.66, 0.55, 0.55])[:, None]
     mix = ducked + placed
     peak = float(np.max(np.abs(mix)))
     mix = mix / max(peak, 1e-9) * 0.89
