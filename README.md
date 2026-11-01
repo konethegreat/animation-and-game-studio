@@ -26,7 +26,7 @@ Live showcase: https://konethegreat.github.io/animation-and-game-studio/
 Everything is authored as code, rendered headless and validated before it ships.
 
 - A `project.yaml` manifest is the single source of truth for each piece.
-- `studio/studio.py` dispatches to engine adapters: Pillow, Blender, Godot, Unity, Unreal, GDevelop, LÖVE and MonoGame.
+- `studio/studio.py` dispatches to rendering adapters for Pillow, Blender, Godot and Unity. LÖVE, MonoGame, GDevelop and Unreal are registered and probed until their artifacts land.
 - Films render shot by shot with resumable state. FFmpeg concatenates the shots, muxes declared audio and normalises loudness.
 - ffprobe, frame scans, GLB inspection and build size checks run before a render is accepted.
 - `studio publish` copies curated media into `showcase/public`, regenerates the gallery data and writes third party notices.
@@ -41,8 +41,8 @@ Measured on this machine. `docs/engines.md` has paths, probe output and blockers
 | Python and Pillow | 3.15 | Working | 2D frame sequences |
 | Blender | 4.5 LTS | Working | Cycles renders, GLB |
 | Godot | 4.7.2 | Working | Playable web build |
-| LÖVE | 11.5 | Working | Lua game, captured frames |
-| MonoGame | 3.8 on .NET 10 | Working | C# game templates |
+| LÖVE | 11.5 | Probed, artifact next | Lua game, captured frames |
+| MonoGame | 3.8 on .NET 10 | Probed, artifact next | C# game templates |
 | GDevelop | 5.6 | Installed, export unproven | Event driven web game |
 | Unity | 6.3 LTS | Blocked on licence sign in | WebGL build |
 | Unreal | 5.8 | Not installed | Capability report |
