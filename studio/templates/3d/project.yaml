@@ -1,0 +1,17 @@
+id: __ID__
+type: 3d
+title: __TITLE__
+summary: A short 3D turntable rendered headless in Blender and exported as GLB.
+tags: [3d, blender]
+engine: blender
+entry: scene.py
+render:
+  resolution: [1280, 720]
+  fps: 24
+  frames: 96
+outputs:
+  - media/__ID__/reel.mp4
+  - media/__ID__/reel.webm
+  - media/__ID__/reel.gif
+  - media/__ID__/poster.jpg
+  - media/__ID__/__ID__.glb

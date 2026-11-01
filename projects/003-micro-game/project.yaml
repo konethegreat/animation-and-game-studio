@@ -1,0 +1,14 @@
+id: 003-micro-game
+type: game
+title: Orbit Run
+summary: A one-screen arcade game about collecting stars and dodging rocks, made with Godot.
+tags: [game, godot, arcade]
+engine: godot
+entry: project.godot
+render:
+  resolution: [960, 540]
+  fps: 60
+  frames: 1
+outputs:
+  - media/003-micro-game/poster.jpg
+  - projects/003-micro-game/build/web/index.html

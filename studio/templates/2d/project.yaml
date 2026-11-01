@@ -1,0 +1,16 @@
+id: __ID__
+type: 2d
+title: __TITLE__
+summary: A short 2D animation study rendered frame by frame with Pillow.
+tags: [2d, animation]
+engine: python
+entry: render.py
+render:
+  resolution: [960, 540]
+  fps: 24
+  frames: 48
+outputs:
+  - media/__ID__/reel.mp4
+  - media/__ID__/reel.webm
+  - media/__ID__/reel.gif
+  - media/__ID__/poster.jpg

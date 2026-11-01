@@ -1,0 +1,14 @@
+id: __ID__
+type: game
+title: __TITLE__
+summary: A small playable arcade game built with Godot and exported for the web.
+tags: [game, godot]
+engine: godot
+entry: project.godot
+render:
+  resolution: [960, 540]
+  fps: 60
+  frames: 1
+outputs:
+  - media/__ID__/poster.jpg
+  - projects/__ID__/build/web/index.html

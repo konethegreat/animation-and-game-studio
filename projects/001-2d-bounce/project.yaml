@@ -1,0 +1,17 @@
+id: 001-2d-bounce
+type: 2d
+title: Bounce
+summary: A squash and stretch study with a little blob character, a springy antenna and a patient stage.
+tags: [2d, animation, principles]
+engine: python
+entry: render.py
+render:
+  resolution: [1920, 1080]
+  fps: 24
+  frames: 144
+outputs:
+  - media/001-2d-bounce/reel.mp4
+  - media/001-2d-bounce/reel.webm
+  - media/001-2d-bounce/reel.gif
+  - media/001-2d-bounce/poster.jpg
+  - media/001-2d-bounce/sheet.jpg
