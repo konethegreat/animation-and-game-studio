@@ -39,6 +39,7 @@ VARIANTS = (
     ("default", 0.50, 0.50),
     ("warm", 0.65, 0.45),
 )
+CHOSEN = VARIANTS[0]
 
 
 def reference() -> Path:
@@ -55,12 +56,32 @@ def reference() -> Path:
     return REFERENCE_WAV
 
 
+CACHE = Path.home() / ".cache" / "huggingface" / "hub" / "models--ResembleAI--chatterbox"
+
+
+def local_model_dir() -> Path | None:
+    if not CACHE.exists():
+        return None
+    snapshots = CACHE / "snapshots"
+    ref = CACHE / "refs" / "main"
+    if ref.exists():
+        candidate = snapshots / ref.read_text(encoding="utf-8").strip()
+        if candidate.exists():
+            return candidate
+    found = sorted(snapshots.glob("*"))
+    return found[-1] if found else None
+
+
 def model():
     import torch
     from chatterbox.tts import ChatterboxTTS
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"loading chatterbox on {device}")
+    directory = local_model_dir()
+    if directory and (directory / "tokenizer.json").exists():
+        print(f"weights {directory}")
+        return ChatterboxTTS.from_local(directory, device)
     return ChatterboxTTS.from_pretrained(device=device)
 
 
@@ -112,9 +133,10 @@ def main() -> int:
             print(pitch_report(path))
         return 0
 
+    _, exaggeration, cfg = CHOSEN
     OUT.mkdir(parents=True, exist_ok=True)
     for line_id, text, _ in LINES:
-        path = speak(tts, text, original, OUT / f"{line_id}.wav", 0.5, 0.5)
+        path = speak(tts, text, original, OUT / f"{line_id}.wav", exaggeration, cfg)
         print(pitch_report(path))
     return 0
 

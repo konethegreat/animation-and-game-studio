@@ -25,7 +25,7 @@ shots:
     entry: s08_return.py
     frames: 216
 audio:
-  mix: audio/pilot.flac
+  mix: audio/pilot-mix.flac
 outputs:
   - media/010-maker-at-work/reel.mp4
   - media/010-maker-at-work/reel.webm

@@ -8,6 +8,8 @@ torchaudio==2.6.0+cu124
 torchvision==0.21.0
 transformers==5.2.0
 chatterbox-tts==0.1.7
+# voice_qa.py feeds whisper numpy audio, so PyAV is never used for decoding
+faster-whisper==1.2.1
 librosa==0.11.0
 soundfile==0.14.0
 numpy==2.5.4
