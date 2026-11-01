@@ -54,7 +54,7 @@ Manifest rules: id is `NNN-lowercase-name`, type is `2d | 3d | game`, engine mus
 
 Game builds live under `builds/<id>/` so the `/play/<id>` route can fall back to the SPA shell instead of serving the game directory directly.
 
-The site uses a `/animation-and-game-studio/` base path and ships `404.html` plus `.nojekyll` for deep links on Pages.
+The site uses a `/animation-and-game-studio/` base path and ships route shells, `404.html` and `.nojekyll` so deep links resolve on Pages without a 404 status.
 
 ## Visual rules
 
