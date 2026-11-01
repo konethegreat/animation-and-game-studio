@@ -27,6 +27,9 @@ jobs:
       - name: Validate project manifests
         run: python studio/studio.py validate
 
+      - name: Verify assets
+        run: python studio/studio.py assets verify --offline
+
       - name: Ensure ffmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 

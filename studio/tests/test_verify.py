@@ -6,7 +6,7 @@ from PIL import Image
 
 from studio.lib import verify
 from studio.lib.manifest import Project, Shot
-from studio.lib.verify import frames, gltf
+from studio.lib.verify import builds, frames, gltf
 
 
 def make_project(tmp_path: Path) -> Project:
@@ -67,3 +67,26 @@ def test_verify_reports_missing_outputs(tmp_path, monkeypatch):
     monkeypatch.setattr(Project, "media_dir", property(lambda self: tmp_path / "media"))
     checks = verify.run(project, stage="render")
     assert any(not check.ok and "missing" in check.detail for check in checks)
+
+
+def test_game_skips_frame_check(tmp_path, monkeypatch):
+    project = make_project(tmp_path)
+    project.kind = "game"
+    project.outputs = []
+    monkeypatch.setattr(Project, "media_dir", property(lambda self: tmp_path / "media"))
+    checks = verify.run(project, stage="render")
+    assert all(check.ok for check in checks)
+
+
+def test_web_build_budget_uses_shipped_ceiling(tmp_path, monkeypatch):
+    web = tmp_path / "builds" / "099-verify-test"
+    web.mkdir(parents=True)
+    (web / "index.html").write_text("<html></html>")
+    (web / "index.wasm").write_bytes(b"x" * (38 * 1024 * 1024))
+    project = make_project(tmp_path)
+    project.kind = "game"
+    project.outputs = ["builds/099-verify-test/index.html"]
+    monkeypatch.setattr(builds, "ROOT", tmp_path)
+    assert builds.check(project) == []
+    (web / "index.wasm").write_bytes(b"x" * (41 * 1024 * 1024))
+    assert builds.check(project)

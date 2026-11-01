@@ -18,6 +18,13 @@ def test_version_args_for_non_gnu_tools():
     assert config.VERSION_ARGS.get("blender", "--version") == "--version"
 
 
+def test_gui_tools_skip_version_probe(tmp_path):
+    exe = tmp_path / "GDevelop.exe"
+    exe.write_text("")
+    assert config.tool_version("gdevelop", exe) == ""
+    assert config.tool_version("unity_hub", exe) == ""
+
+
 def test_gpu_name_returns_a_string(monkeypatch):
     monkeypatch.setattr(config.shutil, "which", lambda name: None)
     assert config.gpu_name() == ""

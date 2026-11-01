@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from ..config import ROOT
 
-MAX_BUILD_MB = 25.0
+# Godot 4.7 ships a 38 MB wasm, so 40 MB is the shipped ceiling.
+MAX_BUILD_MB = 40.0
 
 
 def check(project) -> list[str]:

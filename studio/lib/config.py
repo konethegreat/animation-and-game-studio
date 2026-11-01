@@ -68,6 +68,8 @@ CANDIDATES: dict[str, list[str]] = {
 }
 
 VERSION_ARGS = {"ffmpeg": "-version", "unity": "-version", "unreal": "-version"}
+# GUI-only tools either open a window or block when asked for a version.
+NO_VERSION = {"gdevelop", "unity_hub"}
 
 
 def find_tool(name: str) -> Path | None:
@@ -114,6 +116,8 @@ def gpu_name() -> str:
 
 
 def tool_version(name: str, exe: Path) -> str:
+    if name in NO_VERSION:
+        return ""
     flag = VERSION_ARGS.get(name, "--version")
     try:
         out = subprocess.run(

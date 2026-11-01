@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from studio.lib import assets, config, engines, godot, manifest, publish, render, sheet, verify  # noqa: E402
+from studio.lib import assets, config, engines, manifest, publish, render, sheet, verify  # noqa: E402
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
@@ -72,31 +72,29 @@ def cmd_verify(args: argparse.Namespace) -> int:
     return 1 if failed else 0
 
 
+def cmd_build(args: argparse.Namespace) -> int:
+    project = manifest.find(args.id)
+    if project.kind != "game":
+        raise SystemExit(f"{project.id} is not a game; use studio render")
+    adapter = engines.get(project.engine)
+    out = project.root / "build" / "web"
+    target = adapter.build(project, out)
+    if not target:
+        raise SystemExit(f"{project.engine} has no build target")
+    print(f"web build -> {target}")
+    return 0
+
+
 def cmd_export(args: argparse.Namespace) -> int:
     project = manifest.find(args.id)
-    if project.engine == "godot":
-        godot.export_web(project.root, project.root / "build" / "web")
-        print(f"web build -> {project.root / 'build' / 'web'}")
-        return 0
+    adapter = engines.get(project.engine)
     if project.engine == "blender":
-        blender = config.find_tool("blender")
-        if not blender:
-            raise SystemExit("blender not found")
-        declared = [ROOT / output for output in project.outputs if output.lower().endswith(".glb")]
-        target = declared[0] if declared else project.root / "build" / f"{project.id}.glb"
-        target.parent.mkdir(parents=True, exist_ok=True)
-        import subprocess
-
-        result = subprocess.run(
-            [
-                str(blender), "-b", "--python", str(project.root / project.entry),
-                "--", "--export-glb", str(target),
-            ]
-        )
-        if result.returncode != 0:
-            raise SystemExit("glb export failed")
-        print(f"glb -> {target}")
+        target = project.output_path(".glb") or project.root / "build" / f"{project.id}.glb"
+        result = adapter.export(project, target)
+        print(f"glb -> {result}")
         return 0
+    if project.kind == "game":
+        return cmd_build(args)
     raise SystemExit(f"{project.id} has no export target")
 
 
@@ -172,6 +170,10 @@ def build_parser() -> argparse.ArgumentParser:
     export = sub.add_parser("export", help="export GLB or web build")
     export.add_argument("id")
     export.set_defaults(func=cmd_export)
+
+    build_cmd = sub.add_parser("build", help="build a playable game")
+    build_cmd.add_argument("id")
+    build_cmd.set_defaults(func=cmd_build)
 
     verify_cmd = sub.add_parser("verify", help="verify rendered outputs")
     verify_cmd.add_argument("id")

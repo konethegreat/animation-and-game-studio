@@ -18,12 +18,14 @@ class Check:
 def run(project, stage: str = "all") -> list[Check]:
     checks: list[Check] = []
     problems = []
-    for shot in project.shots:
-        out = project.media_dir / "_frames"
-        out = out / shot.id if len(project.shots) > 1 else out
-        problems.extend(frames.scan(out, shot))
+    if project.kind == "film":
+        for shot in project.shots:
+            out = project.media_dir / "_frames"
+            out = out / shot.id if len(project.shots) > 1 else out
+            problems.extend(frames.scan(out, shot))
     checks.append(Check("frames", not problems, "; ".join(problems)))
-    media_problems = media_checks.check(project, stage)
+    media_stage = "all" if project.kind == "game" else stage
+    media_problems = media_checks.check(project, media_stage)
     checks.append(Check("media", not media_problems, "; ".join(media_problems)))
     if stage == "all":
         audio_problems = audio.check(project)

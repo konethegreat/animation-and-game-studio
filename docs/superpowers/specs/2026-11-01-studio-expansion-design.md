@@ -234,7 +234,7 @@ Artifacts:
 - **008-monogame-river**: a paper boat river game in C# with deterministic update steps and RenderTarget capture. Windows build attached to a release.
 - **009-unreal-probe**: an 8 second, 720p, low scalability scene. If Unreal cannot sustain a usable frame time, the artifact becomes a committed capability report in `docs/engines.md` with measured numbers, and the adapter stays registered and reports the blocker.
 
-Web play follows one budget rule. A build goes to `/play` only if CI can regenerate it or it is small enough to track under an explicit `.gitignore` exception, with 25 MB per build and 40 MB total. `003-micro-game` is the existing exception because CI cannot run the Godot exporter. GDevelop and love.js builds qualify if they land under budget. Unity WebGL and anything larger ship as video plus a release download, so CI never depends on licence activation. The repo stays source first, and the rule is enforced by a size check in `studio verify`. `AGENTS.md` records this one exemption and its budget.
+Web play follows one budget rule. A build goes to `/play` only if CI can regenerate it or it is small enough to track under an explicit `.gitignore` exception, with a 40 MB per build ceiling and 40 MB total. Godot 4.7 ships a 38 MB wasm, so the measured ceiling replaced the original 25 MB target. `003-micro-game` is the existing exception because CI cannot run the Godot exporter. GDevelop and love.js builds qualify if they land under budget. Unity WebGL and anything larger ship as video plus a release download, so CI never depends on licence activation. The repo stays source first, and the rule is enforced by a size check in `studio verify`. `AGENTS.md` records this one exemption and its budget.
 
 ### Install gates
 

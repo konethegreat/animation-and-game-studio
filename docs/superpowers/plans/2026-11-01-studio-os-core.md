@@ -22,7 +22,7 @@
 - Media budgets: GIF 8 MB, MP4 and WebM 20 MB, poster 500 KB, GLB 5 MB.
 - No em dashes in any user facing copy.
 - Never commit `.venv`, `node_modules`, raw frames, Godot `.godot/`, caches, voice references or speaker embeddings.
-- Build output stays out of git, except the existing tracked `projects/003-micro-game/build/web/` and web builds that pass the 25 MB per build and 40 MB total exception.
+- Build output stays out of git, except the existing tracked `projects/003-micro-game/build/web/` and web builds that pass the 40 MB per build and 40 MB total exception.
 - Manifests 001 to 004 must keep rendering with their current commands and outputs.
 - The face rule applies to the film plan, not this one. Any face enhancement must be reviewed against the source portrait.
 
