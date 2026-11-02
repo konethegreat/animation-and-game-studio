@@ -9,6 +9,7 @@ const PILE = preload("res://scripts/pile.gd")
 const RAT = preload("res://scripts/rat.gd")
 const POSTFX = preload("res://scripts/postfx.gd")
 const Data = preload("res://scripts/data.gd")
+const CROWD = preload("res://scripts/crowd.gd")
 
 const MOODS := {
 	"dawn": {
@@ -86,6 +87,8 @@ var sun_light: DirectionalLight3D
 var sky_material: ShaderMaterial
 var player
 var ui
+var crowd
+var talking := false
 var cam_yaw: Node3D
 var cam_pitch: Node3D
 var camera: Camera3D
@@ -166,6 +169,16 @@ func _ready() -> void:
 	ui.sort_closed.connect(_close_sort)
 	ui.interact_pressed.connect(_interact)
 	ui.look_pad.looked.connect(_on_look)
+	ui.dialogue_next.connect(_advance_dialogue)
+	ui.dialogue_choice.connect(_choose_dialogue)
+	var dialogue = get_node_or_null("/root/Dialogue")
+	if dialogue != null:
+		dialogue.started.connect(_on_dialogue_started)
+		dialogue.line.connect(_on_dialogue_line)
+		dialogue.finished.connect(_on_dialogue_finished)
+	crowd = CROWD.new()
+	crowd.name = "Crowd"
+	add_child(crowd)
 	player.stack_tumbled.connect(_on_tumble)
 	player.pulse_requested.connect(_on_pulse)
 	player.dash_started.connect(_on_dash)
@@ -220,6 +233,12 @@ func _process(delta: float) -> void:
 		return
 	if phase != "play":
 		return
+	if talking:
+		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("vacuum"):
+			_advance_dialogue()
+		_update_camera(delta)
+		_update_hud()
+		return
 	if Input.is_action_just_pressed("pause"):
 		_pause()
 		return
@@ -239,6 +258,9 @@ func _process(delta: float) -> void:
 	_check_progress()
 	_update_prompt()
 	_update_hud()
+	if crowd != null:
+		crowd.update_player(player.global_position, player.vacuuming)
+		crowd.watch_clean(clean_progress / maxf(total_weight, 0.001))
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -455,6 +477,8 @@ func _start_shift() -> void:
 	get_tree().paused = false
 	_clear_run()
 	_spawn_market()
+	crowd.watch_clean(0.0)
+	_build_crowd()
 	timer = 0.0
 	score = 0
 	rank = _saved_rank()
@@ -556,6 +580,8 @@ func _clear_run() -> void:
 	vacuum_time = 0.0
 	charge_lock = false
 	Sound.set_vacuum(false)
+	if crowd != null:
+		crowd.clear()
 
 
 func load_area(id: String, spawn_at: Vector3) -> void:
@@ -573,6 +599,23 @@ func load_area(id: String, spawn_at: Vector3) -> void:
 	total_weight = 0.0
 	clean_progress = 0.0
 	player.global_position = spawn_at
+
+
+func _build_crowd() -> void:
+	if crowd == null:
+		return
+	crowd.clear()
+	var points: Array = []
+	for point in world.crowd_points():
+		if world.is_free(point):
+			points.append(point + Vector3(rng.randf_range(-0.7, 0.7), 0.0, rng.randf_range(-0.7, 0.7)))
+	for i in 6:
+		points.append(world.random_walkable(rng))
+	crowd.build(points, 12, rng)
+	crowd.spawn("nell", Vector3(7.4, 0.0, 3.4), "nell", "NELL QUILL", rng)
+	crowd.spawn("rook", Vector3(-7.0, 0.0, 5.6), "rook", "ROOK", rng)
+	crowd.spawn("baker", Vector3(-12.4, 0.0, 0.6), "baker", "BAKER", rng)
+	crowd.spawn("cat", Vector3(-4.6, 0.0, 10.4), "miso", "MISO", rng)
 
 
 func _spawn_market() -> void:
@@ -759,8 +802,18 @@ func _collect(node: Node3D) -> void:
 # ---------------------------------------------------------------- carry and sort
 
 func _interact() -> void:
+	if talking:
+		_advance_dialogue()
+		return
 	if phase != "play" or player.locked:
 		return
+	if crowd != null:
+		var npc = crowd.nearest(player.global_position, 2.8)
+		if npc != null:
+			var info: Dictionary = npc.talk()
+			var dialogue = get_node_or_null("/root/Dialogue")
+			if dialogue != null and dialogue.start(str(info.get("id", ""))):
+				return
 	var heavy = _nearest_heavy()
 	if heavy != null and player.stack_count() < player.max_stack:
 		_lift(heavy)
@@ -1137,12 +1190,59 @@ func _on_rank_changed(value: int) -> void:
 	hopper_capacity = _hopper_for_rank(rank)
 	if player != null:
 		player.set_rank(rank)
+	if crowd != null:
+		crowd.cheer()
 	if ui == null:
 		return
 	Sound.play("rank", 1.0, -2.0)
 	ui.show_rank(rank, _rank_line(rank))
 	if phase == "play":
 		ui.subtitle("RANK UP. %s. %s" % [Data.rank_title(rank), _rank_line(rank)], 6.5)
+
+
+# ---------------------------------------------------------------- dialogue
+
+func _on_dialogue_started(_id: String) -> void:
+	talking = true
+	if player != null:
+		player.locked = true
+		player.vacuuming = false
+	Sound.set_vacuum(false)
+	ui.prompt("")
+	Sound.play("click", 1.1, -6.0)
+
+
+func _on_dialogue_line(speaker: String, text: String, choices: Array) -> void:
+	ui.open_dialogue(speaker, text, choices)
+
+
+func _on_dialogue_finished(_id: String) -> void:
+	talking = false
+	ui.close_dialogue()
+	if player != null and phase == "play":
+		player.locked = false
+
+
+func _advance_dialogue() -> void:
+	if ui == null:
+		return
+	if ui.dialogue_typing():
+		ui.finish_typing()
+		return
+	if ui.dialogue_open():
+		var dialogue = get_node_or_null("/root/Dialogue")
+		if dialogue != null:
+			dialogue.advance()
+
+
+func _choose_dialogue(index: int) -> void:
+	var dialogue = get_node_or_null("/root/Dialogue")
+	if dialogue == null:
+		return
+	if ui.dialogue_typing():
+		ui.finish_typing()
+	dialogue.choose(index)
+
 
 
 func _finish() -> void:
@@ -1227,8 +1327,11 @@ func _update_prompt() -> void:
 	if hopper.size() >= hopper_capacity:
 		text = "HOPPER FULL  /  SORT AT A DEPOT"
 	else:
+		var npc = crowd.nearest(player.global_position, 2.8) if crowd != null else null
 		var heavy = _nearest_heavy()
-		if heavy != null and player.stack_count() < player.max_stack:
+		if npc != null and heavy == null:
+			text = "E  TALK TO %s" % str(npc.display_name)
+		elif heavy != null and player.stack_count() < player.max_stack:
 			text = "E  LIFT %s" % str(heavy.get("display")).to_upper()
 		elif player.stack_count() > 0 and _near_skip():
 			text = "E  UNLOAD THE LOAD"

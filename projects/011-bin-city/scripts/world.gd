@@ -116,6 +116,16 @@ func set_clean(value: float) -> void:
 		water_mat.set_shader_parameter("light_water", Color(0.28, 0.48, 0.45).lerp(Color(0.62, 0.78, 0.68), t))
 
 
+func crowd_points() -> Array:
+	return [
+		Vector3(-12.4, 0.0, -4.6), Vector3(-3.2, 0.0, -6.0), Vector3(7.4, 0.0, -5.4),
+		Vector3(15.6, 0.0, -0.6), Vector3(-16.4, 0.0, 4.8), Vector3(-1.4, 0.0, 9.2),
+		Vector3(4.2, 0.0, 7.4), Vector3(8.6, 0.0, 5.0), Vector3(-7.2, 0.0, 3.4),
+		Vector3(1.2, 0.0, -1.4), Vector3(-9.2, 0.0, 0.2), Vector3(12.4, 0.0, -6.0),
+		Vector3(18.0, 0.0, 6.0), Vector3(-18.2, 0.0, -6.2),
+	]
+
+
 func _build_ground() -> void:
 	var ground := Node3D.new()
 	ground.name = "Ground"

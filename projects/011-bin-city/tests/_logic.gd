@@ -52,6 +52,38 @@ func _run() -> void:
 	_check("load restores quest", state.quest_status("bakery") == "done")
 	_check("save file exists", state.has_save())
 
+	var D = load("res://scripts/dialogue.gd")
+	var dlg = D.new()
+	root.add_child(dlg)
+	dlg.TREES["test"] = {"lines": [
+		{"speaker": "NELL", "text": "First line."},
+		{"speaker": "NELL", "text": "Second line.", "flag": "heard_nell"},
+	]}
+	var seen := []
+	dlg.line.connect(func(speaker, text, choices): seen.append(text))
+	dlg.start("test")
+	_check("dialogue starts", dlg.is_active())
+	_check("first line emitted", seen.size() == 1)
+	dlg.advance()
+	_check("flag fires", state.has_flag("heard_nell"))
+	dlg.advance()
+	_check("dialogue ends", not dlg.is_active())
+	dlg.TREES["choice"] = {
+		"lines": [{"speaker": "ROOK", "text": "Pick.", "choices": [
+			{"label": "A", "next": "answer", "flag": "picked_a"},
+			{"label": "B", "next": ""},
+		]}],
+		"answer": {"lines": [{"speaker": "ROOK", "text": "Good."}]},
+	}
+	dlg.start("choice")
+	dlg.choose(0)
+	_check("choice fires flag", state.has_flag("picked_a"))
+	_check("choice branches", seen.size() == 4)
+	dlg.advance()
+	_check("branch ends dialogue", not dlg.is_active())
+	dlg.queue_free()
+	await process_frame
+
 	_check("five ranks defined", GameData.RANKS.size() == 5)
 	_check("three districts defined", GameData.DISTRICTS.size() >= 3)
 	_check("five shifts defined", GameData.SHIFTS.size() == 5)

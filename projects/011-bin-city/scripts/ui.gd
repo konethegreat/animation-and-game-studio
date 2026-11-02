@@ -9,6 +9,8 @@ signal pause_pressed
 signal sort_choice(kind: String)
 signal sort_closed
 signal interact_pressed
+signal dialogue_next
+signal dialogue_choice(index: int)
 
 const K = preload("res://scripts/kit.gd")
 const TouchStick = preload("res://scripts/touch_stick.gd")
@@ -70,6 +72,15 @@ var touch_jump := false
 var touch_dash := false
 var touch_pulse := false
 var display_font: FontVariation
+var dialogue_layer: Control
+var dialogue_panel: PanelContainer
+var dialogue_speaker: Label
+var dialogue_text: Label
+var dialogue_choices_box: VBoxContainer
+var dialogue_hint: Label
+var _typing_tween: Tween
+var _dialogue_typing := false
+var _dialogue_full := ""
 var _subtitle_tween: Tween
 var _rank_tween: Tween
 var _prompt_text := ""
@@ -93,6 +104,7 @@ func _ready() -> void:
 	_build_hud()
 	_build_prompt()
 	_build_subtitle()
+	_build_dialogue()
 	_build_title()
 	_build_sort()
 	_build_pause()
@@ -379,6 +391,119 @@ func _build_subtitle() -> void:
 	subtitle_panel.visible = false
 
 
+func _build_dialogue() -> void:
+	dialogue_layer = Control.new()
+	dialogue_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dialogue_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(dialogue_layer)
+
+	dialogue_panel = PanelContainer.new()
+	dialogue_panel.anchor_left = 0.5
+	dialogue_panel.anchor_right = 0.5
+	dialogue_panel.anchor_top = 1.0
+	dialogue_panel.anchor_bottom = 1.0
+	dialogue_panel.offset_left = -440
+	dialogue_panel.offset_right = 440
+	dialogue_panel.offset_top = -304
+	dialogue_panel.offset_bottom = -36
+	dialogue_panel.add_theme_stylebox_override("panel", _flat(Color(0.973, 0.945, 0.898, 0.97), 18, 2, K.INK))
+	dialogue_layer.add_child(dialogue_panel)
+
+	var wrap := _margin(16)
+	dialogue_panel.add_child(wrap)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	wrap.add_child(box)
+
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 10)
+	dialogue_speaker = _label("NELL QUILL", 13, K.CORAL, true)
+	dialogue_speaker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(dialogue_speaker)
+	dialogue_hint = _label("E  NEXT", 11, Color(0.13, 0.12, 0.1, 0.5), true)
+	top.add_child(dialogue_hint)
+	box.add_child(top)
+	box.add_child(_rule(K.CORAL, 42, 3))
+
+	dialogue_text = _label("", 18, K.INK, false)
+	dialogue_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	dialogue_text.custom_minimum_size = Vector2(0, 56)
+	dialogue_text.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	box.add_child(dialogue_text)
+
+	dialogue_choices_box = VBoxContainer.new()
+	dialogue_choices_box.add_theme_constant_override("separation", 5)
+	box.add_child(dialogue_choices_box)
+
+	dialogue_panel.visible = false
+
+
+func open_dialogue(speaker: String, text: String, choices: Array) -> void:
+	dialogue_panel.visible = true
+	subtitle_panel.visible = false
+	var extra := 0.0 if choices.is_empty() else choices.size() * 52.0
+	dialogue_panel.offset_top = -40.0 - 132.0 - extra
+	dialogue_speaker.text = speaker
+	_dialogue_full = text
+	dialogue_text.text = text
+	dialogue_text.visible_characters = 0
+	for child in dialogue_choices_box.get_children():
+		child.queue_free()
+	_dialogue_typing = true
+	if _typing_tween:
+		_typing_tween.kill()
+	_typing_tween = create_tween()
+	var duration := clampf(float(text.length()) / 52.0, 0.35, 2.2)
+	_typing_tween.tween_property(dialogue_text, "visible_characters", text.length(), duration).from(0)
+	_typing_tween.tween_callback(func() -> void:
+		_dialogue_typing = false
+		_reveal_choices(choices)
+	)
+	dialogue_hint.text = "E  NEXT" if choices.is_empty() else "CHOOSE"
+
+
+func _reveal_choices(choices: Array) -> void:
+	for child in dialogue_choices_box.get_children():
+		child.queue_free()
+	if choices.is_empty():
+		dialogue_hint.text = "E  NEXT"
+		return
+	dialogue_hint.text = "CHOOSE"
+	for i in choices.size():
+		var choice: Dictionary = choices[i]
+		var button := _button(str(choice.get("label", "...")).to_upper(), K.PAPER, K.INK, 15, false)
+		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		var index := i
+		button.pressed.connect(func() -> void: dialogue_choice.emit(index))
+		dialogue_choices_box.add_child(button)
+
+
+func dialogue_typing() -> bool:
+	return _dialogue_typing
+
+
+func finish_typing() -> void:
+	if not _dialogue_typing:
+		return
+	if _typing_tween:
+		_typing_tween.kill()
+	dialogue_text.visible_characters = -1
+	_dialogue_typing = false
+
+
+func close_dialogue() -> void:
+	if _typing_tween:
+		_typing_tween.kill()
+	_dialogue_typing = false
+	for child in dialogue_choices_box.get_children():
+		child.queue_free()
+	dialogue_panel.visible = false
+
+
+func dialogue_open() -> bool:
+	return dialogue_panel != null and dialogue_panel.visible
+
+
 # ---------------------------------------------------------------- title
 
 func _build_title() -> void:
@@ -428,7 +553,7 @@ func _build_title() -> void:
 	var rows := [
 		["WASD / left stick", "Move"],
 		["Hold left mouse / RT", "Vacuum"],
-		["E / X", "Interact and sort"],
+		["E / X", "Talk, lift, sort"],
 		["Space / A", "Jump, then double jump"],
 		["Ctrl / B", "Dash"],
 		["Q / Y", "Cleanse pulse"],
