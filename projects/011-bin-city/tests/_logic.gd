@@ -134,8 +134,29 @@ func _run() -> void:
 	_check("market walks a point", walk is Vector3)
 	_check("market point is free", market.is_free(walk))
 	_check("market has interiors", market.interiors.size() >= 2)
+	for entry in market.interiors:
+		_check("door %s has a title" % entry.id, str(entry.title) != "")
+		_check("door %s returns to a free spot" % entry.id, market.is_free(entry.return_pos))
 	market.queue_free()
 	await process_frame
+
+	var interiors = load("res://scripts/interiors.gd")
+	var room_ids := ["depot", "bakery", "boathouse", "arcade", "plant"]
+	for id in room_ids:
+		var room = interiors.build(id)
+		root.add_child(room)
+		await process_frame
+		_check("room %s builds" % id, room.title != "" and room.greeting != "")
+		_check("room %s spawn is free" % id, room.is_free(room.spawn))
+		_check("room %s exit is at the door" % id, room.exit_pos.z > room.spawn.z)
+		_check("room %s seats a crowd" % id, room.crowd_points().size() >= 3)
+		_check("room %s is parked far away" % id, room.position == interiors.OFFSET)
+		_check("room %s has a tip" % id, interiors.tip(id) != "")
+		if id == "depot":
+			_check("depot keeps the save desk", room.has_save)
+			_check("depot fronts a desk", room.stations.size() >= 1)
+		room.queue_free()
+		await process_frame
 
 	state.delete_save()
 	print("failures: ", failures)

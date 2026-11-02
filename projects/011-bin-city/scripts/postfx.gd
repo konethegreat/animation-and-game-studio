@@ -58,6 +58,8 @@ func set_mood(mood: String) -> void:
 			set_accents(Color(1.0, 0.72, 0.88), Color(0.55, 0.85, 1.0), 0.5)
 		"boss":
 			set_accents(Color(1.0, 0.72, 0.5), Color(0.7, 0.62, 0.68), 0.6)
+		"interior":
+			set_accents(Color(1.0, 0.86, 0.62), Color(0.78, 0.48, 0.28), 0.46)
 		"plain":
 			rect.visible = false
 		_:

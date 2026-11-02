@@ -57,6 +57,8 @@ func setup(role_name: String, palette_index: int, generator: RandomNumberGenerat
 		"keeper":
 			_speed = 0.0
 			dialogue_id = "keeper_%d" % (palette_index % 3)
+		"baker", "nell":
+			_speed = 0.0
 		"child":
 			_speed = 2.2
 			dialogue_id = "child_%d" % (palette_index % 2)

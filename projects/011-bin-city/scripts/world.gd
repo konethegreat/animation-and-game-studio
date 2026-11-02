@@ -23,9 +23,17 @@ func _ready() -> void:
 	skip_pos = Vector3(16.0, 0.0, 9.5)
 	music = "market"
 	ambience = "market"
+	title = "DAWN MARKET"
+	mood = "dawn"
 	interiors = [
-		{"id": "depot", "title": "BUREAU DEPOT", "pos": Vector3(-6.0, 0.0, -8.0)},
-		{"id": "bakery", "title": "BAKERY", "pos": Vector3(-14.0, 0.0, -2.0)},
+		{
+			"id": "depot", "title": "BUREAU DEPOT",
+			"pos": Vector3(-9.0, 0.0, -13.1), "return_pos": Vector3(-9.0, 0.0, -10.0),
+		},
+		{
+			"id": "bakery", "title": "BAKERY",
+			"pos": Vector3(-18.0, 0.0, -13.1), "return_pos": Vector3(-18.0, 0.0, -10.0),
+		},
 	]
 	_cobble = K.make_cobble()
 	_stripe_a = K.make_stripes(K.CORAL, K.CREAM)
@@ -35,6 +43,7 @@ func _ready() -> void:
 	_build_canal()
 	_build_facades()
 	_build_entrance()
+	_build_doors()
 	_build_stalls()
 	_build_statue()
 	_build_depots()
@@ -211,7 +220,7 @@ func _build_canal() -> void:
 func _build_facades() -> void:
 	var specs := [
 		{"pos": Vector3(-18, 0, -17), "rot": 0.0, "w": 8.0, "h": 8.0, "color": Color(0.78, 0.55, 0.42), "name": "BAKERY"},
-		{"pos": Vector3(-9, 0, -17), "rot": 0.0, "w": 8.0, "h": 11.0, "color": Color(0.66, 0.58, 0.47), "name": "HARDWARE"},
+		{"pos": Vector3(-9, 0, -17), "rot": 0.0, "w": 8.0, "h": 11.0, "color": Color(0.66, 0.58, 0.47), "name": "DEPOT"},
 		{"pos": Vector3(0, 0, -18), "rot": 0.0, "w": 9.0, "h": 9.5, "color": Color(0.83, 0.68, 0.5), "name": "LAUNDRY"},
 		{"pos": Vector3(9, 0, -17), "rot": 0.0, "w": 8.0, "h": 12.0, "color": Color(0.6, 0.66, 0.63), "name": "CINEMA"},
 		{"pos": Vector3(18, 0, -17), "rot": 0.0, "w": 8.0, "h": 8.0, "color": Color(0.72, 0.48, 0.44), "name": "TOOLS"},
@@ -297,6 +306,50 @@ func _build_entrance() -> void:
 	K.label(arch, "DAWN MARKET", Vector3(0, 4.4, 0.31), 84, K.INK)
 	for i in 7:
 		K.sphere(arch, 0.09, Vector3(-3.9 + i * 1.3, 3.9, 0.2), K.CORAL)
+
+
+func _build_doors() -> void:
+	for entry in interiors:
+		var pos: Vector3 = entry.pos
+		var door := Node3D.new()
+		door.position = pos
+		add_child(door)
+		_block(pos + Vector3(0, 0, 0.5), 1.6)
+
+		# A recessed municipal doorway set into the boundary wall.
+		K.box(door, Vector3(3.4, 2.7, 0.14), Vector3(0, 1.35, 0.02), K.INK)
+		var leaf := K.box(door, Vector3(2.5, 2.4, 0.16), Vector3(0, 1.2, 0.16), K.WOOD)
+		leaf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		for row in 2:
+			for col in 2:
+				K.box(door, Vector3(0.95, 0.8, 0.06), Vector3(-0.58 + col * 1.16, 0.72 + row * 1.0, 0.25), K.WOOD_DARK)
+		K.cylinder(door, 0.05, 0.09, Vector3(0.92, 1.2, 0.26), K.OCHRE, Vector3(PI / 2, 0, 0), 8)
+		for side in [-1.0, 1.0]:
+			K.box(door, Vector3(0.26, 2.9, 0.3), Vector3(side * 1.56, 1.45, 0.1), K.WOOD_DARK)
+			K.box(door, Vector3(0.64, 0.16, 0.7), Vector3(side * 1.56, 0.08, 0.28), K.STONE)
+		K.box(door, Vector3(3.5, 0.3, 0.36), Vector3(0, 2.9, 0.1), K.WOOD_DARK)
+		K.box(door, Vector3(2.7, 0.46, 0.1), Vector3(0, 2.9, 0.29), K.INK)
+		K.label(door, str(entry.title), Vector3(0, 2.9, 0.36), 28, K.CREAM)
+		K.label(door, "OPEN LATE", Vector3(0, 2.66, 0.36), 12, K.OCHRE)
+		K.box(door, Vector3(3.2, 0.1, 0.7), Vector3(0, 0.05, 0.42), K.STONE)
+		var mat := K.plane(door, Vector2(2.4, 1.1), Vector3(0, 0.08, 1.0), Color(0.2, 0.32, 0.3), K.clear_material(Color(0.18, 0.3, 0.28), 0.55))
+		mat.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var bulb := K.sphere(door, 0.1, Vector3(0, 3.18, 0.24), Color(1.0, 0.86, 0.58))
+		var bulb_mat := StandardMaterial3D.new()
+		bulb_mat.albedo_color = Color(1.0, 0.86, 0.58)
+		bulb_mat.emission_enabled = true
+		bulb_mat.emission = Color(1.0, 0.72, 0.38)
+		bulb_mat.emission_energy_multiplier = 1.4
+		bulb.material_override = bulb_mat
+		bulb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var light := OmniLight3D.new()
+		light.position = Vector3(0, 3.0, 0.6)
+		light.light_color = Color(1.0, 0.78, 0.46)
+		light.light_energy = 0.9
+		light.omni_range = 5.0
+		light.shadow_enabled = false
+		door.add_child(light)
+		K.collider(door, Vector3(3.3, 2.9, 0.4), Vector3(0, 1.45, 0.1))
 
 
 func _stall(pos: Vector3, sign: String, stripe: Texture2D, accent: Color, fruit: Color, tall := false) -> void:

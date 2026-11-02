@@ -109,6 +109,7 @@ func _build_library() -> void:
 	library["land"] = _wav(_land())
 	library["dash"] = _wav(_dash())
 	library["pulse"] = _wav(_pulse())
+	library["door"] = _wav(_door())
 	library["vacuum"] = _wav(_vacuum_loop(), true)
 	library["music"] = _wav(_music(), true)
 
@@ -330,6 +331,25 @@ func _dash() -> PackedFloat32Array:
 		var env := sin(PI * minf(1.0, t / 0.3))
 		var whistle := sin(TAU * (760.0 - 480.0 * t / 0.3) * t)
 		out[i] = (held * 0.3 + whistle * 0.08) * env
+	return out
+
+
+func _door() -> PackedFloat32Array:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 707
+	var out := _buffer(0.62)
+	var held := 0.0
+	for i in out.size():
+		var t := float(i) / RATE
+		held = lerpf(held, rng.randf_range(-1.0, 1.0), 0.25)
+		var wood := sin(TAU * (96.0 - 18.0 * minf(1.0, t / 0.4)) * t) * exp(-t * 9.0)
+		var frame := sin(TAU * 240.0 * t) * exp(-t * 30.0) * 0.18
+		var latch_at := 0.3
+		var latch := 0.0
+		if t >= latch_at:
+			var local := t - latch_at
+			latch = sin(TAU * 1750.0 * local) * exp(-local * 55.0) * 0.22
+		out[i] = (wood * 0.4 + held * 0.09 + frame + latch)
 	return out
 
 

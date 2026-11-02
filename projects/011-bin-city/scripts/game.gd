@@ -10,6 +10,8 @@ const RAT = preload("res://scripts/rat.gd")
 const POSTFX = preload("res://scripts/postfx.gd")
 const Data = preload("res://scripts/data.gd")
 const CROWD = preload("res://scripts/crowd.gd")
+const INTERIORS = preload("res://scripts/interiors.gd")
+const TRANSITION = preload("res://scripts/transition.gd")
 
 const MOODS := {
 	"dawn": {
@@ -52,6 +54,14 @@ const MOODS := {
 		"fog": Color(0.24, 0.16, 0.12), "fog_density": 0.006,
 		"exposure": 1.1, "glow": true,
 	},
+	"interior": {
+		"zenith": Color(0.16, 0.13, 0.11), "horizon": Color(0.3, 0.24, 0.19),
+		"ground": Color(0.12, 0.1, 0.08), "sun": Color(1.0, 0.82, 0.6),
+		"sun_angle": Vector3(-40.0, 20.0, 0.0), "sun_energy": 0.2,
+		"ambient": 0.34, "ambient_colour": Color(0.55, 0.42, 0.32),
+		"fog": Color(0.22, 0.17, 0.13), "fog_density": 0.0008,
+		"exposure": 1.08, "glow": false,
+	},
 }
 
 const AREA_SCRIPTS := {
@@ -89,6 +99,14 @@ var player
 var ui
 var crowd
 var talking := false
+var outdoor
+var interior = null
+var inside_interior := false
+var interior_id := ""
+var transitioning := false
+var transition
+var entered_door: Dictionary = {}
+var outdoor_camera_distance := 8.8
 var cam_yaw: Node3D
 var cam_pitch: Node3D
 var camera: Camera3D
@@ -148,6 +166,7 @@ func _ready() -> void:
 	world.name = "DawnMarket"
 	add_child(world)
 	area = world
+	outdoor = world
 	area_id = "dawn_market"
 	player = PLAYER.new()
 	player.name = "Collector"
@@ -179,6 +198,9 @@ func _ready() -> void:
 	crowd = CROWD.new()
 	crowd.name = "Crowd"
 	add_child(crowd)
+	transition = TRANSITION.new()
+	transition.name = "Transition"
+	add_child(transition)
 	player.stack_tumbled.connect(_on_tumble)
 	player.pulse_requested.connect(_on_pulse)
 	player.dash_started.connect(_on_dash)
@@ -232,6 +254,8 @@ func _process(delta: float) -> void:
 			_restart()
 		return
 	if phase != "play":
+		return
+	if transitioning:
 		return
 	if talking:
 		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("vacuum"):
@@ -450,6 +474,7 @@ func _build_cameras() -> void:
 
 func _show_title() -> void:
 	get_tree().paused = false
+	_leave_room_now()
 	_clear_run()
 	phase = "title"
 	finished = false
@@ -475,6 +500,7 @@ func _show_title() -> void:
 
 func _start_shift() -> void:
 	get_tree().paused = false
+	_leave_room_now()
 	_clear_run()
 	_spawn_market()
 	crowd.watch_clean(0.0)
@@ -601,6 +627,120 @@ func load_area(id: String, spawn_at: Vector3) -> void:
 	player.global_position = spawn_at
 
 
+# ---------------------------------------------------------------- doors
+
+func _enter_interior(id: String) -> void:
+	if transitioning or inside_interior or phase != "play":
+		return
+	transitioning = true
+	entered_door = _nearest_door()
+	player.locked = true
+	player.vacuuming = false
+	Sound.set_vacuum(false)
+	Sound.play("door", 0.95, -3.0)
+	ui.prompt("")
+	_prompt_cache = ""
+	var room = INTERIORS.build(id)
+	await transition.cover(str(room.title), str(room.greeting), INTERIORS.tip(id))
+	if not is_inside_tree():
+		if is_instance_valid(room):
+			room.free()
+		return
+	if crowd != null:
+		crowd.clear()
+	outdoor = world
+	outdoor.visible = false
+	outdoor.process_mode = Node.PROCESS_MODE_DISABLED
+	interior = room
+	interior_id = id
+	add_child(interior)
+	inside_interior = true
+	world = interior
+	_apply_mood(world.mood)
+	outdoor_camera_distance = camera_distance
+	camera_distance = 6.4
+	player.global_position = world.to_global(world.spawn)
+	player.velocity = Vector3.ZERO
+	player.rotation.y = PI
+	cam_yaw.global_position = player.global_position + Vector3(0, 1.55, 0)
+	cam_pitch.rotation.x = -0.24
+	cam_yaw.rotation.y = 0.0
+	_build_crowd()
+	_update_hud()
+	await get_tree().process_frame
+	transition.reveal()
+	await transition.revealed
+	transitioning = false
+	if phase == "play":
+		player.locked = false
+	ui.subtitle("%s. E at the door when you are ready to leave." % str(world.title), 4.5)
+
+
+func _exit_interior() -> void:
+	if transitioning or not inside_interior or phase != "play":
+		return
+	transitioning = true
+	player.locked = true
+	player.vacuuming = false
+	Sound.set_vacuum(false)
+	ui.prompt("")
+	_prompt_cache = ""
+	await transition.cover(str(outdoor.title), "Back out into the shift. The street has not cleaned itself.", "TIP  The doors sit on the north wall, under their signs.")
+	if not is_inside_tree():
+		return
+	if crowd != null:
+		crowd.clear()
+	if interior != null and is_instance_valid(interior):
+		interior.queue_free()
+	interior = null
+	inside_interior = false
+	interior_id = ""
+	world = outdoor
+	world.visible = true
+	world.process_mode = Node.PROCESS_MODE_INHERIT
+	_apply_mood(world.mood)
+	camera_distance = outdoor_camera_distance
+	if entered_door.is_empty():
+		player.global_position = world.to_global(world.spawn)
+		player.rotation.y = PI
+		cam_yaw.rotation.y = 0.0
+	else:
+		player.global_position = entered_door.get("return_pos", world.spawn)
+		player.rotation.y = 0.0
+		cam_yaw.rotation.y = PI
+	player.velocity = Vector3.ZERO
+	cam_yaw.global_position = player.global_position + Vector3(0, 1.55, 0)
+	cam_pitch.rotation.x = -0.3
+	world.set_clean(_clean())
+	_build_crowd()
+	await get_tree().process_frame
+	transition.reveal()
+	await transition.revealed
+	transitioning = false
+	player.locked = false
+	Sound.play("door", 1.05, -7.0)
+	ui.subtitle("Back on the street. The market still needs you.", 3.5)
+
+
+func _leave_room_now() -> void:
+	if not inside_interior:
+		return
+	if crowd != null:
+		crowd.clear()
+	if interior != null and is_instance_valid(interior):
+		interior.queue_free()
+	interior = null
+	inside_interior = false
+	interior_id = ""
+	world = outdoor
+	if world != null:
+		world.visible = true
+		world.process_mode = Node.PROCESS_MODE_INHERIT
+		world.set_clean(_clean())
+	camera_distance = outdoor_camera_distance
+	_apply_mood(world.mood if world != null else "dawn")
+
+
 func _build_crowd() -> void:
 	if crowd == null:
 		return
@@ -608,14 +748,35 @@ func _build_crowd() -> void:
 	var points: Array = []
 	for point in world.crowd_points():
 		if world.is_free(point):
-			points.append(point + Vector3(rng.randf_range(-0.7, 0.7), 0.0, rng.randf_range(-0.7, 0.7)))
-	for i in 6:
-		points.append(world.random_walkable(rng))
-	crowd.build(points, 12, rng)
-	crowd.spawn("nell", Vector3(7.4, 0.0, 3.4), "nell", "NELL QUILL", rng)
-	crowd.spawn("rook", Vector3(-7.0, 0.0, 5.6), "rook", "ROOK", rng)
-	crowd.spawn("baker", Vector3(-12.4, 0.0, 0.6), "baker", "BAKER", rng)
-	crowd.spawn("cat", Vector3(-4.6, 0.0, 10.4), "miso", "MISO", rng)
+			points.append(world.to_global(point) + Vector3(rng.randf_range(-0.7, 0.7), 0.0, rng.randf_range(-0.7, 0.7)))
+	var fallback := 3 if inside_interior else 6
+	for i in fallback:
+		points.append(world.to_global(world.random_walkable(rng)))
+	var budget := 5 if inside_interior else 12
+	crowd.build(points, budget, rng)
+	for entry in _cast_for_area():
+		crowd.spawn(str(entry.role), world.to_global(entry.pos), str(entry.dialogue), str(entry.name), rng)
+
+
+func _cast_for_area() -> Array:
+	var key := interior_id if inside_interior else area_id
+	match key:
+		"depot":
+			return [{"role": "nell", "pos": Vector3(3.6, 0.0, -5.1), "dialogue": "nell", "name": "NELL QUILL"}]
+		"bakery":
+			return [{"role": "baker", "pos": Vector3(-3.6, 0.0, -3.2), "dialogue": "baker", "name": "BAKER"}]
+		"boathouse":
+			return [{"role": "ferryman", "pos": Vector3(4.8, 0.0, 3.6), "dialogue": "ferryman", "name": "FERRYMAN"}]
+		"arcade":
+			return [{"role": "arcade_kid", "pos": Vector3(-1.3, 0.0, -4.2), "dialogue": "arcade_kid", "name": "JOYSTICK"}]
+		"plant":
+			return [{"role": "keeper", "pos": Vector3(3.4, 0.0, 1.6), "dialogue": "keeper_0", "name": "PLANT KEEPER"}]
+	return [
+		{"role": "nell", "pos": Vector3(7.4, 0.0, 3.4), "dialogue": "nell", "name": "NELL QUILL"},
+		{"role": "rook", "pos": Vector3(-7.0, 0.0, 5.6), "dialogue": "rook", "name": "ROOK"},
+		{"role": "baker", "pos": Vector3(-12.4, 0.0, 0.6), "dialogue": "baker", "name": "BAKER"},
+		{"role": "cat", "pos": Vector3(-4.6, 0.0, 10.4), "dialogue": "miso", "name": "MISO"},
+	]
 
 
 func _spawn_market() -> void:
@@ -814,6 +975,16 @@ func _interact() -> void:
 			var dialogue = get_node_or_null("/root/Dialogue")
 			if dialogue != null and dialogue.start(str(info.get("id", ""))):
 				return
+	var door := _nearest_door()
+	if not door.is_empty():
+		if inside_interior:
+			_exit_interior()
+		else:
+			_enter_interior(str(door.get("id", "depot")))
+		return
+	if _near_save():
+		_save_at_desk()
+		return
 	var heavy = _nearest_heavy()
 	if heavy != null and player.stack_count() < player.max_stack:
 		_lift(heavy)
@@ -1136,6 +1307,8 @@ func _on_tumble(item) -> void:
 
 
 func _check_progress() -> void:
+	if inside_interior:
+		return
 	var clean := _clean()
 	var marks := [0.25, 0.5, 0.75, 0.9]
 	while xp_milestones < marks.size() and clean >= float(marks[xp_milestones]):
@@ -1324,10 +1497,21 @@ func _on_look(relative: Vector2) -> void:
 
 func _update_prompt() -> void:
 	var text := ""
-	if hopper.size() >= hopper_capacity:
-		text = "HOPPER FULL  /  SORT AT A DEPOT"
+	var door := _nearest_door()
+	var npc = crowd.nearest(player.global_position, 2.8) if crowd != null else null
+	if not door.is_empty():
+		if inside_interior:
+			text = "E  EXIT TO %s" % str(world.title)
+		else:
+			text = "E  ENTER %s" % str(door.get("title", "THE ROOM"))
+	elif _near_save():
+		text = "E  SAVE THE SHIFT"
+	elif hopper.size() >= hopper_capacity:
+		if inside_interior:
+			text = "HOPPER FULL  /  SORT AT THE FRONT DESK"
+		else:
+			text = "HOPPER FULL  /  SORT AT A DEPOT"
 	else:
-		var npc = crowd.nearest(player.global_position, 2.8) if crowd != null else null
 		var heavy = _nearest_heavy()
 		if npc != null and heavy == null:
 			text = "E  TALK TO %s" % str(npc.display_name)
@@ -1437,7 +1621,7 @@ func _nearest_station() -> Dictionary:
 	var best_distance := 3.4
 	var origin: Vector3 = player.global_position
 	for station in world.stations:
-		var point: Vector3 = station.get("pos", Vector3.ZERO)
+		var point: Vector3 = world.to_global(station.get("pos", Vector3.ZERO))
 		var distance := Vector2(origin.x - point.x, origin.z - point.z).length()
 		if distance < best_distance:
 			best_distance = distance
@@ -1446,5 +1630,39 @@ func _nearest_station() -> Dictionary:
 
 
 func _near_skip() -> bool:
-	var skip: Vector3 = world.skip_pos
+	var skip: Vector3 = world.to_global(world.skip_pos)
 	return Vector2(player.global_position.x - skip.x, player.global_position.z - skip.z).length() < 4.4
+
+
+func _nearest_door() -> Dictionary:
+	var origin: Vector3 = player.global_position
+	if inside_interior:
+		var exit_point: Vector3 = world.to_global(world.exit_pos)
+		if Vector2(origin.x - exit_point.x, origin.z - exit_point.z).length() < 2.6:
+			return {"id": "__exit", "title": str(world.title)}
+		return {}
+	var best: Dictionary = {}
+	var best_distance := 2.9
+	for entry in world.interiors:
+		var point: Vector3 = world.to_global(entry.pos)
+		var distance := Vector2(origin.x - point.x, origin.z - point.z).length()
+		if distance < best_distance:
+			best_distance = distance
+			best = entry
+	return best
+
+
+func _near_save() -> bool:
+	if not inside_interior or not bool(world.get("has_save")):
+		return false
+	var point: Vector3 = world.to_global(world.save_pos)
+	return Vector2(player.global_position.x - point.x, player.global_position.z - point.z).length() < 2.2
+
+
+func _save_at_desk() -> void:
+	var state = get_node_or_null("/root/GameState")
+	if state != null:
+		state.save()
+	Sound.play("click", 1.05, -2.0)
+	Sound.play("door", 1.15, -12.0)
+	ui.subtitle("Shift filed with the Bureau. Nell puts the kettle on.", 4.0)

@@ -3,6 +3,8 @@ extends Node3D
 const K = preload("res://scripts/kit.gd")
 
 var spawn := Vector3(0.0, 0.0, 6.0)
+var title := "DAWN MARKET"
+var mood := "dawn"
 var stations: Array[Dictionary] = []
 var interiors: Array = []
 var skip_pos := Vector3.ZERO
