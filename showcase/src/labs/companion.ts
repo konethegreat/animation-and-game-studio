@@ -27,7 +27,7 @@ export function companionLabMarkup(project: Project): string {
   <section class="lab-section" id="lab" aria-labelledby="lab-title">
     <div class="section-head">
       <div><p class="eyebrow">Take the controls</p><h2 id="lab-title">Say hello to the companion.</h2></div>
-      <p class="section-note">The exported rig runs live in the browser. Guide its gaze with your cursor, pick a mood, or orbit the little stage.</p>
+      <p class="section-note">The exported rig runs live in the browser. Steer its gaze, pick a mood, or orbit the little stage.</p>
     </div>
     <div class="lab-stage lab-stage-companion" data-lab-stage>
       <div class="lab-viewer" data-lab-viewer></div>
@@ -49,7 +49,7 @@ export function companionLabMarkup(project: Project): string {
         <button type="button" class="lab-toggle mono" data-photo>Take a still</button>
       </div>
     </div>
-    <p class="lab-hint mono">Move your cursor across the stage and the companion follows. Drag to orbit, scroll to zoom.</p>
+    <p class="lab-hint mono"><span class="hint-pointer">Move your cursor across the stage and the companion follows. Drag to orbit, scroll to zoom.</span><span class="hint-touch">Tap a mood and the companion responds. Drag to orbit, pinch to zoom.</span></p>
   </section>`;
 }
 
@@ -231,7 +231,7 @@ export function mountCompanionLab(section: HTMLElement, project: Project): () =>
         .multiply(tmpQuat.setFromEuler(tmpEuler.set(bounce + lookY * 0.5, 0.05 * Math.sin(elapsed * 1.1) + lookX * 0.3, 0)));
     }
     if (hover) {
-      const low = mood === "sleep" ? -0.16 : 0;
+      const low = mood === "sleep" ? -0.07 : 0;
       const bob = reduced ? 0 : 0.045 * Math.sin(elapsed * 1.9);
       hover.position.y = base.hoverY + low + bob;
     }
@@ -294,7 +294,7 @@ export function mountCompanionLab(section: HTMLElement, project: Project): () =>
     }
     const still = document.createElement("canvas");
     still.width = 1600;
-    still.height = 1000;
+    still.height = 1040;
     const out = still.getContext("2d");
     if (!out) return;
     out.fillStyle = "#f6f1e6";
@@ -314,18 +314,18 @@ export function mountCompanionLab(section: HTMLElement, project: Project): () =>
 
     out.fillStyle = "#181512";
     out.font = "600 46px 'Fraunces Variable', Georgia, serif";
-    out.fillText("Companion", 48, 968);
+    out.fillText("Companion", 48, 972);
     out.fillStyle = "#73756c";
     out.font = "400 17px 'IBM Plex Mono', monospace";
-    out.fillText("COMPANION LAB / LIVE GLTF RIG", 49, 1000);
+    out.fillText("COMPANION LAB / LIVE GLTF RIG", 49, 1006);
     out.textAlign = "right";
     out.fillStyle = "#c65b36";
     out.beginPath();
-    out.arc(1516, 956, 7, 0, TAU);
+    out.arc(1348, 960, 7, 0, TAU);
     out.fill();
     out.fillStyle = "#181512";
     out.font = "400 17px 'IBM Plex Mono', monospace";
-    out.fillText("KONE STUDIO / 2026", 1552, 962);
+    out.fillText("KONE STUDIO / 2026", 1552, 966);
     out.textAlign = "left";
 
     still.toBlob((blob) => {
@@ -448,8 +448,14 @@ export function mountCompanionLab(section: HTMLElement, project: Project): () =>
       if (eyeR instanceof THREE.Mesh) eyeMaterials.push(...collectEyeMaterials(eyeR));
 
       mixer = new THREE.AnimationMixer(model);
-      const clip = THREE.AnimationClip.findByName(gltf.animations, "Idle") ?? gltf.animations[0];
-      if (clip) {
+      const source = THREE.AnimationClip.findByName(gltf.animations, "Idle") ?? gltf.animations[0];
+      if (source) {
+        // The reel is an eight second turntable; the lab only borrows the wave.
+        const waveTracks = source.tracks.filter((track) =>
+          /^(arm_l|arm_r|elbow_l|elbow_r|head|antenna|Body|scarf)\./.test(track.name),
+        );
+        const wave = new THREE.AnimationClip("Wave", source.duration, waveTracks);
+        const clip = THREE.AnimationUtils.subclip(wave, "Wave", 1, 54, 24);
         hiAction = mixer.clipAction(clip);
         mixer.addEventListener("finished", (event) => {
           if (event.action !== hiAction) return;

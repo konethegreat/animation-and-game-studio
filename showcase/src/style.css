@@ -2192,6 +2192,10 @@ h2 em {
   color: var(--muted);
 }
 
+.hint-touch {
+  display: none;
+}
+
 @media (max-width: 900px) {
   .lab-buttons {
     margin-left: 0;
@@ -2212,5 +2216,21 @@ h2 em {
   .lab-live,
   .lab-count {
     padding: 6px 9px;
+  }
+
+  .lab-stage-companion {
+    aspect-ratio: 4 / 3;
+  }
+
+  .lab-stage-companion .lab-live {
+    display: none;
+  }
+
+  .hint-pointer {
+    display: none;
+  }
+
+  .hint-touch {
+    display: inline;
   }
 }
