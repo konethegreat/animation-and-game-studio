@@ -11,6 +11,7 @@ from .config import ROOT
 
 ID_RE = re.compile(r"^\d{3}-[a-z0-9-]+$")
 KINDS = {"film", "game"}
+INTERACTIVES = {"bounce", "companion", "keeper"}
 
 
 @dataclass(frozen=True)
@@ -42,6 +43,11 @@ class Project:
     device: str = ""
     engine_args: list[str] = field(default_factory=list)
     assets: list[str] = field(default_factory=list)
+    interactive: str | None = None
+    gif_width: int = 720
+    gif_fps: int = 0
+    gif_colors: int = 128
+    gif_dither: str = "bayer"
     root: Path = field(default=ROOT)
 
     @property
@@ -61,6 +67,7 @@ class Project:
 def load(project_dir: Path) -> Project:
     data = yaml.safe_load((project_dir / "project.yaml").read_text(encoding="utf-8"))
     render = data.get("render") or {}
+    gif = data.get("gif") or {}
     resolution = tuple(render.get("resolution") or (1920, 1080))
     entry = str(data["entry"])
     raw_shots = data.get("shots") or []
@@ -97,6 +104,11 @@ def load(project_dir: Path) -> Project:
         device=str(render.get("device", "")),
         engine_args=[str(a) for a in render.get("engine_args") or []],
         assets=[str(a) for a in data.get("assets") or []],
+        interactive=str(data["interactive"]) if data.get("interactive") else None,
+        gif_width=int(gif.get("width", 720)),
+        gif_fps=int(gif.get("fps", 0)),
+        gif_colors=int(gif.get("colors", 128)),
+        gif_dither=str(gif.get("dither", "bayer")),
         root=project_dir,
     )
 
@@ -138,6 +150,19 @@ def validate(project: Project) -> list[str]:
         errors.append("frames must be positive")
     if not project.outputs:
         errors.append("at least one output is required")
+    if project.interactive is not None and project.interactive not in INTERACTIVES:
+        errors.append(
+            f"interactive '{project.interactive}' must be one of "
+            + ", ".join(sorted(INTERACTIVES))
+        )
+    if not (120 <= project.gif_width <= 1920):
+        errors.append("gif.width must be between 120 and 1920")
+    if project.gif_fps < 0 or project.gif_fps > 60:
+        errors.append("gif.fps must be 0 (use the render fps) or 1 to 60")
+    if not (2 <= project.gif_colors <= 256):
+        errors.append("gif.colors must be between 2 and 256")
+    if project.gif_dither not in {"bayer", "none"}:
+        errors.append("gif.dither must be bayer or none")
     for output in project.outputs:
         target = (ROOT / output).resolve()
         if not str(target).startswith(str(ROOT.resolve())):

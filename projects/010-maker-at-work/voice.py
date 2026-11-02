@@ -30,7 +30,7 @@ FFMPEG = Path(r"C:\Users\Konet\Tools\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.ex
 LINES = (
     ("l01", "This is where the work begins.", 7.4),
     ("l02", "A desk, a lamp, and a little patience.", 11.6),
-    ("l03", "Everything I make starts here.", 18.4),
+    ("l03", "Everything I make starts here.", 67.6),
 )
 
 TEST_TEXT = "This is where the work begins."

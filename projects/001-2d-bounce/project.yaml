@@ -1,14 +1,20 @@
 id: 001-2d-bounce
 type: 2d
-title: Bounce
-summary: A squash and stretch study with a little blob character, a springy antenna and a patient stage.
-tags: [2d, animation, principles]
+title: Paper City
+summary: A paper courier bounces down a card stock street, and the windows warm as he passes.
+tags: [2d, animation, paper, loop]
 engine: python
 entry: render.py
+interactive: bounce
 render:
   resolution: [1920, 1080]
   fps: 24
   frames: 144
+  poster_time: 1.8
+gif:
+  width: 600
+  colors: 112
+  dither: none
 outputs:
   - media/001-2d-bounce/reel.mp4
   - media/001-2d-bounce/reel.webm

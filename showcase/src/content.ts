@@ -19,35 +19,37 @@ export type ProjectNotes = {
 
 export const NOTES: Record<string, ProjectNotes> = {
   "001-2d-bounce": {
-    madeWith: ["Python", "Pillow", "FFmpeg"],
+    madeWith: ["Python", "Pillow", "FFmpeg", "Canvas"],
     notes: [
-      "Bounce height, squash and impact dust are functions of one looping time value, so the motion is deterministic and re-renderable.",
-      "Squash and stretch is driven by contact and velocity, with a small anticipation before each launch.",
-      "Frames render at 1920 by 1080. The same source encodes to MP4, WebM, GIF and the poster on this page.",
+      "Paper City is drawn from world-space geometry at twice the output size, then downsampled with a static paper grain so the loop stays clean and the GIF stays under budget.",
+      "Every bounce is a function of one looping time value. The courier squashes on contact, trails a procedural scarf, and warms each window as he passes it.",
+      "The Bounce Lab below runs the same character as a live canvas toy. Drag the ball, fling it, move the awnings, and the physics responds without any engine download.",
     ],
   },
   "002-turntable": {
-    madeWith: ["Blender 4.5 LTS", "Python", "EEVEE Next", "glTF"],
+    madeWith: ["Blender 4.5 LTS", "Python", "EEVEE Next", "glTF", "Three.js"],
     notes: [
-      "The robot, studio lights and pedestal are built procedurally in Blender Python. There are no imported models or textures.",
-      "A 192 frame turntable loop closes seamlessly at 24 fps, with a slow hover, head drift and swinging antenna.",
-      "The same scene exports a glTF binary that powers the live viewer on this site.",
+      "The companion, the cyclorama studio and every light are built procedurally in Blender Python. There are no imported models or textures.",
+      "A 192 frame loop at 24 fps carries an idle performance: breathing, blinks, antenna follow through and a wave that lands while the visor faces camera.",
+      "The export merges the rig into one baked Idle animation, so the glTF viewer can play the wave and the web lab can keep steering the head and arms live.",
     ],
   },
   "003-micro-game": {
-    madeWith: ["Godot 4.7.2", "GDScript", "Web export"],
+    madeWith: ["Godot 4.7.2", "GDScript", "Shader", "Web export"],
     notes: [
-      "One screen, one ship, two verbs: collect stars and dodge rocks. Difficulty ramps as the score climbs.",
-      "The best score persists in a local config file. Sound effects are generated from raw waveforms by a small Python script.",
-      "The web build runs at 60 fps in a 960 by 540 canvas and does not need cross-origin isolation headers.",
+      "One planet, one orbit and one courier. Drag toward or away from the planet to change your radius, thread the debris ring and catch stars before they drift past.",
+      "Stars build a combo. Close passes fill the surge drive, and every milestone restores a shield and repaints the sky, so a long run keeps changing shape instead of repeating.",
+      "The planet and nebula are custom canvas shaders. Every line is drawn in code, and the score and effects are synthesised from waveforms when the build loads.",
+      "The web build runs at 60 fps in a 960 by 540 canvas with the GL Compatibility renderer, so it plays on Pages without cross-origin isolation headers. Calm mode slows the orbit and removes flashes.",
     ],
   },
   "004-lantern-keeper": {
-    madeWith: ["Blender 4.5 LTS", "Python", "EEVEE Next", "glTF"],
+    madeWith: ["Blender 4.5 LTS", "Python", "EEVEE Next", "glTF", "Three.js"],
     notes: [
-      "The keeper is built from primitives parented to an empty joint chain. There is no armature and no imported model or texture.",
-      "Three steps, a pause and a lantern lift are keyed over five seconds. A spline camera dollies in and arcs about 66 degrees to a three quarter hero angle.",
-      "The exported glTF is an in place walk loop, so the keeper walks on the spot in the live viewer while you orbit the camera.",
+      "The keeper is a real armature now: a spine, neck, arms and legs weighted by hand, with a pleated coat, a ribbon scarf and a lime lantern that hangs from its own bone.",
+      "Six seconds, 144 frames at 24 fps. Three steps carry a walk cycle, then the keeper stops, turns his head toward the city and lifts the lantern while the sky deepens and the windows wake in sequence.",
+      "Walk, idle and lift are exported as separate glTF clips. The diorama below loads that same file and drives it live: scrub the walk, turn dusk into night, raise the lantern and orbit the bridge.",
+      "The city, the arched bridge and the water are built in three.js around the exported rig, so the film's set and the playable set share one look and one character.",
     ],
   },
   "010-maker-at-work": {

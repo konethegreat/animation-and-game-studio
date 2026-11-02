@@ -90,6 +90,21 @@ def test_encode_project_writes_declared_outputs(tmp_path):
     assert info["duration"] == pytest.approx(4 / 24, abs=0.15)
 
 
+def test_encode_project_uses_gif_settings(tmp_path):
+    project = make_project(tmp_path, [
+        "media/099-media-test/reel.mp4",
+        "media/099-media-test/reel.gif",
+    ])
+    project.gif_width = 160
+    project.gif_fps = 12
+    project.gif_colors = 16
+    project.gif_dither = "none"
+    source = frames(tmp_path / "frames", 4)
+    outs = media.encode_project(project, source, 160, 90)
+    info = media.probe(outs["gif"])
+    assert (info["width"], info["height"]) == (160, 90)
+
+
 def test_encode_project_muxes_audio(tmp_path):
     audio = tmp_path / "score.wav"
     subprocess.run([

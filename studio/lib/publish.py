@@ -60,6 +60,8 @@ def build_entry(project) -> dict | None:
         build = project.root / "build" / "web"
         if (build / "index.html").exists():
             entry["play"] = f"builds/{project.id}/index.html"
+    if project.interactive:
+        entry["interactive"] = project.interactive
     return entry
 
 
@@ -109,6 +111,7 @@ def run() -> Path:
         "  tags: string[]; poster: string; sheet?: string; hero?: string;\n"
         "  mp4?: string; webm?: string;\n"
         "  gif?: string; model?: string; play?: string; duration?: string;\n"
+        '  interactive?: "bounce" | "companion" | "keeper";\n'
         "  engine: string; resolution: string; fps: number; frames: number;\n"
         "};\n\n"
         f"export const projects: Project[] = {body};\n",

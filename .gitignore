@@ -19,6 +19,7 @@ media/**/_frames/
 media/**/_audio/
 media/**/_preview/
 media/**/_test/
+media/**/qa/
 *.log
 assets/embed/
 assets/private/

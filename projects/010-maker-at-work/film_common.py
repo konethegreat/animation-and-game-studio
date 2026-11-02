@@ -412,8 +412,14 @@ def dust(scene, count=70, center=(0.0, 0.0, 1.05), spread=(1.5, 0.8, 0.9), seed=
 
 
 def parent_keep(obj, pivot) -> None:
+    # A freshly created pivot reports an identity matrix until the depsgraph
+    # updates, which would apply its offset twice.
+    bpy.context.view_layer.update()
+    world = obj.matrix_world.copy()
     obj.parent = pivot
     obj.matrix_parent_inverse = pivot.matrix_world.inverted()
+    obj.matrix_world = world
+    bpy.context.view_layer.update()
 
 
 def seated_double(location=(0.18, 0.56, 0.0), yaw: float = 0.0):
@@ -422,8 +428,7 @@ def seated_double(location=(0.18, 0.56, 0.0), yaw: float = 0.0):
     beard = material("Beard", (0.035, 0.028, 0.024), roughness=0.92)
     hair = material("Hair", (0.025, 0.020, 0.018), roughness=0.78)
     x, y, z = location
-    root = empty("Maker", (x, y, z))
-    root.rotation_euler = (0.0, 0.0, math.radians(yaw))
+    root = empty("Maker", (0.0, 0.0, 0.0))
     torso = sphere("MakerTorso", (0, 0, 0.97), (0.215, 0.165, 0.245), sweater, 64, 32)
     torso.parent = root
     chest = sphere("MakerChest", (0, -0.085, 1.06), (0.18, 0.115, 0.14), sweater, 48, 24)
@@ -457,6 +462,8 @@ def seated_double(location=(0.18, 0.56, 0.0), yaw: float = 0.0):
         fore.parent = root
         hand = sphere(f"MakerHand{side}", (side * 0.235, -0.32, 0.845), (0.042, 0.058, 0.032), skin, 24, 16)
         hand.parent = root
+    root.location = (x, y, z)
+    root.rotation_euler = (0.0, 0.0, math.radians(yaw))
     return {"root": root, "look": look, "head": head, "neck": neck, "torso": torso}
 
 
@@ -523,6 +530,22 @@ def world(scene, color=(0.012, 0.014, 0.020), strength=0.35):
     background = data.node_tree.nodes.get("Background")
     background.inputs[0].default_value = (*color, 1.0)
     background.inputs[1].default_value = strength
+
+
+def glow(scene, threshold=0.85, size=9, mix=-0.7):
+    scene.use_nodes = True
+    tree = scene.node_tree
+    tree.nodes.clear()
+    layers = tree.nodes.new("CompositorNodeRLayers")
+    glare = tree.nodes.new("CompositorNodeGlare")
+    glare.glare_type = "FOG_GLOW"
+    glare.quality = "HIGH"
+    glare.threshold = threshold
+    glare.size = size
+    glare.mix = mix
+    composite = tree.nodes.new("CompositorNodeComposite")
+    tree.links.new(layers.outputs["Image"], glare.inputs["Image"])
+    tree.links.new(glare.outputs["Image"], composite.inputs["Image"])
 
 
 def title_text(body: str, location, size=0.12, color=(0.93, 0.87, 0.74), strength=1.4):
