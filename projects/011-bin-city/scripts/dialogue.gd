@@ -186,6 +186,23 @@ func _build_trees() -> Dictionary:
 			{"speaker": "PIP", "text": "The big machine eats the street. I named it. You're welcome."},
 			{"speaker": "PIP", "text": "The roof route is faster. Find three tokens and I will show you the cabinet.", "quest": "high_score"},
 		]},
+		"pip": {"lines": [
+			{"speaker": "PIP", "text": "You climbed the fire escape. Most people give up at the second platform."},
+			{"speaker": "PIP", "text": "I watch the strip from up here. The neon, the rain, the machine under the plant waking up. Best seat in Bin City.", "choices": [
+				{"label": "WHAT MACHINE?", "next": "machine"},
+				{"label": "ANY TOKENS UP HERE?", "next": "tokens"},
+				{"label": "NICE VIEW", "next": "", "flag": "met_pip"},
+			]},
+		],
+		"machine": {"lines": [
+			{"speaker": "PIP", "text": "The compactor under the sorting plant. It ate the old street sweeper. Not the person. The machine. Probably."},
+			{"speaker": "PIP", "text": "When the plant gate opens at night, you will hear it. Bring earplugs and a very big broom.", "flag": "plant_hint"},
+		]},
+		"tokens": {"lines": [
+			{"speaker": "PIP", "text": "One is up here somewhere, I dropped it behind the tank. The rest are glinting down in the litter. Gold, shiny, very findable."},
+			{"speaker": "PIP", "text": "Feed three to the taped-up cabinet inside the arcade and it will remember what a high score is.", "quest": "high_score"},
+		]},
+		},
 		"miso": {"lines": [
 			{"speaker": "MISO", "text": "Mrrp."},
 			{"speaker": "MISO", "text": "Miso blinks slowly, which is cat for 'you may stay'."},

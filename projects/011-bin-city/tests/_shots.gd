@@ -1,7 +1,7 @@
 extends SceneTree
 
-# Temporary capture harness: opens the real game, walks it into a doorway and
-# saves frames so the rooms and the loading card can be checked by eye.
+# Temporary capture harness: opens the real game, walks it into the neon
+# arcade strip and saves frames so the district can be checked by eye.
 
 var scene: Node
 
@@ -27,6 +27,10 @@ func _place(point: Vector3, face_yaw: float, cam_yaw_angle: float) -> void:
 	scene.cam_pitch.rotation.x = -0.18
 
 
+func _place_local(local: Vector3, face_yaw: float, cam_yaw_angle: float) -> void:
+	_place(scene.world.to_global(local), face_yaw, cam_yaw_angle)
+
+
 func _run() -> void:
 	print("STAGE  boot")
 	root.get_node("Sound").muted = true
@@ -34,53 +38,46 @@ func _run() -> void:
 	root.add_child(scene)
 	await process_frame
 	await process_frame
+	scene.start_area = "neon_arcade"
 	scene._start_shift()
+	await create_timer(0.8).timeout
+	print("STAGE  area=", scene.area_id, " mood=", scene.world.mood, " puddles=", scene.world.electric_puddles.size())
+
+	print("STAGE  strip view")
+	_place(Vector3(0.0, 0.0, 8.0), 0.15, 0.15)
 	await create_timer(0.6).timeout
-	print("STAGE  door")
-	_place(Vector3(-9.0, 0.0, -9.3), 0.0, 0.0)
+	await _shot("14-neon-strip")
+
+	print("STAGE  live puddle")
+	_place(Vector3(-11.5, 0.0, -2.5), 1.03, 1.03)
+	await create_timer(0.8).timeout
+	await _shot("15-neon-puddle")
+
+	print("STAGE  rooftop pip")
+	scene.camera_distance = 6.4
+	_place(Vector3(13.4, 2.4, 12.6), -1.42, -1.42)
 	await create_timer(0.6).timeout
-	await _shot("01-door")
+	await _shot("16-neon-roof")
 
-	print("STAGE  enter")
-	scene._enter_interior.bind("depot").call_deferred()
-	await create_timer(0.42).timeout
-	await _shot("02-loading")
-	print("STAGE  waiting for room")
-	while not scene.inside_interior:
-		await process_frame
-	while scene.transitioning:
-		await process_frame
-	print("STAGE  room is in")
-	await create_timer(0.7).timeout
-	await _shot("03-depot")
+	print("STAGE  rain night")
+	scene.camera_distance = 8.8
+	scene.world.set_night(true)
+	await create_timer(1.2).timeout
+	_place(Vector3(1.0, 0.0, 4.0), 0.25, 0.25)
+	await create_timer(0.8).timeout
+	print("STAGE  raining=", scene.world.raining, " rain quad=", scene.rain_quad.visible)
+	await _shot("17-neon-rain")
 
-	_place(scene.world.to_global(Vector3(0.4, 0.0, 0.6)), PI, 0.0)
-	await create_timer(0.5).timeout
-	await _shot("04-depot-wide")
-
-	print("STAGE  leave")
-	scene._exit_interior.call_deferred()
-	while scene.inside_interior:
-		await process_frame
-	while scene.transitioning:
-		await process_frame
-	await create_timer(0.6).timeout
-	await _shot("05-back-outside")
-
-	print("STAGE  bakery")
-	scene._enter_interior.bind("bakery").call_deferred()
+	print("STAGE  enter arcade")
+	scene._enter_interior.bind("arcade").call_deferred()
 	while not scene.inside_interior:
 		await process_frame
 	while scene.transitioning:
 		await process_frame
 	await create_timer(0.7).timeout
-	print("CAST ", scene.interior_id, " members=", scene.crowd.members.size())
-	_place(scene.world.to_global(Vector3(-3.6, 0.0, 0.4)), PI, 0.0)
-	await create_timer(0.4).timeout
-	await _shot("07-baker-close")
-	_place(scene.world.to_global(Vector3(0.2, 0.0, 0.8)), PI, 0.0)
-	await create_timer(0.4).timeout
-	await _shot("06-bakery")
+	_place_local(Vector3(-6.5, 0.0, -3.6), 0.0, 0.0)
+	await create_timer(0.6).timeout
+	await _shot("18-arcade-inside")
 
 	print("STAGE  done")
 	quit(0)

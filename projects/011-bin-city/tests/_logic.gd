@@ -1,6 +1,7 @@
 extends SceneTree
 
 const GameData = preload("res://scripts/data.gd")
+const LITTER = preload("res://scripts/litter.gd")
 
 var failures := 0
 
@@ -194,6 +195,47 @@ func _run() -> void:
 	float_litter.build("float_bottle", kind_rng)
 	_check("float bottle knows it floats", float_litter.floating and float_litter.kind == "float_bottle")
 	float_litter.queue_free()
+	var token_litter = load("res://scripts/litter.gd").new()
+	token_litter.build("token", kind_rng)
+	_check("token is metal litter", token_litter.sort_kind == "metal" and token_litter.kind == "token")
+	token_litter.queue_free()
+	await process_frame
+
+	var neon = load("res://scripts/neon_arcade.gd").new()
+	root.add_child(neon)
+	await process_frame
+	_check("neon strip has a title", neon.title == "NEON ARCADE")
+	_check("neon spawn is free", neon.is_free(neon.spawn))
+	_check("neon seats a crowd", neon.crowd_points().size() >= 10)
+	_check("neon has three live puddles", neon.electric_puddles.size() == 3)
+	for i in neon.electric_puddles.size():
+		var entry: Dictionary = neon.electric_puddles[i]
+		_check("neon puddle %d starts hazardous" % i, bool(entry.hazard))
+		_check("neon puddle %d has a shorting sign" % i, entry.sign_light != null and entry.sparks != null)
+	_check("neon hides a roof token", neon.roof_token_pos.y > 1.0)
+	neon.set_night(true)
+	_check("neon night brings rain", neon.raining)
+	neon.litter_puddle(neon.electric_puddles[0].pos)
+	_check("neon puddle clears when litter goes", not bool(neon.electric_puddles[0].hazard))
+	_check("neon door has a title", str(neon.interiors[0].title) != "")
+	neon.queue_free()
+	await process_frame
+
+	var shock_player = load("res://scripts/player.gd").new()
+	root.add_child(shock_player)
+	await process_frame
+	shock_player.set_rank(3)
+	var carried = LITTER.new()
+	carried.build("crate", kind_rng)
+	root.add_child(carried)
+	shock_player.add_to_stack(carried)
+	_check("shock drops a stack item", shock_player.stack_count() == 1)
+	shock_player.slip_timer = 0.0
+	shock_player.apply_shock()
+	_check("shock stuns the sweeper", shock_player.slip_timer > 0.3)
+	_check("shock tumbles the load", shock_player.stack_count() == 0)
+	shock_player.queue_free()
+	carried.queue_free()
 	await process_frame
 
 	state.delete_save()

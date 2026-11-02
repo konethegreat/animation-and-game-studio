@@ -26,6 +26,7 @@ const PULSE_RADIUS := 4.2
 const PULSE_COOLDOWN := 6.0
 
 var locked := true
+var traction := 1.0
 var rank := 1
 var max_stack := 1
 var speed_bonus := 0.0
@@ -525,6 +526,7 @@ func _physics_process(delta: float) -> void:
 	var sprinting := (Input.is_action_pressed("sprint") or touch_sprint) and is_moving and slip_timer < 0.1
 	var target_speed := (SPRINT_SPEED if sprinting else BASE_SPEED) + speed_bonus
 	target_speed *= 1.0 - minf(0.18, stack.size() * 0.055)
+	target_speed *= traction
 	if slip_timer > 0.0:
 		target_speed *= 0.32
 		wish *= 0.35
@@ -706,6 +708,19 @@ func apply_slip() -> void:
 	emit_signal("slipped")
 
 
+func apply_shock() -> void:
+	if slip_timer > 0.2:
+		return
+	slip_timer = 0.7
+	lean += Vector2(0.42, 0.5)
+	if stack.size() > 0:
+		var item: Node3D = stack.pop_back()
+		if item:
+			emit_signal("stack_tumbled", item)
+			_refresh_stack()
+	emit_signal("slipped")
+
+
 func ability(name: String) -> bool:
 	match name:
 		"sprint":
@@ -740,6 +755,7 @@ func reset_player(at: Vector3) -> void:
 	rotation.y = PI
 	lean = Vector2.ZERO
 	wobble = 0.0
+	traction = 1.0
 	slip_timer = 0.0
 	vacuuming = false
 	_coyote = 0.0

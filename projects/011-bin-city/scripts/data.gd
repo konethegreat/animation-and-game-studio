@@ -22,8 +22,8 @@ const QUESTS := {
 		"desc": "Find Miso the cat and coax her out.",
 	},
 	"high_score": {
-		"title": "High Score", "goal": 3, "xp": 350, "giver": "pip",
-		"desc": "Find three arcade tokens in the litter and play the cabinet.",
+		"title": "High Score", "goal": 4, "xp": 350, "giver": "pip",
+		"desc": "Find three arcade tokens in the litter, then beat the taped-up cabinet.",
 	},
 }
 

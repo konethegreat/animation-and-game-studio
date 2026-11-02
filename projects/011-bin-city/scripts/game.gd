@@ -66,12 +66,14 @@ const MOODS := {
 const AREA_SCRIPTS := {
 	"dawn_market": preload("res://scripts/world.gd"),
 	"canal_quarter": preload("res://scripts/canal_quarter.gd"),
+	"neon_arcade": preload("res://scripts/neon_arcade.gd"),
 }
 
 const SPAWN := Vector3(2.0, 0.0, 2.0)
 const AREA_INTRO := {
 	"dawn_market": "The market opens in an hour. Get the street 90% clean before the shutters go up.",
 	"canal_quarter": "The tide brought the whole city's rubbish to your banks. Get the quarter 90% clean before the barge leaves.",
+	"neon_arcade": "Neon rain over the arcade strip. Get it 90% clean and watch the live wires.",
 }
 const GOAL := 0.9
 const FLOW_WINDOW := 14.0
@@ -136,6 +138,10 @@ var finished := false
 var start_area := "dawn_market"
 var start_night := false
 var _prompt_cache := ""
+var rain_quad: MeshInstance3D
+var rain_mat: ShaderMaterial
+var rain_timer := 0.0
+var _puddle_state := {}
 
 
 func _ready() -> void:
@@ -277,6 +283,8 @@ func _process(delta: float) -> void:
 	_update_camera(delta)
 	_update_vacuum(delta)
 	_update_drains(delta)
+	_update_rain(delta)
+	_update_puddles(delta)
 	_update_rats(delta)
 	_check_slip()
 	_check_progress()
@@ -468,6 +476,19 @@ func _build_cameras() -> void:
 	title_cam.far = 220.0
 	add_child(title_cam)
 	title_cam.current = true
+	rain_mat = ShaderMaterial.new()
+	rain_mat.shader = load("res://scripts/rain.gdshader")
+	rain_mat.set_shader_parameter("intensity", 0.55)
+	rain_mat.set_shader_parameter("tint", Color(0.62, 0.78, 0.95))
+	rain_quad = MeshInstance3D.new()
+	rain_quad.name = "Rain"
+	rain_quad.mesh = QuadMesh.new()
+	rain_quad.mesh.size = Vector2(3.6, 2.4)
+	rain_quad.material_override = rain_mat
+	rain_quad.position = Vector3(0, 0, -1.3)
+	rain_quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	rain_quad.visible = false
+	camera.add_child(rain_quad)
 
 
 # ---------------------------------------------------------------- state
@@ -781,6 +802,12 @@ func _cast_for_area() -> Array:
 				{"role": "keeper", "pos": Vector3(-17.0, 0.0, 1.2), "dialogue": "keeper_1", "name": "LOCK KEEPER"},
 				{"role": "cat", "pos": Vector3(12.0, 0.0, 14.2), "dialogue": "miso", "name": "MISO"},
 			]
+		"neon_arcade":
+			return [
+				{"role": "pip", "pos": Vector3(15.4, 2.4, 12.9), "dialogue": "pip", "name": "PIP"},
+				{"role": "arcade_kid", "pos": Vector3(-2.0, 0.0, -8.6), "dialogue": "arcade_kid", "name": "JOYSTICK"},
+				{"role": "cat", "pos": Vector3(9.0, 0.0, 13.4), "dialogue": "miso", "name": "MISO"},
+			]
 	return [
 		{"role": "nell", "pos": Vector3(7.4, 0.0, 3.4), "dialogue": "nell", "name": "NELL QUILL"},
 		{"role": "rook", "pos": Vector3(-7.0, 0.0, 5.6), "dialogue": "rook", "name": "ROOK"},
@@ -811,6 +838,24 @@ func _spawn_market() -> void:
 	var grime_total := int(world.get("grime_count"))
 	for i in grime_total:
 		_spawn_litter("grime")
+	var token_total := int(world.get("token_count"))
+	for i in token_total:
+		_spawn_litter("token")
+	if world.get("roof_token_pos") != null and not inside_interior:
+		var roof_token = LITTER.new()
+		roof_token.build("token", rng)
+		roof_token.position = world.get("roof_token_pos")
+		world.add_child(roof_token)
+		litter_nodes.append(roof_token)
+		total_weight += float(roof_token.get("weight"))
+	if world.has_method("litter_puddle"):
+		for entry in world.get("electric_puddles"):
+			var node = LITTER.new()
+			node.build("bottle", rng)
+			node.position = entry.pos + Vector3(rng.randf_range(-0.4, 0.4), 0.0, rng.randf_range(-0.3, 0.3))
+			world.add_child(node)
+			litter_nodes.append(node)
+			total_weight += float(node.get("weight"))
 
 
 func _spawn_litter(kind: String) -> void:
@@ -876,6 +921,80 @@ func _update_drains(delta: float) -> void:
 			if flat.length() < 0.55:
 				_swallow(target)
 				entry.target = null
+
+
+func _update_rain(delta: float) -> void:
+	var raining := false
+	if not inside_interior and world != null:
+		raining = bool(world.get("raining"))
+	if rain_quad != null:
+		rain_quad.visible = raining
+	if player != null:
+		player.traction = 0.85 if raining else 1.0
+	if not raining:
+		return
+	rain_timer -= delta
+	if rain_timer <= 0.0:
+		rain_timer = 0.22
+		_spawn_ripple()
+
+
+func _spawn_ripple() -> void:
+	var node = LITTER.new()
+	node.build("bottle_cap", rng)
+	node.position = _free_spot(1.0) + Vector3(0, 0.02, 0)
+	node.scale = Vector3(1.6, 0.4, 1.6)
+	world.add_child(node)
+	var tween := create_tween()
+	tween.tween_property(node, "scale", Vector3(0.1, 0.05, 0.1), 0.7)
+	tween.tween_callback(node.queue_free)
+
+
+func _update_puddles(delta: float) -> void:
+	if inside_interior or world == null or not world.has_method("litter_puddle"):
+		return
+	var puddles: Array = world.get("electric_puddles")
+	if puddles.is_empty():
+		return
+	for i in puddles.size():
+		var entry: Dictionary = puddles[i]
+		if not bool(entry.get("hazard", false)):
+			continue
+		var pos: Vector3 = entry.pos
+		var live := false
+		for node in litter_nodes:
+			if not _available(node) or bool(node.get("heavy")):
+				continue
+			if Vector2(node.position.x - pos.x, node.position.z - pos.z).length() < float(entry.get("radius", 1.25)):
+				live = true
+				break
+		var sparks = entry.get("sparks")
+		if live:
+			if sparks != null and is_instance_valid(sparks):
+				sparks.visible = true
+				sparks.rotation.y += delta * 9.0
+			entry.crackle = float(entry.get("crackle", 0.4)) - delta
+			if float(entry.crackle) <= 0.0:
+				entry.crackle = rng.randf_range(0.35, 0.9)
+				Sound.play("zap", rng.randf_range(0.8, 1.15), -8.0)
+			var light = entry.get("sign_light")
+			if light != null and is_instance_valid(light):
+				light.light_energy = 1.6 + sin(timer * 21.0 + i * 2.4) * 0.7
+			var flat := Vector2(player.global_position.x - pos.x, player.global_position.z - pos.z)
+			if flat.length() < float(entry.get("radius", 1.25)) * 0.85 and player.is_on_floor() and player.slip_timer <= 0.0:
+				player.apply_shock()
+				Sound.play("zap", 1.0, -2.0)
+				ui.subtitle("Live wire! Vacuum the litter out of the puddle.", 4.0)
+		else:
+			if bool(entry.get("was_live", false)):
+				entry.was_live = false
+				if world.has_method("litter_puddle"):
+					world.litter_puddle(pos)
+				_grant_xp(15)
+				ui.subtitle("Puddle safe. The sign steadies back to neon.", 3.5)
+				Sound.play("burst", 0.9, -5.0)
+		entry.was_live = live
+		entry.active = live
 
 
 func _nearest_floating(origin: Vector3, radius: float):
@@ -1059,6 +1178,13 @@ func _collect(node: Node3D) -> void:
 	node.queue_free()
 	if was_grime:
 		_clear_drain_at(was_pos)
+	if str(node.get("kind")) == "token":
+		var state = get_node_or_null("/root/GameState")
+		if state != null and state.quest_status("high_score") == "active":
+			state.advance_quest("high_score", 1)
+			var left := int(state.quests["high_score"]["goal"]) - int(state.quests["high_score"]["progress"])
+			if left > 0:
+				ui.subtitle("Arcade token! %d to go before the cabinet will listen." % left, 4.0)
 	score += 2
 	_grant_xp(8)
 	flow_time = FLOW_WINDOW
@@ -1097,6 +1223,9 @@ func _interact() -> void:
 	if _near_save():
 		_save_at_desk()
 		return
+	if inside_interior and interior_id == "arcade" and _near_arcade_cabinet():
+		_play_cabinet()
+		return
 	var heavy = _nearest_heavy()
 	if heavy != null and player.stack_count() < player.max_stack:
 		_lift(heavy)
@@ -1120,6 +1249,33 @@ func _interact() -> void:
 		ui.subtitle("Stack full. The skip is by the canal bridge.", 3.5)
 	elif hopper.size() >= hopper_capacity:
 		ui.subtitle("Hopper full. The depot bins are marked in the square.", 3.5)
+
+
+func _near_arcade_cabinet() -> bool:
+	if player == null or world == null:
+		return false
+	var local: Vector3 = world.to_local(player.global_position)
+	var flat := Vector2(local.x + 6.5, local.z + 4.9)
+	return flat.length() < 1.6
+
+
+func _play_cabinet() -> void:
+	var state = get_node_or_null("/root/GameState")
+	if state == null:
+		return
+	if state.quest_status("high_score") != "active":
+		ui.subtitle("The taped-up cabinet hums. It only listens to token hunters.", 4.0)
+		Sound.play("click", 0.9)
+		return
+	var quest: Dictionary = state.quests.get("high_score", {})
+	if int(quest.get("progress", 0)) < 3:
+		ui.subtitle("The cabinet wants three tokens fed first. Check the litter out there.", 4.5)
+		Sound.play("click", 0.9)
+		return
+	state.advance_quest("high_score", 1)
+	ui.subtitle("Three tokens in. The cabinet wakes up and coughs out a high score. Pip owes you a roof route.", 5.5)
+	Sound.play("burst", 1.0, -3.0)
+	Sound.play("pickup", 1.3, -6.0)
 
 
 func _lift(node: Node3D) -> void:
@@ -1618,8 +1774,12 @@ func _update_prompt() -> void:
 			text = "E  ENTER %s" % str(door.get("title", "THE ROOM"))
 	elif _near_save():
 		text = "E  SAVE THE SHIFT"
+	elif inside_interior and interior_id == "arcade" and _near_arcade_cabinet():
+		text = "E  PLAY THE TAPED-UP CABINET"
 	elif not inside_interior and _nearest_clogged_drain(2.8) >= 0:
 		text = "DRAIN CLOGGED  /  VACUUM THE GRIME"
+	elif not inside_interior and _nearest_live_puddle(3.2):
+		text = "SPARKING PUDDLE  /  VACUUM THE LITTER OUT"
 	elif hopper.size() >= hopper_capacity:
 		if inside_interior:
 			text = "HOPPER FULL  /  SORT AT THE FRONT DESK"
@@ -1672,6 +1832,21 @@ func _update_hud() -> void:
 
 func _available(node) -> bool:
 	return is_instance_valid(node) and node.is_inside_tree() and not bool(node.get("collected"))
+
+
+func _nearest_live_puddle(radius: float):
+	if world == null or not world.has_method("litter_puddle"):
+		return false
+	var puddles: Array = world.get("electric_puddles")
+	if puddles.is_empty():
+		return false
+	var origin: Vector3 = player.global_position
+	for entry in puddles:
+		if not bool(entry.get("hazard", false)) or not bool(entry.get("active", false)):
+			continue
+		if Vector2(entry.pos.x - origin.x, entry.pos.z - origin.z).length() < radius:
+			return true
+	return false
 
 
 func _nearest_heavy(radius := 2.4):

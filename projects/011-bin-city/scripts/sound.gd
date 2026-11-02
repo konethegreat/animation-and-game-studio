@@ -110,6 +110,7 @@ func _build_library() -> void:
 	library["dash"] = _wav(_dash())
 	library["pulse"] = _wav(_pulse())
 	library["door"] = _wav(_door())
+	library["zap"] = _wav(_zap())
 	library["vacuum"] = _wav(_vacuum_loop(), true)
 	library["music"] = _wav(_music(), true)
 
@@ -361,6 +362,21 @@ func _pulse() -> PackedFloat32Array:
 		var low := sin(TAU * 110.0 * t) * 0.3
 		var high := sin(TAU * 440.0 * t + sin(TAU * 3.0 * t)) * 0.12
 		out[i] = (low + high) * env
+	return out
+
+
+func _zap() -> PackedFloat32Array:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 818
+	var out := _buffer(0.42)
+	var held := 0.0
+	for i in out.size():
+		var t := float(i) / RATE
+		held = lerpf(held, rng.randf_range(-1.0, 1.0), 0.6)
+		var gate := 1.0 if fmod(t, 0.06) < 0.032 else 0.0
+		var env := exp(-t * 7.0)
+		var blip := signf(sin(TAU * (1600.0 - 900.0 * t) * t)) * 0.12
+		out[i] = (held * 0.3 * gate + blip * gate) * env
 	return out
 
 

@@ -110,6 +110,12 @@ func build(kind: String, rng: RandomNumberGenerator) -> void:
 			tint = Color(0.3, 0.28, 0.22)
 			weight = 1.5
 			_grime(rng)
+		"token":
+			display = "Arcade token"
+			sort_kind = "metal"
+			tint = Color(0.95, 0.78, 0.25)
+			weight = 0.5
+			_token(rng)
 		_:
 			display = "Litter"
 			_paper(rng)
@@ -229,6 +235,15 @@ func _grime(rng: RandomNumberGenerator) -> void:
 		var speck := K.sphere(self, 0.05, Vector3(cos(angle) * 0.28, 0.1, sin(angle) * 0.22), [Color(0.42, 0.36, 0.2), Color(0.24, 0.24, 0.2), Color(0.5, 0.44, 0.28)][i % 3], Vector3(1, 0.6, 1))
 		speck.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	K.box(self, Vector3(0.34, 0.01, 0.24), Vector3(0, 0.16, 0), Color(0.22, 0.21, 0.17)).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+func _token(rng: RandomNumberGenerator) -> void:
+	var coin := K.cylinder(self, 0.14, 0.035, Vector3(0, 0.06, 0), Color(0.95, 0.78, 0.25), Vector3(PI / 2.0, 0, rng.randf() * TAU), 14)
+	coin.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var face_mat := K.material(Color(0.95, 0.78, 0.25), 0.35, 0.75, Color(1.0, 0.82, 0.3), 0.55)
+	coin.material_override = face_mat
+	K.box(self, Vector3(0.16, 0.012, 0.045), Vector3(0, 0.06, 0.0), Color(1.0, 0.9, 0.5), Vector3(0, 0, 0.0)).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	spin_speed = 3.2
 
 
 func pull(toward: Vector3, delta: float) -> void:
