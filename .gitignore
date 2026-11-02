@@ -30,3 +30,4 @@ UserSettings/
 /Packages/
 /ProjectSettings/
 projects/**/obj/
+projects/**/*.import
