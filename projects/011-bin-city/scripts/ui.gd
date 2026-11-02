@@ -66,6 +66,9 @@ var stick: Control
 var look_pad: Control
 var touch_vacuum := false
 var touch_sprint := false
+var touch_jump := false
+var touch_dash := false
+var touch_pulse := false
 var display_font: FontVariation
 var _subtitle_tween: Tween
 var _rank_tween: Tween
@@ -385,8 +388,8 @@ func _build_title() -> void:
 	root.add_child(title_layer)
 
 	var card := PanelContainer.new()
-	card.position = Vector2(54, 54)
-	card.custom_minimum_size = Vector2(660, 612)
+	card.position = Vector2(54, 44)
+	card.custom_minimum_size = Vector2(660, 656)
 	card.add_theme_stylebox_override("panel", _flat(Color(0.973, 0.945, 0.898, 0.96), 28, 3, K.INK))
 	title_layer.add_child(card)
 	var wrap := _margin(32)
@@ -426,6 +429,9 @@ func _build_title() -> void:
 		["WASD / left stick", "Move"],
 		["Hold left mouse / RT", "Vacuum"],
 		["E / X", "Interact and sort"],
+		["Space / A", "Jump, then double jump"],
+		["Ctrl / B", "Dash"],
+		["Q / Y", "Cleanse pulse"],
 		["Shift / L3", "Run"],
 		["Right drag / right stick", "Look"],
 	]
@@ -436,7 +442,7 @@ func _build_title() -> void:
 		controls.add_child(_label(row[1], 13, K.INK, false))
 	box.add_child(controls)
 	box.add_child(_spacer(2))
-	var ranks := _label("RANKS IN THIS BUILD   1 STREET SWEEPER   /   2 BAG BARON", 10, Color(0.13, 0.12, 0.1, 0.55), true)
+	var ranks := _label("FIVE RANKS   /   SWEEPER TO COSMIC CUSTODIAN. XP COMES FROM A CLEAN STREET.", 10, Color(0.13, 0.12, 0.1, 0.55), true)
 	ranks.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(ranks)
 	var footer := _label("Original score and effects, synthesised in the game. About ten minutes for a clean street.", 11, Color(0.13, 0.12, 0.1, 0.55), false)
@@ -672,6 +678,45 @@ func _build_touch() -> void:
 	vacuum.button_up.connect(func() -> void: touch_vacuum = false)
 	touch_root.add_child(vacuum)
 
+	var jump := _button("JUMP", K.TEAL_DARK, K.CREAM, 16, false, 104, 96)
+	jump.anchor_left = 1.0
+	jump.anchor_right = 1.0
+	jump.anchor_top = 1.0
+	jump.anchor_bottom = 1.0
+	jump.offset_left = -152
+	jump.offset_right = -48
+	jump.offset_top = -278
+	jump.offset_bottom = -182
+	jump.button_down.connect(func() -> void: touch_jump = true)
+	jump.button_up.connect(func() -> void: touch_jump = false)
+	touch_root.add_child(jump)
+
+	var dash := _button("DASH", K.INK, K.CREAM, 14, false, 96, 82)
+	dash.anchor_left = 1.0
+	dash.anchor_right = 1.0
+	dash.anchor_top = 1.0
+	dash.anchor_bottom = 1.0
+	dash.offset_left = -278
+	dash.offset_right = -182
+	dash.offset_top = -284
+	dash.offset_bottom = -202
+	dash.button_down.connect(func() -> void: touch_dash = true)
+	dash.button_up.connect(func() -> void: touch_dash = false)
+	touch_root.add_child(dash)
+
+	var pulse := _button("PULSE", K.TEAL, K.CREAM, 13, false, 96, 76)
+	pulse.anchor_left = 1.0
+	pulse.anchor_right = 1.0
+	pulse.anchor_top = 1.0
+	pulse.anchor_bottom = 1.0
+	pulse.offset_left = -278
+	pulse.offset_right = -182
+	pulse.offset_top = -380
+	pulse.offset_bottom = -304
+	pulse.button_down.connect(func() -> void: touch_pulse = true)
+	pulse.button_up.connect(func() -> void: touch_pulse = false)
+	touch_root.add_child(pulse)
+
 	var use := _button("USE", K.INK, K.CREAM, 16, false, 96, 96)
 	use.anchor_left = 1.0
 	use.anchor_right = 1.0
@@ -896,6 +941,18 @@ func touch_wants_sprint() -> bool:
 
 func touch_wants_vacuum() -> bool:
 	return touch_root.visible and touch_vacuum
+
+
+func touch_wants_jump() -> bool:
+	return touch_root.visible and touch_jump
+
+
+func touch_wants_dash() -> bool:
+	return touch_root.visible and touch_dash
+
+
+func touch_wants_pulse() -> bool:
+	return touch_root.visible and touch_pulse
 
 
 func touch_available() -> bool:

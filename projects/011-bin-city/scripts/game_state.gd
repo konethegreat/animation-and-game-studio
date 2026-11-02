@@ -22,6 +22,8 @@ var settings := {"muted": false, "reduced_motion": false, "quality": "standard"}
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	if has_save():
+		load_save()
 
 
 func reset_new_game() -> void:

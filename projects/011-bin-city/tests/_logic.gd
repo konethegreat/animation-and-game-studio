@@ -58,6 +58,37 @@ func _run() -> void:
 	_check("rank title lookup", GameData.rank_title(3) == "SCRAP KNIGHT")
 	_check("shift lookup", str(GameData.shift(2).id) == "shift_2")
 
+	for action in ["sprint", "jump", "dash", "pulse", "vacuum", "interact"]:
+		if not InputMap.has_action(action):
+			InputMap.add_action(action)
+	var Player = load("res://scripts/player.gd")
+	var p = Player.new()
+	root.add_child(p)
+	await process_frame
+	p.set_rank(1)
+	_check("rank 1 carry", p.max_stack == 1)
+	_check("rank 1 no dash", not p.can_dash)
+	p.set_rank(2)
+	_check("rank 2 carry", p.max_stack == 3)
+	_check("rank 2 sprint", p.ability("sprint"))
+	p.set_rank(3)
+	_check("rank 3 magnet", p.ability("magnet"))
+	_check("rank 3 carry", p.max_stack == 5)
+	_check("rank 3 dash", p.can_dash)
+	_check("rank 3 parts", p.rank_parts.size() >= 9 and p.rank_parts["plates"].visible)
+	p.set_rank(4)
+	_check("rank 4 double jump", p.can_double_jump)
+	_check("rank 4 crown", p.rank_parts["crown"].visible and p.rank_parts["cape"].visible)
+	p.set_rank(5)
+	_check("rank 5 pulse", p.ability("cleanse_pulse"))
+	_check("rank 5 carry", p.max_stack == 12)
+	_check("rank 5 bins", p.rank_parts["bins"].visible and p.rank_parts["visor"].visible)
+	_check("rank five is the cap", p.rank == 5)
+	p.set_rank(9)
+	_check("rank clamps to five", p.rank == 5)
+	p.queue_free()
+	await process_frame
+
 	var district = load("res://scripts/district.gd")
 	_check("district base loads", district != null)
 	var market = load("res://scripts/world.gd").new()

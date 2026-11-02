@@ -8,6 +8,7 @@ const LITTER = preload("res://scripts/litter.gd")
 const PILE = preload("res://scripts/pile.gd")
 const RAT = preload("res://scripts/rat.gd")
 const POSTFX = preload("res://scripts/postfx.gd")
+const Data = preload("res://scripts/data.gd")
 
 const MOODS := {
 	"dawn": {
@@ -72,10 +73,8 @@ const PILE_SPOTS := [
 	Vector3(8.0, 0.0, 3.2),
 ]
 const GOAL := 0.9
-const RANK_TWO_AT := 0.42
 const FLOW_WINDOW := 14.0
 const BASE_HOPPER := 12
-const BIG_HOPPER := 20
 
 var phase := "title"
 var world
@@ -113,10 +112,12 @@ var vacuum_time := 0.0
 var flow_chain := 0
 var flow_time := 0.0
 var sorted_total := 0
+var xp_milestones := 0
 var sort_start := 0
 var sort_mistakes := 0
 var sort_correct := 0
 var camera_distance := 8.8
+var cam_kick := 0.0
 var title_time := 0.0
 var rat_spawn_marks := [35.0, 95.0]
 var rat_spawned := [false, false]
@@ -134,6 +135,11 @@ func _ready() -> void:
 	var state = get_node_or_null("/root/GameState")
 	if state != null:
 		postfx.set_quality(str(state.settings.get("quality", "standard")))
+		if OS.has_feature("web"):
+			var forced := int(JavaScriptBridge.eval("Number(new URLSearchParams(location.search).get('rank')) || 0", true))
+			if forced >= 1 and forced <= Data.RANKS.size():
+				state.rank = forced
+				state.xp = maxi(state.xp, state.xp_floor(forced))
 	_apply_mood("dawn")
 	world = WORLD.new()
 	world.name = "DawnMarket"
@@ -161,6 +167,11 @@ func _ready() -> void:
 	ui.interact_pressed.connect(_interact)
 	ui.look_pad.looked.connect(_on_look)
 	player.stack_tumbled.connect(_on_tumble)
+	player.pulse_requested.connect(_on_pulse)
+	player.dash_started.connect(_on_dash)
+	player.landed.connect(_on_landed)
+	if state != null:
+		state.rank_changed.connect(_on_rank_changed)
 	_load_best()
 	if _wants_poster():
 		_poster_mode()
@@ -260,6 +271,9 @@ func _setup_input() -> void:
 		_pad(JOY_BUTTON_RIGHT_SHOULDER), _axis(JOY_AXIS_TRIGGER_RIGHT, 0.5),
 	])
 	_bind("interact", [_key(KEY_E), _pad(JOY_BUTTON_X)])
+	_bind("jump", [_key(KEY_SPACE), _pad(JOY_BUTTON_A)])
+	_bind("dash", [_key(KEY_CTRL), _pad(JOY_BUTTON_B)])
+	_bind("pulse", [_key(KEY_Q), _pad(JOY_BUTTON_Y)])
 	_bind("pause", [_key(KEY_ESCAPE), _pad(JOY_BUTTON_START)])
 	_bind("restart", [_key(KEY_R)])
 	_bind("mute", [_key(KEY_M)])
@@ -421,8 +435,9 @@ func _show_title() -> void:
 	player.locked = true
 	player.global_position = SPAWN
 	player.rotation.y = 0.0
-	player.set_rank(1)
-	player.speed_bonus = 0.0
+	rank = _saved_rank()
+	hopper_capacity = _hopper_for_rank(rank)
+	player.set_rank(rank)
 	cam_yaw.rotation.y = 0.0
 	cam_pitch.rotation.x = -0.3
 	cam_yaw.global_position = SPAWN + Vector3(0, 1.55, 0)
@@ -442,10 +457,11 @@ func _start_shift() -> void:
 	_spawn_market()
 	timer = 0.0
 	score = 0
-	rank = 1
+	rank = _saved_rank()
 	clean_progress = 0.0
+	xp_milestones = 0
 	hopper.clear()
-	hopper_capacity = BASE_HOPPER
+	hopper_capacity = _hopper_for_rank(rank)
 	charge = 100.0
 	charge_lock = false
 	vacuum_time = 0.0
@@ -460,8 +476,7 @@ func _start_shift() -> void:
 	_prompt_cache = ""
 	player.reset_player(SPAWN)
 	player.rotation.y = 0.0
-	player.set_rank(1)
-	player.speed_bonus = 0.0
+	player.set_rank(rank)
 	player.visible = true
 	player.locked = false
 	player.vacuuming = false
@@ -629,18 +644,20 @@ func _update_vacuum(delta: float) -> void:
 		facing.y = 0.0
 		facing = facing.normalized()
 		var origin: Vector3 = player.global_position
+		var reach: float = 3.2 + float(player.vacuum_radius)
+		var grab: float = 1.15 + 0.09 * float(player.rank)
 		for node in litter_nodes:
 			if not _available(node) or bool(node.get("heavy")):
 				continue
 			var offset: Vector3 = node.global_position - origin
 			offset.y = 0.0
 			var distance := offset.length()
-			if distance > 5.4:
+			if distance > reach:
 				continue
 			if distance > 0.4 and facing.dot(offset / distance) < 0.28:
 				continue
 			node.call("pull", origin + facing * 0.75, delta)
-			if distance < 1.25:
+			if distance < grab:
 				_collect(node)
 		if hopper.size() >= hopper_capacity and vacuum_time > 0.2:
 			_release_vacuum(false)
@@ -649,6 +666,17 @@ func _update_vacuum(delta: float) -> void:
 		if player.vacuuming:
 			_release_vacuum(room)
 		charge = minf(100.0, charge + 28.0 * delta)
+		if player.can_magnet and phase == "play":
+			var facing: Vector3 = -player.global_transform.basis.z
+			facing.y = 0.0
+			facing = facing.normalized()
+			for node in litter_nodes:
+				if not _available(node) or bool(node.get("heavy")):
+					continue
+				var offset: Vector3 = node.global_position - player.global_position
+				offset.y = 0.0
+				if offset.length() < player.vacuum_radius:
+					node.call("pull", player.global_position + facing * 0.5, delta * 0.3)
 
 
 func _release_vacuum(allow_burst: bool) -> void:
@@ -719,6 +747,7 @@ func _collect(node: Node3D) -> void:
 	hopper.append(item)
 	node.queue_free()
 	score += 2
+	_grant_xp(8)
 	flow_time = FLOW_WINDOW
 	Sound.play("pickup", rng.randf_range(0.92, 1.12))
 	if hopper.size() == 1:
@@ -764,6 +793,7 @@ func _lift(node: Node3D) -> void:
 	player.add_to_stack(node)
 	Sound.play("lift", rng.randf_range(0.9, 1.05))
 	score += 3
+	_grant_xp(14)
 	flow_time = FLOW_WINDOW
 	if player.stack_count() >= player.max_stack:
 		ui.subtitle("Arms full. Take the load to the skip.", 3.0)
@@ -781,6 +811,7 @@ func _unload_stack() -> void:
 		item.queue_free()
 	clean_progress += weight
 	score += int(weight * 8.0) + int(_multiplier() * 10.0)
+	_grant_xp(int(weight) * 3)
 	flow_chain += 1
 	flow_time = FLOW_WINDOW
 	Sound.play("throw", 0.9)
@@ -792,6 +823,7 @@ func _bag_pile(pile: Node3D) -> void:
 	var weight := float(pile.call("total_weight"))
 	clean_progress += weight
 	score += 45 + int(weight * 5.0)
+	_grant_xp(45)
 	flow_chain += 1
 	flow_time = FLOW_WINDOW
 	pile.visible = false
@@ -827,6 +859,7 @@ func _on_sort_choice(kind: String) -> void:
 		hopper.pop_front()
 		sort_correct += 1
 		sorted_total += 1
+		_grant_xp(22)
 		flow_chain += 1
 		flow_time = FLOW_WINDOW
 		Sound.play("correct", rng.randf_range(0.98, 1.06))
@@ -999,6 +1032,41 @@ func _check_slip() -> void:
 		ui.subtitle("Wet cobbles. Sprint somewhere dry.", 2.8)
 
 
+func _on_pulse(origin: Vector3, radius: float) -> void:
+	if phase != "play":
+		return
+	var taken := 0
+	for node in litter_nodes:
+		if taken >= 8 or hopper.size() >= hopper_capacity:
+			break
+		if not _available(node) or bool(node.get("heavy")):
+			continue
+		if node.global_position.distance_to(origin) <= radius:
+			_collect(node)
+			taken += 1
+	for entry in rats:
+		var rat = entry.get("node")
+		if is_instance_valid(rat) and rat.global_position.distance_to(origin) < radius * 1.6:
+			_scare_rat(entry)
+	_burst_ring(origin)
+	flow_time = FLOW_WINDOW
+	ui.subtitle("Cleanse pulse. The street remembers who runs it.", 3.0)
+
+
+func _on_dash() -> void:
+	if phase != "play":
+		return
+	cam_kick = 0.22
+	_burst_ring(player.global_position)
+
+
+func _on_landed(hard: bool) -> void:
+	if not hard or phase != "play":
+		return
+	_burst_ring(player.global_position)
+	cam_kick = maxf(cam_kick, 0.1)
+
+
 func _on_tumble(item) -> void:
 	if not is_instance_valid(item):
 		return
@@ -1016,8 +1084,10 @@ func _on_tumble(item) -> void:
 
 func _check_progress() -> void:
 	var clean := _clean()
-	if rank == 1 and clean >= RANK_TWO_AT:
-		_rank_up()
+	var marks := [0.25, 0.5, 0.75, 0.9]
+	while xp_milestones < marks.size() and clean >= float(marks[xp_milestones]):
+		xp_milestones += 1
+		_grant_xp(60)
 	if phase == "play" and clean >= GOAL and not finished:
 		_finish()
 
@@ -1031,14 +1101,48 @@ func _clean() -> float:
 	return clampf(clean_progress / maxf(total_weight, 1.0), 0.0, 1.0)
 
 
-func _rank_up() -> void:
-	rank = 2
-	hopper_capacity = BIG_HOPPER
-	player.set_rank(2)
-	player.speed_bonus = 0.35
+func _grant_xp(amount: int) -> void:
+	var state = get_node_or_null("/root/GameState")
+	if state == null or amount <= 0:
+		return
+	state.add_xp(amount)
+
+
+func _saved_rank() -> int:
+	var state = get_node_or_null("/root/GameState")
+	if state == null:
+		return 1
+	return clampi(int(state.rank), 1, Data.RANKS.size())
+
+
+func _hopper_for_rank(value: int) -> int:
+	return BASE_HOPPER + (value - 1) * 4
+
+
+func _rank_line(value: int) -> String:
+	match value:
+		2:
+			return "Bigger hopper, quicker boots, and a coat that means business."
+		3:
+			return "Sign plate armour, a magnet gauntlet, and a dash on Ctrl or B."
+		4:
+			return "Twin turbines, a tarpaulin cape, and a double jump on Space or A."
+		5:
+			return "Orbit bins, a comet broom, and the cleanse pulse on Q or Y."
+	return "Straw cap, a broom, and a quiet kind of pride."
+
+
+func _on_rank_changed(value: int) -> void:
+	rank = clampi(value, 1, Data.RANKS.size())
+	hopper_capacity = _hopper_for_rank(rank)
+	if player != null:
+		player.set_rank(rank)
+	if ui == null:
+		return
 	Sound.play("rank", 1.0, -2.0)
-	ui.show_rank(2, "Bigger hopper, faster boots, and a coat that means business.")
-	ui.subtitle("RANK UP. BAG BARON. The hopper holds twenty and your boots are quicker.", 6.0)
+	ui.show_rank(rank, _rank_line(rank))
+	if phase == "play":
+		ui.subtitle("RANK UP. %s. %s" % [Data.rank_title(rank), _rank_line(rank)], 6.5)
 
 
 func _finish() -> void:
@@ -1049,6 +1153,12 @@ func _finish() -> void:
 	Sound.set_vacuum(false)
 	best = maxi(best, score)
 	_save_best()
+	_grant_xp(220 + (80 if _clean() >= GOAL else 0))
+	var state = get_node_or_null("/root/GameState")
+	if state != null:
+		var key := area_id
+		state.best_scores[key] = maxi(int(state.best_scores.get(key, 0)), score)
+		state.save()
 	Sound.play("finish", 1.0, -2.0)
 	ui.set_phase("results")
 	ui.show_results({
@@ -1077,6 +1187,8 @@ func _save_best() -> void:
 # ---------------------------------------------------------------- update loops
 
 func _update_camera(delta: float) -> void:
+	cam_kick = maxf(0.0, cam_kick - delta)
+	camera.fov = lerpf(camera.fov, 58.0 + clampf(cam_kick / 0.22, 0.0, 1.0) * 7.0, minf(1.0, delta * 14.0))
 	var look := Input.get_vector("look_left", "look_right", "look_up", "look_down")
 	if look.length() > 0.08:
 		cam_yaw.rotation.y -= look.x * delta * 2.6
@@ -1092,9 +1204,15 @@ func _update_camera(delta: float) -> void:
 	if ui.touch_available():
 		player.touch_input = ui.touch_move()
 		player.touch_sprint = ui.touch_wants_sprint()
+		player.touch_jump = ui.touch_wants_jump()
+		player.touch_dash = ui.touch_wants_dash()
+		player.touch_pulse = ui.touch_wants_pulse()
 	else:
 		player.touch_input = Vector2.ZERO
 		player.touch_sprint = false
+		player.touch_jump = false
+		player.touch_dash = false
+		player.touch_pulse = false
 
 
 func _on_look(relative: Vector2) -> void:

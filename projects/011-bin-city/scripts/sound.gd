@@ -105,6 +105,10 @@ func _build_library() -> void:
 	library["click"] = _wav(_click())
 	library["slip"] = _wav(_slip())
 	library["pile"] = _wav(_pile())
+	library["jump"] = _wav(_jump())
+	library["land"] = _wav(_land())
+	library["dash"] = _wav(_dash())
+	library["pulse"] = _wav(_pulse())
 	library["vacuum"] = _wav(_vacuum_loop(), true)
 	library["music"] = _wav(_music(), true)
 
@@ -288,6 +292,55 @@ func _pile() -> PackedFloat32Array:
 		var thump := sin(TAU * 58.0 * t) * 0.4
 		var rattle := sin(TAU * 320.0 * t) * 0.1 * sin(TAU * 17.0 * t)
 		out[i] = (thump + rattle) * env
+	return out
+
+
+func _jump() -> PackedFloat32Array:
+	var out := _buffer(0.22)
+	for i in out.size():
+		var t := float(i) / RATE
+		var f := 300.0 + 640.0 * t / 0.22
+		var env := sin(PI * minf(1.0, t / 0.22)) * (1.0 - exp(-t * 300.0))
+		out[i] = (sin(TAU * f * t) * 0.26 + sin(TAU * f * 2.0 * t) * 0.06) * env
+	return out
+
+
+func _land() -> PackedFloat32Array:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 515
+	var out := _buffer(0.18)
+	var held := 0.0
+	for i in out.size():
+		var t := float(i) / RATE
+		held = lerpf(held, rng.randf_range(-1.0, 1.0), 0.4)
+		var f := 120.0 - 45.0 * t / 0.18
+		var env := exp(-t * 22.0) * (1.0 - exp(-t * 600.0))
+		out[i] = (sin(TAU * f * t) * 0.4 + held * 0.14) * env
+	return out
+
+
+func _dash() -> PackedFloat32Array:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 616
+	var out := _buffer(0.3)
+	var held := 0.0
+	for i in out.size():
+		var t := float(i) / RATE
+		held = lerpf(held, rng.randf_range(-1.0, 1.0), 0.7)
+		var env := sin(PI * minf(1.0, t / 0.3))
+		var whistle := sin(TAU * (760.0 - 480.0 * t / 0.3) * t)
+		out[i] = (held * 0.3 + whistle * 0.08) * env
+	return out
+
+
+func _pulse() -> PackedFloat32Array:
+	var out := _buffer(0.7)
+	for i in out.size():
+		var t := float(i) / RATE
+		var env := exp(-t * 6.0) * (1.0 - exp(-t * 160.0))
+		var low := sin(TAU * 110.0 * t) * 0.3
+		var high := sin(TAU * 440.0 * t + sin(TAU * 3.0 * t)) * 0.12
+		out[i] = (low + high) * env
 	return out
 
 
