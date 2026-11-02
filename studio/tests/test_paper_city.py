@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -12,6 +13,7 @@ RENDER = ROOT / "projects" / "001-2d-bounce" / "render.py"
 spec = importlib.util.spec_from_file_location("paper_city", RENDER)
 paper_city = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
+sys.modules["paper_city"] = paper_city
 spec.loader.exec_module(paper_city)
 
 
