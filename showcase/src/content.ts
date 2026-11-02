@@ -19,11 +19,11 @@ export type ProjectNotes = {
 
 export const NOTES: Record<string, ProjectNotes> = {
   "001-2d-bounce": {
-    madeWith: ["Python", "Pillow", "FFmpeg"],
+    madeWith: ["Python", "Pillow", "FFmpeg", "Canvas"],
     notes: [
-      "Bounce height, squash and impact dust are functions of one looping time value, so the motion is deterministic and re-renderable.",
-      "Squash and stretch is driven by contact and velocity, with a small anticipation before each launch.",
-      "Frames render at 1920 by 1080. The same source encodes to MP4, WebM, GIF and the poster on this page.",
+      "Paper City is drawn from world-space geometry at twice the output size, then downsampled with a static paper grain so the loop stays clean and the GIF stays under budget.",
+      "Every bounce is a function of one looping time value. The courier squashes on contact, trails a procedural scarf, and warms each window as he passes it.",
+      "The Bounce Lab below runs the same character as a live canvas toy. Drag the ball, fling it, move the awnings, and the physics responds without any engine download.",
     ],
   },
   "002-turntable": {
