@@ -386,12 +386,22 @@ function playPage(project: Project): string {
     </div>
     ${play ? `<p class="wrap play-hook">${esc(play.hook)}</p>` : ""}
     <p class="wrap play-mobile-hint mono">Rotate for a wider view. Fullscreen helps.</p>
+    <p class="wrap play-load-note mono">First visit downloads the engine once. Later visits load from the browser cache.</p>
     <div class="wrap">
       <div class="play-frame">
         ${
           available
             ? `<iframe src="${asset(project.play)}" title="${esc(project.title)}, a playable browser game" allow="fullscreen; autoplay; gamepad; accelerometer; gyroscope" loading="eager"></iframe>`
             : `<div class="notice"><p>The web build is not published yet.</p><a class="btn btn-ink" href="${REPO}" target="_blank" rel="noreferrer">Open the repository</a></div>`
+        }
+        <button type="button" class="theatre-exit mono" id="theatre-exit" aria-label="Exit fullscreen">Exit fullscreen</button>
+        ${
+          available
+            ? `<button type="button" class="play-launch mono" id="play-launch" aria-label="Play ${esc(project.title)} fullscreen">
+          <span class="play-launch-title">Play fullscreen</span>
+          <span class="play-launch-note">Tap to start</span>
+        </button>`
+            : ""
         }
       </div>
     </div>
@@ -539,14 +549,69 @@ function bindHome() {
   });
 }
 
+let fullscreenSync: (() => void) | null = null;
+
+document.addEventListener("fullscreenchange", () => fullscreenSync?.());
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && document.body.classList.contains("is-theatre")) {
+    document.body.classList.remove("is-theatre");
+    fullscreenSync?.();
+  }
+});
+
 function bindFullscreen() {
   const button = document.getElementById("fullscreen");
-  button?.addEventListener("click", () => {
-    const frame = document.querySelector<HTMLElement>(".play-frame");
-    if (!frame) return;
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void frame.requestFullscreen?.();
+  const frame = document.querySelector<HTMLElement>(".play-frame");
+  const close = document.getElementById("theatre-exit");
+  if (!button || !frame) {
+    fullscreenSync = null;
+    return;
+  }
+
+  const isTheatre = () => document.body.classList.contains("is-theatre");
+
+  const sync = () => {
+    const active = Boolean(document.fullscreenElement) || isTheatre();
+    button.textContent = active ? "Exit fullscreen" : "Fullscreen";
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  };
+
+  const leave = () => {
+    document.body.classList.remove("is-theatre");
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    sync();
+  };
+
+  const enter = async () => {
+    if (typeof frame.requestFullscreen !== "function") {
+      document.body.classList.add("is-theatre");
+      sync();
+      return;
+    }
+    try {
+      await frame.requestFullscreen();
+    } catch {
+      document.body.classList.add("is-theatre");
+    }
+    sync();
+  };
+
+  button.addEventListener("click", () => {
+    if (document.fullscreenElement || isTheatre()) {
+      leave();
+      return;
+    }
+    void enter();
   });
+
+  document.getElementById("play-launch")?.addEventListener("click", () => {
+    void enter();
+  });
+
+  close?.addEventListener("click", leave);
+  fullscreenSync = sync;
+  sync();
 }
 
 function setMeta(title: string, description?: string) {
@@ -558,6 +623,7 @@ function setMeta(title: string, description?: string) {
 function render() {
   destroyViewer();
   destroyLab();
+  document.body.classList.remove("is-theatre");
   const route = parseRoute(location.pathname);
   let markup = "";
   document.body.dataset.route = route.name;

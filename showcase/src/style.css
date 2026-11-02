@@ -1528,11 +1528,113 @@ h2 em {
   background: #0d0e11;
 }
 
+.play-launch {
+  display: none;
+}
+
+.play-launch-title {
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: var(--coral);
+  color: var(--paper);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.65);
+}
+
+.play-launch-note {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(246, 241, 230, 0.82);
+}
+
+.play-frame:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  aspect-ratio: auto;
+  border: 0;
+  border-radius: 0;
+  background: #000;
+}
+
+.play-frame:fullscreen iframe {
+  width: 100%;
+  height: 100%;
+}
+
+.theatre-exit {
+  position: absolute;
+  top: max(14px, env(safe-area-inset-top));
+  right: max(14px, env(safe-area-inset-right));
+  z-index: 3;
+  display: none;
+  align-items: center;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(13, 14, 17, 0.72);
+  color: var(--paper);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+
+.theatre-exit:hover,
+.theatre-exit:focus-visible {
+  background: rgba(13, 14, 17, 0.9);
+}
+
+body.is-theatre {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body.is-theatre .play-frame {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  aspect-ratio: auto;
+  border: 0;
+  border-radius: 0;
+  background: #000;
+  box-shadow: none;
+}
+
+body.is-theatre .play-frame iframe {
+  width: 100%;
+  height: 100%;
+}
+
+body.is-theatre .theatre-exit,
+.play-frame:fullscreen .theatre-exit {
+  display: inline-flex;
+}
+
+.play-frame:fullscreen .play-launch,
+body.is-theatre .play-launch {
+  display: none;
+}
+
 .play-mobile-hint {
   display: none;
   margin: 0 0 14px;
   font-size: 9.5px;
   letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.play-load-note {
+  margin: 0 0 14px;
+  font-size: 9.5px;
+  letter-spacing: 0.11em;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -1928,7 +2030,23 @@ h2 em {
   }
 
   .play-frame {
-    aspect-ratio: 16 / 10;
+    aspect-ratio: auto;
+    height: clamp(300px, 44vh, 440px);
+  }
+
+  .play-launch {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 0;
+    background: linear-gradient(180deg, rgba(13, 14, 17, 0.06), rgba(13, 14, 17, 0.58));
+    color: var(--paper);
+    cursor: pointer;
   }
 
   .play-help {
