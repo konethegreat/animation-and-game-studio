@@ -2,14 +2,14 @@ id: 010-maker-at-work
 type: 3d
 title: The Maker at Work
 summary: A stylised portrait of the maker at his desk, built from his own photograph, opening into the worlds the work makes possible.
-tags: [film, blender, cycles, portrait, pilot]
+tags: [film, blender, cycles, portrait]
 kind: film
 engine: blender
 entry: s01_desk.py
 render:
   resolution: [1920, 800]
   fps: 24
-  frames: 600
+  frames: 1800
   samples: 128
   device: GPU
   poster_time: 10.5
@@ -21,11 +21,26 @@ shots:
   - id: s02-portrait
     entry: s02_portrait.py
     frames: 216
+  - id: s03-paper
+    entry: s03_paper.py
+    frames: 240
+  - id: s04-arcade
+    entry: s04_arcade.py
+    frames: 240
+  - id: s05-dunes
+    entry: s05_dunes.py
+    frames: 240
+  - id: s06-grove
+    entry: s06_grove.py
+    frames: 240
+  - id: s07-cosmos
+    entry: s07_cosmos.py
+    frames: 240
   - id: s08-return
     entry: s08_return.py
     frames: 216
 audio:
-  mix: audio/pilot-mix.flac
+  mix: audio/full-mix.flac
 outputs:
   - media/010-maker-at-work/reel.mp4
   - media/010-maker-at-work/reel.webm

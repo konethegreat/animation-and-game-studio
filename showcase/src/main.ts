@@ -290,8 +290,8 @@ function filmSection(film: FilmDetail): string {
   return `
   <section class="film-section" id="shots">
     <div class="section-head">
-      <div><p class="eyebrow">Pilot cut</p><h2>Shot by shot.</h2></div>
-      <p class="section-note">A shorter cut fixes the look, the sound and the face treatment before the remaining shots join the render queue.</p>
+      <div><p class="eyebrow">The cut</p><h2>Shot by shot.</h2></div>
+      <p class="section-note">Eight shots in seventy five seconds. Every set, light and camera move is scripted, so the cut can be rebuilt frame for frame.</p>
     </div>
     <ol class="shot-list">
       ${film.shotList
