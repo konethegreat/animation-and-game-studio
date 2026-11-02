@@ -2,6 +2,12 @@
 
 A browser game about a trash collector who levels up as they clean. Five shifts across three districts, a boss at the plant, and a street that always gets dirty again. Built with Godot 4.7.2 and GDScript.
 
+## Ownership
+
+BIN CITY is original work by Kone Tshivhinda at Kone Studio. The game, its code, art, characters, music and sound effects are proprietary and all rights are reserved. Playing the published build is welcome. Copying, redistribution, derivative works, commercial use and AI training are not permitted without written permission. See the repository [LICENSE](../../LICENSE).
+
+Third party components keep their own licences in [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md).
+
 ## The shift
 
 - Vacuum loose litter, then sort it into the four depot bins.

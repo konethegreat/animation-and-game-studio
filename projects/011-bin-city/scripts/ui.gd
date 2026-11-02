@@ -682,6 +682,16 @@ func _build_title() -> void:
 	mute.name = "TitleSound"
 	box.add_child(mute)
 
+	var credit := PanelContainer.new()
+	credit.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	credit.add_theme_stylebox_override("panel", _flat(Color(0.973, 0.945, 0.898, 0.92), 10, 1, Color(0.13, 0.12, 0.1, 0.24)))
+	var credit_wrap := _margin(10)
+	credit.add_child(credit_wrap)
+	var credit_text := _label("© 2026 KONE TSHIVHINDA   /   ALL RIGHTS RESERVED", 9, Color(0.13, 0.12, 0.1, 0.68), true)
+	credit_wrap.add_child(credit_text)
+	credit.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, 24)
+	title_layer.add_child(credit)
+
 
 # ---------------------------------------------------------------- sort
 

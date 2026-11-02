@@ -4,6 +4,8 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
 		<meta name="theme-color" content="#f6f0e5">
+		<meta name="author" content="Kone Tshivhinda">
+		<meta name="copyright" content="© 2026 Kone Tshivhinda. All rights reserved.">
 		<title>BIN CITY</title>
 		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
 <link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
@@ -134,6 +136,15 @@
 				max-width: 38ch;
 			}
 
+			.boot-credit {
+				margin: 10px 0 0;
+				font-family: "Manrope", "Segoe UI", system-ui, sans-serif;
+				font-size: 10px;
+				letter-spacing: 0.12em;
+				text-transform: uppercase;
+				color: #7b7264;
+			}
+
 			#status-notice {
 				display: none;
 				margin-top: 18px;
@@ -190,13 +201,14 @@
 					<span id="status-percent">0%</span>
 				</div>
 				<p class="boot-note">First load takes a moment. The browser keeps the game after that.</p>
+				<p class="boot-credit">© 2026 Kone Tshivhinda. All rights reserved.</p>
 				<div id="status-notice"></div>
 			</div>
 		</div>
 
 		<script src="index.js"></script>
 		<script>
-			const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":356308,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
+			const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":356628,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
 			const GODOT_THREADS_ENABLED = false;
 			const engine = new Engine(GODOT_CONFIG);
 

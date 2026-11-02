@@ -7,6 +7,7 @@ config/name="BIN CITY"
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
+config/copyright="Copyright (c) 2026 Kone Tshivhinda. All rights reserved."
 boot_splash/show_image=false
 boot_splash/bg_color=Color(0.965, 0.941, 0.898, 1)
 
