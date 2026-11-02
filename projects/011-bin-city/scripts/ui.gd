@@ -1,6 +1,7 @@
 extends CanvasLayer
 
 signal play_pressed
+signal shift_pressed(index: int)
 signal restart_pressed
 signal title_pressed
 signal resume_pressed
@@ -63,6 +64,10 @@ var rank_name: Label
 var rank_line: Label
 var rank_panel: PanelContainer
 var title_play: Button
+var title_shifts: VBoxContainer
+var objective_label: Label
+var results_next: Button
+var results_line: Label
 var touch_root: Control
 var stick: Control
 var look_pad: Control
@@ -328,6 +333,11 @@ func _build_hud() -> void:
 	flow_bar.custom_minimum_size = Vector2(0, 5)
 	box.add_child(flow_bar)
 
+	objective_label = _label("", 11, K.TEAL_DARK, true)
+	objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	objective_label.custom_minimum_size = Vector2(336, 0)
+	box.add_child(objective_label)
+
 	var top_right := PanelContainer.new()
 	top_right.anchor_left = 1.0
 	top_right.anchor_right = 1.0
@@ -540,10 +550,9 @@ func _build_title() -> void:
 	box.add_child(goal)
 	box.add_child(_spacer(6))
 
-	title_play = _button("START THE SHIFT", K.CORAL, K.CREAM, 24, true, 330, 66)
-	title_play.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	title_play.pressed.connect(func() -> void: play_pressed.emit())
-	box.add_child(title_play)
+	title_shifts = VBoxContainer.new()
+	title_shifts.add_theme_constant_override("separation", 6)
+	box.add_child(title_shifts)
 
 	box.add_child(_spacer(2))
 	var controls := GridContainer.new()
@@ -713,7 +722,9 @@ func _build_results() -> void:
 	results_title = _label("STREET RESTORED", 46, K.INK, true)
 	box.add_child(results_title)
 	box.add_child(_rule(K.TEAL, 90, 6))
-	box.add_child(_label("Dawn Market is clean before the shutters go up.", 14, Color(0.13, 0.12, 0.1, 0.66), false))
+	results_line = _label("Dawn Market is clean before the shutters go up.", 14, Color(0.13, 0.12, 0.1, 0.66), false)
+	results_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(results_line)
 	box.add_child(_spacer(6))
 	results_grid = VBoxContainer.new()
 	results_grid.add_theme_constant_override("separation", 6)
@@ -722,10 +733,12 @@ func _build_results() -> void:
 	var replay := _button("PLAY IT AGAIN", K.CORAL, K.CREAM, 21, true, 0, 60)
 	replay.pressed.connect(func() -> void: restart_pressed.emit())
 	box.add_child(replay)
+	results_next = _button("NEXT SHIFT", K.TEAL, K.CREAM, 19, true, 0, 56)
+	results_next.visible = false
+	box.add_child(results_next)
 	var title := _button("BACK TO TITLE", K.CREAM, K.INK, 17, false, 0, 50)
 	title.pressed.connect(func() -> void: title_pressed.emit())
 	box.add_child(title)
-	box.add_child(_label("Next stop: Neon Arcade, in a future shift.", 11, Color(0.13, 0.12, 0.1, 0.5), false))
 	results_layer.visible = false
 
 
@@ -950,6 +963,9 @@ func update_hud(data: Dictionary) -> void:
 	else:
 		stack_label.text = ""
 	timer_label.text = _format_time(float(data.get("time", 0.0)))
+	var objective := str(data.get("objective", ""))
+	objective_label.text = objective
+	objective_label.visible = objective != ""
 
 
 func _format_time(seconds: float) -> String:
@@ -1021,9 +1037,29 @@ func hide_rank() -> void:
 	rank_layer.visible = false
 
 
+func show_shifts(entries: Array) -> void:
+	for child in title_shifts.get_children():
+		child.queue_free()
+	for entry in entries:
+		var index := int(entry.get("index", 1))
+		if not bool(entry.get("unlocked", false)):
+			var locked := _label("SHIFT %d   LOCKED" % index, 13, Color(0.13, 0.12, 0.1, 0.32), true)
+			title_shifts.add_child(locked)
+			continue
+		var label := "SHIFT %d   %s" % [index, str(entry.get("title", "SHIFT"))]
+		var button := _button(label, K.CORAL if index == int(entry.get("latest", 1)) else K.TEAL, K.CREAM, 17, index == int(entry.get("latest", 1)), 430, 48)
+		button.pressed.connect(func() -> void: shift_pressed.emit(index))
+		title_shifts.add_child(button)
+		if bool(entry.get("done", false)):
+			var stamp := _label("DONE", 11, Color(0.13, 0.12, 0.1, 0.5), true)
+			title_shifts.add_child(stamp)
+
+
 func show_results(stats: Dictionary) -> void:
 	for child in results_grid.get_children():
 		child.queue_free()
+	results_title.text = str(stats.get("title", "STREET RESTORED"))
+	results_line.text = str(stats.get("line", "The street is clean and the bell is still ringing."))
 	var rows := [
 		["Time", _format_time(float(stats.get("time", 0.0)))],
 		["Score", "%d" % int(stats.get("score", 0))],
@@ -1039,7 +1075,24 @@ func show_results(stats: Dictionary) -> void:
 		line.add_child(key)
 		line.add_child(_label(row[1], 20, K.INK, true))
 		results_grid.add_child(line)
+	var next_index := int(stats.get("next", 0))
+	if next_index > 0:
+		if not results_next.visible:
+			results_next.visible = true
+		if not results_next.pressed.is_connected(_emit_shift):
+			results_next.pressed.connect(_emit_shift.bind(next_index))
+		else:
+			for connection in results_next.pressed.get_connections():
+				results_next.pressed.disconnect(connection["callable"])
+			results_next.pressed.connect(_emit_shift.bind(next_index))
+		results_next.text = "NEXT SHIFT   %s" % str(stats.get("next_title", "ONWARDS"))
+	else:
+		results_next.visible = false
 	results_layer.visible = true
+
+
+func _emit_shift(index: int) -> void:
+	shift_pressed.emit(index)
 
 
 func set_muted(muted: bool) -> void:

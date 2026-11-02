@@ -90,6 +90,15 @@ func _run() -> void:
 	_check("five shifts defined", GameData.SHIFTS.size() == 5)
 	_check("rank title lookup", GameData.rank_title(3) == "SCRAP KNIGHT")
 	_check("shift lookup", str(GameData.shift(2).id) == "shift_2")
+	_check("night shift flagged", bool(GameData.shift(3).get("night", false)) and bool(GameData.shift(4).get("night", false)))
+	_check("boss shift sits at the plant district", str(GameData.shift(5).get("district", "")) == "neon_arcade")
+	_check("every shift has a brief", str(GameData.shift(1).get("brief", "")) != "" and str(GameData.shift(5).get("brief", "")) != "")
+	state.unlock_shift(3)
+	_check("shift unlock raises the floor", state.unlocked_shift == 3)
+	state.unlock_shift(99)
+	_check("shift unlock clamps to five", state.unlocked_shift == 5)
+	state.unlocked_shift = 1
+	state.save()
 
 	for action in ["sprint", "jump", "dash", "pulse", "vacuum", "interact"]:
 		if not InputMap.has_action(action):
@@ -236,6 +245,46 @@ func _run() -> void:
 	_check("shock tumbles the load", shock_player.stack_count() == 0)
 	shock_player.queue_free()
 	carried.queue_free()
+	await process_frame
+
+	var story_dlg = D.new()
+	root.add_child(story_dlg)
+	_check("pip roof tree exists", story_dlg.TREES.has("pip_high_score"))
+	_check("sullage taunt exists", story_dlg.TREES.has("sullage_taunt"))
+	_check("nell ending exists", story_dlg.TREES.has("nell_ending"))
+	state.reset_quest("high_score")
+	state.set_flag("met_pip")
+	state.flags.erase("met_pip")
+	story_dlg.start("pip_high_score")
+	story_dlg.advance()
+	_check("pip roof offers the quest", state.quest_status("high_score") == "active")
+	_check("pip roof sets the flag", state.has_flag("met_pip"))
+	story_dlg.advance()
+	_check("pip roof tree ends", not story_dlg.is_active())
+	state.start_quest("cat")
+	state.reset_quest("cat")
+	state.start_quest("cat")
+	story_dlg.start("miso")
+	story_dlg.advance()
+	_check("miso step completes the cat quest", state.quest_status("cat") == "done")
+	story_dlg.queue_free()
+	await process_frame
+
+	var picker = Player.new()
+	root.add_child(picker)
+	await process_frame
+	picker.set_rank(3)
+	var sack_a = LITTER.new()
+	sack_a.build("sack", kind_rng)
+	root.add_child(sack_a)
+	picker.add_to_stack(sack_a)
+	var crate_b = LITTER.new()
+	crate_b.build("crate", kind_rng)
+	root.add_child(crate_b)
+	picker.add_to_stack(crate_b)
+	_check("remove_kind pulls only sacks", picker.remove_kind("sack") == 1 and picker.stack_count() == 1)
+	_check("crate stays on the stack", picker.stack_count() == 1 and picker.remove_kind("crate") == 1 and picker.stack_count() == 0)
+	picker.queue_free()
 	await process_frame
 
 	state.delete_save()

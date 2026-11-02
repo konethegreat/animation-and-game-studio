@@ -680,6 +680,19 @@ func add_to_stack(item: Node3D) -> void:
 	_refresh_stack()
 
 
+func remove_kind(kind: String) -> int:
+	var removed := 0
+	for i in range(stack.size() - 1, -1, -1):
+		var item: Node3D = stack[i]
+		if is_instance_valid(item) and str(item.get("kind")) == kind:
+			stack.remove_at(i)
+			item.queue_free()
+			removed += 1
+	if removed > 0:
+		_refresh_stack()
+	return removed
+
+
 func take_stack() -> Array[Node3D]:
 	var items: Array[Node3D] = []
 	while stack.size() > 0:

@@ -79,6 +79,29 @@ const GOAL := 0.9
 const FLOW_WINDOW := 14.0
 const BASE_HOPPER := 12
 
+const SHIFT_OBJECTIVES := {
+	1: [
+		{"id": "clean", "text": "GET THE MARKET 90% CLEAN"},
+		{"id": "meet_nell", "flag": "met_nell", "text": "CHECK IN WITH NELL AT THE DEPOT"},
+	],
+	2: [
+		{"id": "clean", "text": "GET THE QUARTER 82% CLEAN"},
+		{"id": "drain", "text": "CLEAR A CLOGGED DRAIN"},
+		{"id": "help_rook", "flag": "rook_rival", "text": "HELP ROOK ON THE BRIDGE"},
+	],
+	3: [
+		{"id": "clean", "text": "GET THE QUARTER 88% CLEAN"},
+		{"id": "drains", "text": "CLEAR ALL THREE DRAINS"},
+		{"id": "gates", "text": "REACH THE TIDE LOCK GATES"},
+	],
+	4: [
+		{"id": "clean", "text": "GET THE STRIP 90% CLEAN"},
+		{"id": "meet_pip", "flag": "met_pip", "text": "CLIMB TO PIP'S ROOFTOP"},
+		{"id": "cabinet", "quest": "high_score", "text": "BEAT THE TAPED-UP CABINET"},
+	],
+}
+const GATES_POS := Vector3(-19.0, 0.0, 7.0)
+
 var phase := "title"
 var world
 var area
@@ -142,6 +165,12 @@ var rain_quad: MeshInstance3D
 var rain_mat: ShaderMaterial
 var rain_timer := 0.0
 var _puddle_state := {}
+var shift_index := 1
+var shift_goal := GOAL
+var objectives: Array = []
+var _drains_cleared := 0
+var _nest_pending := false
+var _nest_node: Node3D = null
 
 
 func _ready() -> void:
@@ -184,6 +213,7 @@ func _ready() -> void:
 	ui = UI.new()
 	add_child(ui)
 	ui.play_pressed.connect(_start_shift)
+	ui.shift_pressed.connect(begin_shift)
 	ui.restart_pressed.connect(_restart)
 	ui.title_pressed.connect(_show_title)
 	ui.resume_pressed.connect(_resume)
@@ -212,6 +242,9 @@ func _ready() -> void:
 	player.landed.connect(_on_landed)
 	if state != null:
 		state.rank_changed.connect(_on_rank_changed)
+		state.story_changed.connect(_on_story_flag)
+		state.quest_changed.connect(_on_quest_changed)
+		shift_index = clampi(int(state.shift_index), 1, Data.SHIFTS.size())
 	_load_best()
 	if _wants_poster():
 		_poster_mode()
@@ -285,6 +318,7 @@ func _process(delta: float) -> void:
 	_update_drains(delta)
 	_update_rain(delta)
 	_update_puddles(delta)
+	_update_objectives()
 	_update_rats(delta)
 	_check_slip()
 	_check_progress()
@@ -512,6 +546,7 @@ func _show_title() -> void:
 	world.set_clean(0.0)
 	title_time = 0.0
 	title_cam.current = true
+	ui.show_shifts(_title_shifts())
 	ui.set_phase("title")
 	ui.set_muted(Sound.muted)
 	Sound.set_vacuum(false)
@@ -519,12 +554,56 @@ func _show_title() -> void:
 		Sound.music.play()
 
 
+func current_shift() -> Dictionary:
+	return Data.shift(shift_index)
+
+
+func begin_shift(index: int) -> void:
+	var state = get_node_or_null("/root/GameState")
+	if state != null:
+		state.shift_index = clampi(index, 1, Data.SHIFTS.size())
+	shift_index = clampi(index, 1, Data.SHIFTS.size())
+	start_area = str(current_shift().get("district", "dawn_market"))
+	_start_shift()
+
+
+func _title_shifts() -> Array:
+	var state = get_node_or_null("/root/GameState")
+	var unlocked := 1
+	var latest := 1
+	if state != null:
+		unlocked = clampi(int(state.unlocked_shift), 1, Data.SHIFTS.size())
+		latest = clampi(int(state.shift_index), 1, unlocked)
+	unlocked = mini(unlocked, 4)
+	var entries := []
+	for i in Data.SHIFTS.size():
+		var index := i + 1
+		entries.append({
+			"index": index,
+			"title": str(Data.SHIFTS[i].get("title", "SHIFT")),
+			"unlocked": index <= unlocked,
+			"done": state != null and state.has_flag("shift_%d_done" % index),
+			"latest": latest,
+		})
+	return entries
+
+
 func _start_shift() -> void:
 	get_tree().paused = false
 	_leave_room_now()
 	_clear_run()
+	var shift := current_shift()
+	shift_goal = float(shift.get("goal", GOAL))
+	objectives = []
+	for entry in SHIFT_OBJECTIVES.get(shift_index, [{"id": "clean", "text": "GET THE STREET CLEAN"}]):
+		var copy: Dictionary = entry.duplicate()
+		copy["done"] = false
+		objectives.append(copy)
+	_drains_cleared = 0
 	if world == null or not is_instance_valid(world) or area_id != start_area:
 		load_area(start_area, Vector3.ZERO)
+	if world.has_method("set_night"):
+		world.set_night(bool(shift.get("night", false)))
 	_spawn_market()
 	crowd.watch_clean(0.0)
 	_build_crowd()
@@ -561,12 +640,30 @@ func _start_shift() -> void:
 	phase = "play"
 	ui.set_phase("play")
 	ui.set_muted(Sound.muted)
-	ui.subtitle(str(AREA_INTRO.get(area_id, AREA_INTRO["dawn_market"])), 6.0)
 	Sound.play("click")
 	Sound.set_vacuum(false)
 	if not Sound.muted and not Sound.music.playing:
 		Sound.music.play()
 	_update_hud()
+	_show_briefing()
+
+
+func _show_briefing() -> void:
+	if _wants_poster():
+		ui.subtitle(str(AREA_INTRO.get(area_id, AREA_INTRO["dawn_market"])), 6.0)
+		return
+	var shift := current_shift()
+	var lines := []
+	for entry in objectives:
+		lines.append(str(entry.get("text", "")))
+	player.locked = true
+	transition.cover("SHIFT %d  %s" % [shift_index, str(shift.get("title", "ON SHIFT")).to_upper()], str(shift.get("brief", "The street needs you.")), "   /   ".join(lines))
+	await get_tree().create_timer(2.8).timeout
+	transition.reveal()
+	await transition.revealed
+	if phase == "play" and not talking:
+		player.locked = false
+	ui.subtitle(str(AREA_INTRO.get(area_id, AREA_INTRO["dawn_market"])), 6.0)
 
 
 func _pause() -> void:
@@ -681,6 +778,9 @@ func _enter_interior(id: String) -> void:
 	add_child(interior)
 	inside_interior = true
 	world = interior
+	if id == "bakery":
+		_deliver_sacks()
+		_maybe_spawn_nest()
 	_apply_mood(world.mood)
 	outdoor_camera_distance = camera_distance
 	camera_distance = 6.4
@@ -787,24 +887,38 @@ func _cast_for_area() -> Array:
 	var key := interior_id if inside_interior else area_id
 	match key:
 		"depot":
-			return [{"role": "nell", "pos": Vector3(3.6, 0.0, -5.1), "dialogue": "nell", "name": "NELL QUILL"}]
+			var nell_id := "nell"
+			if shift_index == 1:
+				nell_id = "nell_intro"
+			elif shift_index == 2:
+				nell_id = "nell_shift_2"
+			return [{"role": "nell", "pos": Vector3(3.6, 0.0, -5.1), "dialogue": nell_id, "name": "NELL QUILL"}]
 		"bakery":
 			return [{"role": "baker", "pos": Vector3(-3.6, 0.0, -3.2), "dialogue": "baker", "name": "BAKER"}]
 		"boathouse":
-			return [{"role": "ferryman", "pos": Vector3(4.8, 0.0, 3.6), "dialogue": "ferryman", "name": "FERRYMAN"}]
+			var odo_id := "ferryman"
+			if shift_index == 2:
+				odo_id = "odo_bottles"
+			return [{"role": "ferryman", "pos": Vector3(4.8, 0.0, 3.6), "dialogue": odo_id, "name": "FERRYMAN"}]
 		"arcade":
 			return [{"role": "arcade_kid", "pos": Vector3(-1.3, 0.0, -4.2), "dialogue": "arcade_kid", "name": "JOYSTICK"}]
 		"plant":
 			return [{"role": "keeper", "pos": Vector3(3.4, 0.0, 1.6), "dialogue": "keeper_0", "name": "PLANT KEEPER"}]
 		"canal_quarter":
+			var rook_id := "rook"
+			if shift_index >= 2:
+				rook_id = "rook_meet"
 			return [
-				{"role": "rook", "pos": Vector3(-8.0, 0.0, 0.2), "dialogue": "rook", "name": "ROOK"},
+				{"role": "rook", "pos": Vector3(-8.0, 0.0, 0.2), "dialogue": rook_id, "name": "ROOK"},
 				{"role": "keeper", "pos": Vector3(-17.0, 0.0, 1.2), "dialogue": "keeper_1", "name": "LOCK KEEPER"},
 				{"role": "cat", "pos": Vector3(12.0, 0.0, 14.2), "dialogue": "miso", "name": "MISO"},
 			]
 		"neon_arcade":
+			var pip_id := "pip"
+			if shift_index >= 4:
+				pip_id = "pip_high_score"
 			return [
-				{"role": "pip", "pos": Vector3(15.4, 2.4, 12.9), "dialogue": "pip", "name": "PIP"},
+				{"role": "pip", "pos": Vector3(15.4, 2.4, 12.9), "dialogue": pip_id, "name": "PIP"},
 				{"role": "arcade_kid", "pos": Vector3(-2.0, 0.0, -8.6), "dialogue": "arcade_kid", "name": "JOYSTICK"},
 				{"role": "cat", "pos": Vector3(9.0, 0.0, 13.4), "dialogue": "miso", "name": "MISO"},
 			]
@@ -838,7 +952,8 @@ func _spawn_market() -> void:
 	var grime_total := int(world.get("grime_count"))
 	for i in grime_total:
 		_spawn_litter("grime")
-	var token_total := int(world.get("token_count"))
+	var token_value = world.get("token_count")
+	var token_total := int(token_value) if token_value != null else 0
 	for i in token_total:
 		_spawn_litter("token")
 	if world.get("roof_token_pos") != null and not inside_interior:
@@ -926,7 +1041,8 @@ func _update_drains(delta: float) -> void:
 func _update_rain(delta: float) -> void:
 	var raining := false
 	if not inside_interior and world != null:
-		raining = bool(world.get("raining"))
+		var rain_value = world.get("raining")
+		raining = bool(rain_value) if rain_value != null else false
 	if rain_quad != null:
 		rain_quad.visible = raining
 	if player != null:
@@ -1025,6 +1141,16 @@ func _clear_drain_at(pos: Vector3) -> void:
 	var grate: Vector3 = drains[index].pos
 	world.clear_drain(index)
 	_grant_xp(40)
+	_drains_cleared += 1
+	_objective_done("drain")
+	if world.has_method("clear_drain"):
+		var all_clear := true
+		for entry in drains:
+			if bool(entry.clogged):
+				all_clear = false
+				break
+		if all_clear:
+			_objective_done("drains")
 	for release_kind in ["float_bottle", "float_bag", "bottle_cap"]:
 		_spawn_litter(release_kind)
 		var node = litter_nodes[litter_nodes.size() - 1]
@@ -1178,6 +1304,9 @@ func _collect(node: Node3D) -> void:
 	node.queue_free()
 	if was_grime:
 		_clear_drain_at(was_pos)
+	if node.has_meta("nest"):
+		_grant_xp(150)
+		ui.subtitle("Nest cleared. The storeroom airs out and the rats relocate to the canal.", 5.0)
 	if str(node.get("kind")) == "token":
 		var state = get_node_or_null("/root/GameState")
 		if state != null and state.quest_status("high_score") == "active":
@@ -1210,6 +1339,8 @@ func _interact() -> void:
 		var npc = crowd.nearest(player.global_position, 2.8)
 		if npc != null:
 			var info: Dictionary = npc.talk()
+			if str(info.get("id", "")) == "ferryman":
+				_turn_in_bottles()
 			var dialogue = get_node_or_null("/root/Dialogue")
 			if dialogue != null and dialogue.start(str(info.get("id", ""))):
 				return
@@ -1249,6 +1380,62 @@ func _interact() -> void:
 		ui.subtitle("Stack full. The skip is by the canal bridge.", 3.5)
 	elif hopper.size() >= hopper_capacity:
 		ui.subtitle("Hopper full. The depot bins are marked in the square.", 3.5)
+
+
+func _turn_in_bottles() -> void:
+	var state = get_node_or_null("/root/GameState")
+	if state == null or state.quest_status("bottles") != "active":
+		return
+	var glass := 0
+	for i in range(hopper.size() - 1, -1, -1):
+		if str(hopper[i].get("kind")) == "glass":
+			hopper.remove_at(i)
+			glass += 1
+	if glass <= 0:
+		return
+	state.advance_quest("bottles", glass)
+	Sound.play("pickup", 0.9, -4.0)
+	var quest: Dictionary = state.quests.get("bottles", {})
+	var left := int(quest.get("goal", 5)) - int(quest.get("progress", 0))
+	if left > 0:
+		ui.subtitle("Odo counts %d bottle%s into the crate. %d to go." % [glass, "s" if glass > 1 else "", left], 4.5)
+	else:
+		ui.subtitle("Five bottles home. Odo taps the crate twice, which is a standing ovation.", 5.0)
+
+
+func _deliver_sacks() -> void:
+	var state = get_node_or_null("/root/GameState")
+	if state == null or state.quest_status("bakery") != "active":
+		return
+	var delivered: int = player.remove_kind("sack")
+	if delivered <= 0:
+		return
+	state.advance_quest("bakery", delivered)
+	Sound.play("throw", 1.1, -4.0)
+	var quest: Dictionary = state.quests.get("bakery", {})
+	var left := int(quest.get("goal", 3)) - int(quest.get("progress", 0))
+	if left > 0:
+		ui.subtitle("Flour sack delivered. %d to go." % left, 4.0)
+	else:
+		_nest_pending = true
+		ui.subtitle("That is the last sack. Something rustles in the storeroom.", 5.0)
+
+
+func _maybe_spawn_nest() -> void:
+	if not _nest_pending:
+		return
+	if _nest_node != null and is_instance_valid(_nest_node):
+		return
+	_nest_pending = false
+	var node = LITTER.new()
+	node.build("grime", rng)
+	node.set_meta("nest", true)
+	node.position = Vector3(3.4, 0.0, -3.4)
+	world.add_child(node)
+	litter_nodes.append(node)
+	total_weight += float(node.get("weight"))
+	_nest_node = node
+	ui.subtitle("A rat nest in the flour dust. Vacuum it out.", 4.5)
 
 
 func _near_arcade_cabinet() -> bool:
@@ -1513,6 +1700,18 @@ func _drop_rat_loot(entry: Dictionary) -> void:
 
 # ---------------------------------------------------------------- progress
 
+func _update_objectives() -> void:
+	for entry in objectives:
+		if bool(entry.get("done", false)):
+			continue
+		match str(entry.get("id", "")):
+			"gates":
+				if not inside_interior and area_id == "canal_quarter":
+					if Vector2(player.global_position.x - GATES_POS.x, player.global_position.z - GATES_POS.z).length() < 3.2:
+						_objective_done("gates")
+						ui.subtitle("TIDE LOCK 3. Fresh dump slurry on the gates. Sullage's foreman was here tonight.", 6.0)
+
+
 func _check_slip() -> void:
 	if player.slip_timer > 0.1:
 		return
@@ -1582,7 +1781,7 @@ func _check_progress() -> void:
 	while xp_milestones < marks.size() and clean >= float(marks[xp_milestones]):
 		xp_milestones += 1
 		_grant_xp(60)
-	if phase == "play" and clean >= GOAL and not finished:
+	if phase == "play" and clean >= shift_goal and not finished:
 		_finish()
 
 
@@ -1657,9 +1856,11 @@ func _on_dialogue_line(speaker: String, text: String, choices: Array) -> void:
 	ui.open_dialogue(speaker, text, choices)
 
 
-func _on_dialogue_finished(_id: String) -> void:
+func _on_dialogue_finished(id: String) -> void:
 	talking = false
 	ui.close_dialogue()
+	if id == "nell" or id == "nell_intro" or id == "nell_shift_2":
+		_objective_done("meet_nell")
 	if player != null and phase == "play":
 		player.locked = false
 
@@ -1686,6 +1887,13 @@ func _choose_dialogue(index: int) -> void:
 
 
 
+const SHIFT_RESULTS_LINES := {
+	1: "The nine o'clock bell rings on a clean market. Nell checks the bins twice. They were emptied last night, and the street was still full. Someone is dumping.",
+	2: "The barge leaves with nothing left to collect. Odo tips his hat. Rook owes you a manifest with a Sullage Haulage stamp on it.",
+	3: "The lock holds and the lamps burn all night. Rook sweeps beside you now. The manifest points at the sorting plant under the neon strip.",
+	4: "The strip shines through the rain. Pip salutes from the roof. Under the plant, something enormous is turning in its sleep.",
+}
+
 func _finish() -> void:
 	finished = true
 	phase = "results"
@@ -1694,21 +1902,35 @@ func _finish() -> void:
 	Sound.set_vacuum(false)
 	best = maxi(best, score)
 	_save_best()
-	_grant_xp(220 + (80 if _clean() >= GOAL else 0))
+	_grant_xp(220 + (80 if _clean() >= shift_goal else 0))
+	var shift := current_shift()
 	var state = get_node_or_null("/root/GameState")
 	if state != null:
+		state.set_flag("shift_%d_done" % shift_index)
+		if shift_index < Data.SHIFTS.size():
+			state.unlock_shift(shift_index + 1)
 		var key := area_id
 		state.best_scores[key] = maxi(int(state.best_scores.get(key, 0)), score)
 		state.save()
+	_objective_done("clean")
 	Sound.play("finish", 1.0, -2.0)
 	ui.set_phase("results")
+	var next := 0
+	var next_title := ""
+	if shift_index < 4:
+		next = shift_index + 1
+		next_title = str(Data.shift(next).get("title", "ONWARDS"))
 	ui.show_results({
+		"title": str(shift.get("title", "STREET RESTORED")).to_upper(),
+		"line": str(SHIFT_RESULTS_LINES.get(shift_index, "The street is clean and the bell is still ringing.")),
 		"time": timer,
 		"score": score,
 		"best": best,
 		"sorted": sorted_total,
 		"rank": rank,
 		"clean": _clean(),
+		"next": next,
+		"next_title": next_title,
 	})
 
 
@@ -1827,7 +2049,42 @@ func _update_hud() -> void:
 		"max_stack": player.max_stack,
 		"lean": player.lean.length(),
 		"time": timer,
+		"objective": _objective_text(),
 	})
+
+
+func _objective_text() -> String:
+	for entry in objectives:
+		if not bool(entry.get("done", false)):
+			return "NEXT  " + str(entry.get("text", ""))
+	return ""
+
+
+func _objective_done(id: String) -> void:
+	for entry in objectives:
+		if str(entry.get("id", "")) == id and not bool(entry.get("done", false)):
+			entry["done"] = true
+			Sound.play("pickup", 1.4, -6.0)
+			ui.subtitle("OBJECTIVE DONE  %s" % str(entry.get("text", "")), 4.0)
+
+
+func _on_story_flag(flag: String) -> void:
+	for entry in objectives:
+		if str(entry.get("flag", "")) == flag:
+			_objective_done(str(entry.get("id", "")))
+
+
+func _on_quest_changed(id: String) -> void:
+	var state = get_node_or_null("/root/GameState")
+	if state == null:
+		return
+	if state.quest_status(id) == "done":
+		var quest := Data.quest(id)
+		if not str(quest.get("title", "")).is_empty():
+			ui.subtitle("QUEST COMPLETE  %s" % str(quest.get("title", "")).to_upper(), 5.0)
+	for entry in objectives:
+		if str(entry.get("quest", "")) == id and state.quest_status(id) == "done":
+			_objective_done(str(entry.get("id", "")))
 
 
 func _available(node) -> bool:
@@ -1952,6 +2209,15 @@ func _save_at_desk() -> void:
 	var state = get_node_or_null("/root/GameState")
 	if state != null:
 		state.save()
+		var next := 0
+		if state.rank < Data.RANKS.size():
+			next = state.xp_floor(state.rank + 1) - state.xp
+		var board := "RANK %d  %s" % [state.rank, Data.rank_title(state.rank)]
+		if next > 0:
+			board += "  /  %d XP TO RANK %d" % [next, state.rank + 1]
+		else:
+			board += "  /  TOP OF THE LADDER"
+		var shift := current_shift()
+		ui.subtitle("%s. %s. Nell stamps the file and points at the radio for a briefing replay." % [board, str(shift.get("title", "ON SHIFT")).to_upper()], 6.0)
 	Sound.play("click", 1.05, -2.0)
 	Sound.play("door", 1.15, -12.0)
-	ui.subtitle("Shift filed with the Bureau. Nell puts the kettle on.", 4.0)

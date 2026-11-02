@@ -135,6 +135,49 @@ func _build_trees() -> Dictionary:
 				{"speaker": "NELL QUILL", "text": "And if a rat gives you a look, it is bluffing. Mostly."},
 			]},
 		},
+		"nell_intro": {"lines": [
+			{"speaker": "NELL QUILL", "text": "First shift, rookie. Vacuum the loose litter, lift the heavy stuff, and sort it right at the depot. The bins pay better than I do."},
+			{"speaker": "NELL QUILL", "text": "Get the market to 90 percent before the nine o'clock bell. The stall keepers have sharp elbows and long memories.", "choices": [
+				{"label": "WHY IS IT SO MESSY?", "next": "why"},
+				{"label": "ON IT", "next": "", "flag": "met_nell"},
+			]},
+		],
+		"why": {"lines": [
+			{"speaker": "NELL QUILL", "text": "Good question. The bins were emptied last night. Rubbish should not come back for a visit. Just clean it and keep your eyes open.", "flag": "met_nell"},
+		]},
+		},
+		"nell_shift_2": {"lines": [
+			{"speaker": "NELL QUILL", "text": "The canal quarter is choked and the barge leaves at noon. Odo the ferryman counts every bottle that floats past."},
+			{"speaker": "NELL QUILL", "text": "Clear the banks, clear the drains, and if you see Rook, he is stuck on the north bridge with a bent axle. Again.", "flag": "met_nell"},
+		]},
+		"rook_meet": {"lines": [
+			{"speaker": "ROOK", "text": "Before you say anything, the cart slipped. The bridge jumped out at me."},
+			{"speaker": "ROOK", "text": "You want to know what choked the canal? Sullage Haulage. I lifted a manifest off their foreman. Take it, I memorised it. Mostly.", "choices": [
+				{"label": "TAKE THE MANIFEST", "next": "", "flag": "rook_rival"},
+				{"label": "FIX YOUR CART FIRST", "next": "cart"},
+			]},
+		],
+		"cart": {"lines": [
+			{"speaker": "ROOK", "text": "The axle just needs a kick and an audience. There. Repaired by embarrassment."},
+			{"speaker": "ROOK", "text": "Manifest. Sullage's crews dump before dawn so the Bureau looks useless. I am done being fast for that man.", "flag": "rook_rival"},
+		]},
+		},
+		"odo_bottles": {"lines": [
+			{"speaker": "ODO", "text": "The tide brought the whole city's glass to my doorstep. Every bottle a letter, and every letter addressed to me."},
+			{"speaker": "ODO", "text": "Vacuum five bottles out of the water and bring them here. I will tell you what the barges unload at night.", "quest": "bottles"},
+		]},
+		"pip_high_score": {"lines": [
+			{"speaker": "PIP", "text": "You made it up. The fire escape only bites twice. From here you can see the whole strip and the plant gate under it."},
+			{"speaker": "PIP", "text": "The machine under the plant ate the street again last night. I count its snores. Find my three tokens, beat the taped-up cabinet, and I will call you when the gate opens.", "quest": "high_score", "flag": "met_pip"},
+		]},
+		"sullage_taunt": {"lines": [
+			{"speaker": "DIRECTOR SULLAGE", "text": "Filth is a service. I provide it reliably. Your little broom is a rounding error, sweeper."},
+			{"speaker": "DIRECTOR SULLAGE", "text": "Gulper, dinner shift. Eat the street. Expense it.", "flag": "sullage_overclock"},
+		]},
+		"nell_ending": {"lines": [
+			{"speaker": "NELL QUILL", "text": "The plant is quiet, the canal is glass, and the market rang its bell on time. The Bureau owes you a promotion and a very large brush."},
+			{"speaker": "NELL QUILL", "text": "Marrow Bay is yours to keep clean, COSMIC CUSTODIAN. Clock out whenever. The bins will miss you.", "flag": "promoted"},
+		]},
 		"rook": {
 			"lines": [
 				{"speaker": "ROOK", "text": "Nice cart. Does it come with a pension?"},
@@ -205,7 +248,7 @@ func _build_trees() -> Dictionary:
 		},
 		"miso": {"lines": [
 			{"speaker": "MISO", "text": "Mrrp."},
-			{"speaker": "MISO", "text": "Miso blinks slowly, which is cat for 'you may stay'."},
+			{"speaker": "MISO", "text": "Miso blinks slowly, which is cat for 'you may stay'. She follows you at a distance, officially not following you.", "quest": "cat", "mode": "step"},
 		]},
 		"pigeon": {"lines": [
 			{"speaker": "PIGEON", "text": "The pigeon regards you with the confidence of a landlord."},

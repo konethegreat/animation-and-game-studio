@@ -53,11 +53,11 @@ const SHIFTS := [
 	},
 	{
 		"id": "shift_3", "district": "canal_quarter", "rank": 4, "goal": 0.88,
-		"title": "NIGHT TIDE", "brief": "Follow the manifest to the lock gates.",
+		"title": "NIGHT TIDE", "brief": "Follow the manifest to the lock gates.", "night": true,
 	},
 	{
 		"id": "shift_4", "district": "neon_arcade", "rank": 5, "goal": 0.9,
-		"title": "NEON RAIN", "brief": "The arcade is buried and something big is awake.",
+		"title": "NEON RAIN", "brief": "The arcade is buried and something big is awake.", "night": true,
 	},
 	{
 		"id": "shift_5", "district": "neon_arcade", "rank": 5, "goal": 1.0,
