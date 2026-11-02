@@ -1,8 +1,14 @@
 # Animation and Game Studio
 
-2D and 3D animation plus playable games, built in the open.
+2D and 3D animation plus playable games, built in public by one maker.
 
 Live showcase: https://konethegreat.github.io/animation-and-game-studio/
+
+## Ownership
+
+Everything in this repository is original work by Kone Tshivhinda at Kone Studio. The code, films, models, game art, audio and text are proprietary and all rights are reserved. You are welcome to view the source and play the published work. Copying, redistribution, commercial use, derivative works and AI training are not permitted without written permission. See [LICENSE](LICENSE).
+
+Third party tools, libraries and fonts keep their own licences. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Film
 
@@ -135,6 +141,6 @@ Templates live in `studio/templates/{2d,3d,game}` and are tested by the suite. A
 - 1080p ceiling on this machine, with a 4 GB VRAM budget.
 - No Git LFS. Media stays under the budgets above or moves to Releases.
 
-## License
+## Licence
 
-Code is MIT. Animation, models, game art and video are CC BY 4.0. See `LICENSE`.
+Proprietary. All rights reserved by Kone Tshivhinda. See `LICENSE`. Third party components keep their own licences in `THIRD_PARTY_NOTICES.md`.

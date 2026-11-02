@@ -1,24 +1,42 @@
-MIT License
+# Kone Studio Proprietary Licence
 
-Copyright (c) 2026 Kone Tshivhinda
+Copyright (c) 2026 Kone Tshivhinda. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This repository and everything in it is original work by Kone Tshivhinda, trading as Kone Studio. That includes the source code, films, animation, 3D models, game art, characters, audio, music, sound effects, text, builds, and the Kone Studio and BIN CITY names. It is protected by copyright.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+## What you may do
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+- View this repository on GitHub and view the published work on the studio site.
+- Play the published games in a browser and watch the published films.
+- Share links to the published work without changing it.
+- Quote a short passage with clear attribution to Kone Tshivhinda and a link to the original.
 
-Animation, 3D models, game art and video are licensed under Creative Commons
-Attribution 4.0 International (CC BY 4.0).
+## What you may not do
+
+Without prior written permission from Kone Tshivhinda, you may not:
+
+- Copy, reproduce, republish, upload, post, transmit or distribute this work or any substantial part of it.
+- Modify, adapt, translate, remix or create derivative works from it.
+- Sell, rent, license, sublicense or otherwise make it available for commercial use.
+- Use it to build or train a product, including a machine learning, generative AI or code generation system.
+- Use it as training data, fine tuning data or evaluation data for any AI model, agent or tool.
+- Remove, obscure or alter any copyright, ownership or attribution notice.
+- Use the Kone Studio or BIN CITY names, or any logo, mark or visual identity from this work, in a way that suggests endorsement or misrepresents where the work came from.
+
+No text or data mining is permitted on this repository or its published work.
+
+## Third party material
+
+This work uses third party tools, libraries and fonts. Each one keeps its own licence and remains the property of its authors. They are listed in `THIRD_PARTY_NOTICES.md`. Those licences do not grant any rights to this original work.
+
+## No warranty
+
+This work is provided as is, for viewing and play. No warranty is given, express or implied, including any warranty of merchantability, fitness for a particular purpose or non-infringement. In no event shall the author be liable for any claim, damages or other liability arising from the use of this work.
+
+## Permission
+
+For licensing, collaboration or permission, contact Kone Tshivhinda through the studio site: https://konethegreat.github.io/animation-and-game-studio/
+
+## Earlier versions
+
+This licence applies to the current version and all future versions. Copies that were obtained under the earlier MIT and CC BY 4.0 terms stay subject to those terms for those copies. The original work in this repository remains the property of Kone Tshivhinda.
