@@ -176,14 +176,20 @@ def _encode_master(project, frames_root: Path, width: int, height: int) -> Path:
 
 def _final_mp4(project, master: Path, mp4: Path, audio: Path | None) -> None:
     ffmpeg = find_tool("ffmpeg")
-    cmd = [str(ffmpeg), "-y", "-i", str(master)]
-    if audio:
-        cmd += ["-i", str(audio)]
-    cmd += ["-c:v", "libx264", "-preset", "slow", "-crf", "18", "-pix_fmt", "yuv420p"]
-    if audio:
-        cmd += ["-c:a", "aac", "-b:a", "160k", "-af", "loudnorm=I=-14:TP=-1:LRA=11", "-shortest"]
-    cmd += ["-movflags", "+faststart", str(mp4)]
-    _run(cmd)
+    limit = BUDGET_MB.get(mp4.suffix.lower())
+    # Longer cuts need a gentler crf to stay inside the publish budget.
+    for crf in (18, 20, 22, 24):
+        cmd = [str(ffmpeg), "-y", "-i", str(master)]
+        if audio:
+            cmd += ["-i", str(audio)]
+        cmd += ["-c:v", "libx264", "-preset", "slow", "-crf", str(crf), "-pix_fmt", "yuv420p"]
+        if audio:
+            cmd += ["-c:a", "aac", "-b:a", "160k", "-af", "loudnorm=I=-14:TP=-1:LRA=11", "-shortest"]
+        cmd += ["-movflags", "+faststart", str(mp4)]
+        _run(cmd)
+        if limit is None or mp4.stat().st_size <= limit * 1024 * 1024:
+            return
+        print(f"{mp4.name} is over {limit:g} MB at crf {crf}; retrying at a higher crf")
 
 
 def encode_project(project, frames_root: Path, width: int, height: int) -> dict[str, Path]:
