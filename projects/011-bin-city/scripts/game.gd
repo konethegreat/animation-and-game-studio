@@ -11,6 +11,7 @@ const Data = preload("res://scripts/data.gd")
 const CROWD = preload("res://scripts/crowd.gd")
 const INTERIORS = preload("res://scripts/interiors.gd")
 const TRANSITION = preload("res://scripts/transition.gd")
+const BOSS = preload("res://scripts/boss.gd")
 
 const MOODS := {
 	"dawn": {
@@ -99,6 +100,10 @@ const SHIFT_OBJECTIVES := {
 		{"id": "meet_pip", "flag": "met_pip", "text": "CLIMB TO PIP'S ROOFTOP"},
 		{"id": "cabinet", "quest": "high_score", "text": "BEAT THE TAPED-UP CABINET"},
 	],
+	5: [
+		{"id": "clean", "text": "GET THE STRIP 90% CLEAN"},
+		{"id": "boss", "text": "FACE THE GULPER UNDER THE PLANT"},
+	],
 }
 const GATES_POS := Vector3(-19.0, 0.0, 7.0)
 
@@ -171,6 +176,9 @@ var objectives: Array = []
 var _drains_cleared := 0
 var _nest_pending := false
 var _nest_node: Node3D = null
+var boss = null
+var _boss_grime: Array[Node3D] = []
+var _boss_grime_alive := 0
 
 
 func _ready() -> void:
@@ -318,6 +326,7 @@ func _process(delta: float) -> void:
 	_update_drains(delta)
 	_update_rain(delta)
 	_update_puddles(delta)
+	_update_boss(delta)
 	_update_objectives()
 	_update_rats(delta)
 	_check_slip()
@@ -574,7 +583,6 @@ func _title_shifts() -> Array:
 	if state != null:
 		unlocked = clampi(int(state.unlocked_shift), 1, Data.SHIFTS.size())
 		latest = clampi(int(state.shift_index), 1, unlocked)
-	unlocked = mini(unlocked, 4)
 	var entries := []
 	for i in Data.SHIFTS.size():
 		var index := i + 1
@@ -798,7 +806,10 @@ func _enter_interior(id: String) -> void:
 	transitioning = false
 	if phase == "play":
 		player.locked = false
-	ui.subtitle("%s. E at the door when you are ready to leave." % str(world.title), 4.5)
+	if id == "plant" and shift_index == 5:
+		_start_boss()
+	else:
+		ui.subtitle("%s. E at the door when you are ready to leave." % str(world.title), 4.5)
 
 
 func _exit_interior() -> void:
@@ -848,6 +859,12 @@ func _exit_interior() -> void:
 
 
 func _leave_room_now() -> void:
+	if boss != null and is_instance_valid(boss):
+		boss.queue_free()
+	boss = null
+	_boss_grime.clear()
+	if ui != null:
+		ui.hide_boss()
 	if not inside_interior:
 		return
 	if crowd != null:
@@ -1347,10 +1364,29 @@ func _interact() -> void:
 	var door := _nearest_door()
 	if not door.is_empty():
 		if inside_interior:
+			if interior_id == "plant" and boss != null and is_instance_valid(boss) and boss.active:
+				ui.subtitle("The door is jammed from the shake. The Gulper is still awake.", 4.0)
+				Sound.play("click")
+				return
 			_exit_interior()
 		else:
 			_enter_interior(str(door.get("id", "depot")))
 		return
+	if boss != null and is_instance_valid(boss) and boss.active:
+		if boss.phase == 3 and not hopper.is_empty():
+			var mouth: Vector3 = boss.mouth_position()
+			if Vector2(mouth.x - player.global_position.x, mouth.z - player.global_position.z).length() < 3.2:
+				_feed_boss_core()
+				return
+		elif boss.phase != 3:
+			var chute: Dictionary = _nearest_boss_chute(2.4)
+			if not chute.is_empty():
+				if bool(chute.get("open", false)):
+					_feed_boss(str(chute.get("kind", "")))
+				else:
+					ui.subtitle("That chute is shut. Wait for a lamp to turn green.", 3.5)
+					Sound.play("click")
+				return
 	if _near_save():
 		_save_at_desk()
 		return
@@ -1436,6 +1472,175 @@ func _maybe_spawn_nest() -> void:
 	total_weight += float(node.get("weight"))
 	_nest_node = node
 	ui.subtitle("A rat nest in the flour dust. Vacuum it out.", 4.5)
+
+
+func _start_boss() -> void:
+	if boss != null and is_instance_valid(boss):
+		return
+	boss = BOSS.new()
+	world.add_child(boss)
+	boss.setup(world)
+	boss.begin()
+	boss.damaged.connect(func(_health: float) -> void: Sound.play("burst", 0.8, -4.0))
+	boss.stomp.connect(_on_boss_stomp)
+	boss.suction.connect(_on_boss_suction)
+	boss.volley.connect(_on_boss_volley)
+	boss.phase_changed.connect(_on_boss_phase)
+	boss.defeated.connect(_ending)
+	ui.show_boss("THE GULPER")
+	ui.subtitle("The Gulper wakes. Feed each chute the litter it asks for.", 6.0)
+	Sound.play("zap", 0.5, -4.0)
+
+
+func _update_boss(delta: float) -> void:
+	if boss == null or not is_instance_valid(boss):
+		return
+	if boss.suction_on and player != null:
+		var mouth: Vector3 = boss.mouth_position()
+		var flat := Vector2(mouth.x - player.global_position.x, mouth.z - player.global_position.z)
+		var distance := maxf(flat.length(), 0.4)
+		var pull := 10.0 / distance
+		pull = clampf(pull, 1.2, 7.5)
+		player.external_pull = Vector3(flat.x / distance, 0.0, flat.y / distance) * pull * delta * 60.0
+	boss.set_chute_lights(boss.open_kinds())
+	if boss.grime_blocked:
+		var alive := 0
+		for node in _boss_grime:
+			if is_instance_valid(node):
+				alive += 1
+		if alive == 0:
+			boss.grime_blocked = false
+			_boss_grime.clear()
+			ui.subtitle("The chutes are clear. Keep feeding it.", 4.0)
+			Sound.play("pickup", 1.2, -4.0)
+	var strip := ""
+	if boss.phase == 3:
+		strip = "CORE OPEN  /  CALM %d OF %d  /  E AT THE CORE" % [int(boss.calm), int(boss.CALM_GOAL)]
+	elif boss.grime_blocked:
+		strip = "GRIME BLOCKS THE CHUTES  /  VACUUM IT OUT"
+	else:
+		var kinds: Array = boss.open_kinds()
+		if kinds.is_empty():
+			strip = "CHUTES CLOSED  /  DODGE THE VOLLEYS"
+		else:
+			var labels := []
+			for kind in kinds:
+				labels.append(str(kind).to_upper())
+			strip = "OPEN CHUTES  /  " + " + ".join(labels)
+	ui.update_boss(boss.health, boss.MAX_HEALTH, boss.phase, strip)
+
+
+func _nearest_boss_chute(max_distance: float) -> Dictionary:
+	if boss == null or not is_instance_valid(boss):
+		return {}
+	var best: Dictionary = {}
+	var best_distance := max_distance
+	for point in boss.chute_points():
+		var pos: Vector3 = point.pos
+		var distance := Vector2(pos.x - player.global_position.x, pos.z - player.global_position.z).length()
+		if distance < best_distance:
+			best_distance = distance
+			best = point
+	return best
+
+
+func _feed_boss(kind: String) -> void:
+	if boss == null or not is_instance_valid(boss):
+		return
+	var items: Array[Dictionary] = []
+	for i in range(hopper.size() - 1, -1, -1):
+		if str(hopper[i].get("kind", "")) == kind:
+			items.append(hopper[i])
+			hopper.remove_at(i)
+	if items.is_empty():
+		ui.subtitle("The %s chute wants %s litter. Vacuum some up." % [kind.to_upper(), kind], 4.0)
+		Sound.play("click")
+		return
+	var result: Dictionary = boss.feed(kind, items)
+	if result.damage <= 0.0:
+		return
+	Sound.play("throw", 0.9, -2.0)
+	ui.boss_warn()
+	var left := int(boss.health / boss.HIT_DAMAGE + 0.99)
+	if result.stomp:
+		ui.subtitle("It staggers. Every third feed makes it stomp. Jump the shockwave.", 4.5)
+	else:
+		ui.subtitle("Direct hit. About %d more good feeds." % left, 3.0)
+
+
+func _feed_boss_core() -> void:
+	if boss == null or not is_instance_valid(boss) or hopper.is_empty():
+		return
+	var items: Array[Dictionary] = hopper.duplicate()
+	hopper.clear()
+	boss.feed_core(items)
+	Sound.play("throw", 0.7, -2.0)
+	ui.subtitle("The core drinks it in. Calm %d of %d." % [int(boss.calm), int(boss.CALM_GOAL)], 3.5)
+
+
+func _on_boss_stomp() -> void:
+	Sound.play("land", 0.7, 2.0)
+	ui.boss_warn()
+	if player != null and player.is_on_floor():
+		player.apply_shock()
+		ui.subtitle("Shockwave. Jump when it rears up.", 3.5)
+	else:
+		ui.subtitle("Airborne. The shockwave rolls under you.", 3.0)
+
+
+func _on_boss_suction(on: bool) -> void:
+	if on:
+		Sound.play("dash", 0.55, 0.0)
+		ui.boss_warn()
+		ui.subtitle("Suction. Sprint or dash against the pull.", 3.0)
+
+
+func _on_boss_volley(origin: Vector3) -> void:
+	Sound.play("pile", 0.9, -2.0)
+	for i in 2:
+		var node = LITTER.new()
+		var kind: String = BOSS.CHUTE_KINDS[rng.randi_range(0, BOSS.CHUTE_KINDS.size() - 1)]
+		node.build(kind, rng)
+		var offset := Vector3(rng.randf_range(-1.4, 1.4), 0.0, rng.randf_range(-0.6, 1.6))
+		node.position = world.to_local(origin + offset)
+		world.add_child(node)
+		litter_nodes.append(node)
+		total_weight += float(node.get("weight"))
+
+
+func _on_boss_phase(phase_number: int) -> void:
+	Sound.play("zap", 0.8, 0.0)
+	ui.boss_warn()
+	if phase_number == 2:
+		boss.grime_blocked = true
+		_boss_grime.clear()
+		var points: Array = boss.chute_points()
+		for i in [0, 2]:
+			if i >= points.size():
+				break
+			var node = LITTER.new()
+			node.build("grime", rng)
+			node.position = world.to_local(points[i].pos)
+			world.add_child(node)
+			litter_nodes.append(node)
+			total_weight += float(node.get("weight"))
+			_boss_grime.append(node)
+		ui.subtitle("It overclocks. Grime slams the chutes shut. Vacuum it clear.", 5.0)
+	elif phase_number == 3:
+		ui.subtitle("It slows. The core hatch hangs open. Empty the hopper into it.", 5.5)
+
+
+func _ending() -> void:
+	if boss != null and is_instance_valid(boss):
+		boss.active = false
+	ui.hide_boss()
+	var state = get_node_or_null("/root/GameState")
+	if state != null:
+		state.set_flag("gulper_calmed")
+		state.add_xp(800)
+	_objective_done("boss")
+	ui.subtitle("The drum winds down. The plant goes quiet.", 5.0)
+	_finish()
 
 
 func _near_arcade_cabinet() -> bool:
@@ -1892,6 +2097,7 @@ const SHIFT_RESULTS_LINES := {
 	2: "The barge leaves with nothing left to collect. Odo tips his hat. Rook owes you a manifest with a Sullage Haulage stamp on it.",
 	3: "The lock holds and the lamps burn all night. Rook sweeps beside you now. The manifest points at the sorting plant under the neon strip.",
 	4: "The strip shines through the rain. Pip salutes from the roof. Under the plant, something enormous is turning in its sleep.",
+	5: "The drum winds down and the core goes dark. The Gulper sleeps, the rain stops, and the city finally smells like morning.",
 }
 
 func _finish() -> void:
@@ -2002,6 +2208,21 @@ func _update_prompt() -> void:
 		text = "DRAIN CLOGGED  /  VACUUM THE GRIME"
 	elif not inside_interior and _nearest_live_puddle(3.2):
 		text = "SPARKING PUDDLE  /  VACUUM THE LITTER OUT"
+	elif boss != null and is_instance_valid(boss) and boss.active and inside_interior and interior_id == "plant":
+		if boss.phase == 3:
+			if not hopper.is_empty():
+				var mouth: Vector3 = boss.mouth_position()
+				if Vector2(mouth.x - player.global_position.x, mouth.z - player.global_position.z).length() < 3.2:
+					text = "E  EMPTY THE HOPPER INTO THE CORE"
+			if text.is_empty():
+				text = "VACUUM LITTER  /  FEED THE CORE"
+		else:
+			var chute: Dictionary = _nearest_boss_chute(2.4)
+			if not chute.is_empty():
+				if bool(chute.get("open", false)):
+					text = "E  FEED THE %s CHUTE" % str(chute.get("kind", "")).to_upper()
+				else:
+					text = "CHUTE CLOSED  /  WAIT FOR THE GREEN LAMP"
 	elif hopper.size() >= hopper_capacity:
 		if inside_interior:
 			text = "HOPPER FULL  /  SORT AT THE FRONT DESK"

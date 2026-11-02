@@ -27,6 +27,7 @@ const PULSE_COOLDOWN := 6.0
 
 var locked := true
 var traction := 1.0
+var external_pull := Vector3.ZERO
 var rank := 1
 var max_stack := 1
 var speed_bonus := 0.0
@@ -558,6 +559,8 @@ func _physics_process(delta: float) -> void:
 			velocity.y = maxf(velocity.y - GRAVITY * 0.3 * delta, GLIDE_FALL)
 		else:
 			velocity.y -= GRAVITY * delta
+		velocity += external_pull
+		external_pull = Vector3.ZERO
 	move_and_slide()
 
 	_update_wobble(delta)

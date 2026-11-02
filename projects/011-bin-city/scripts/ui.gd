@@ -68,6 +68,13 @@ var title_shifts: VBoxContainer
 var objective_label: Label
 var results_next: Button
 var results_line: Label
+var boss_panel: PanelContainer
+var boss_name: Label
+var boss_bar: ProgressBar
+var boss_phase_pips: Array[ColorRect] = []
+var boss_strip: Label
+var boss_flash: ColorRect
+var _boss_flash_tween: Tween
 var touch_root: Control
 var stick: Control
 var look_pad: Control
@@ -360,6 +367,73 @@ func _build_hud() -> void:
 	row.add_child(pause_button)
 
 	hud.visible = false
+
+	boss_panel = PanelContainer.new()
+	boss_panel.anchor_left = 0.5
+	boss_panel.anchor_right = 0.5
+	boss_panel.offset_left = -170
+	boss_panel.offset_right = 290
+	boss_panel.offset_top = 22
+	boss_panel.offset_bottom = 104
+	boss_panel.add_theme_stylebox_override("panel", _flat(Color(0.973, 0.945, 0.898, 0.94), 18, 2, K.INK))
+	boss_panel.visible = false
+	hud.add_child(boss_panel)
+	boss_flash = ColorRect.new()
+	boss_flash.color = Color(0.85, 0.35, 0.3, 0.0)
+	boss_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	boss_panel.add_child(boss_flash)
+	var boss_wrap := _margin(12)
+	boss_panel.add_child(boss_wrap)
+	var boss_box := VBoxContainer.new()
+	boss_box.add_theme_constant_override("separation", 5)
+	boss_wrap.add_child(boss_box)
+	var boss_top := HBoxContainer.new()
+	boss_top.add_theme_constant_override("separation", 10)
+	boss_box.add_child(boss_top)
+	boss_name = _label("THE GULPER", 13, K.CORAL, true)
+	boss_top.add_child(boss_name)
+	for i in 3:
+		var pip := ColorRect.new()
+		pip.custom_minimum_size = Vector2(22, 10)
+		pip.color = Color(0.13, 0.12, 0.1, 0.15)
+		boss_top.add_child(pip)
+		boss_phase_pips.append(pip)
+	boss_bar = _bar(K.CORAL)
+	boss_bar.max_value = 300.0
+	boss_bar.custom_minimum_size = Vector2(0, 10)
+	boss_box.add_child(boss_bar)
+	boss_strip = _label("", 11, K.TEAL_DARK, true)
+	boss_strip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	boss_box.add_child(boss_strip)
+
+
+func show_boss(name_text: String) -> void:
+	boss_panel.visible = true
+	boss_name.text = name_text
+	boss_bar.value = boss_bar.max_value
+	for i in boss_phase_pips.size():
+		boss_phase_pips[i].color = K.TEAL if i == 0 else Color(0.13, 0.12, 0.1, 0.15)
+	boss_strip.text = ""
+
+
+func update_boss(health: float, max_health: float, phase: int, strip: String) -> void:
+	boss_bar.max_value = max_health
+	boss_bar.value = health
+	for i in boss_phase_pips.size():
+		boss_phase_pips[i].color = K.TEAL if i < phase else Color(0.13, 0.12, 0.1, 0.15)
+	boss_strip.text = strip
+
+
+func boss_warn() -> void:
+	if _boss_flash_tween != null and _boss_flash_tween.is_valid():
+		_boss_flash_tween.kill()
+	boss_flash.color = Color(0.85, 0.35, 0.3, 0.5)
+	_boss_flash_tween = boss_panel.create_tween()
+	_boss_flash_tween.tween_property(boss_flash, "color", Color(0.85, 0.35, 0.3, 0.0), 0.5)
+
+
+func hide_boss() -> void:
+	boss_panel.visible = false
 
 
 func _build_prompt() -> void:

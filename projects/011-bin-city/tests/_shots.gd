@@ -1,8 +1,7 @@
 extends SceneTree
 
-# Temporary capture harness: boots the real game, photographs the title
-# shift select and the shift briefing card, then starts shift 2 for a HUD
-# shot with the objective line.
+# Temporary capture harness: boots the real game, starts shift 5, enters the
+# plant and photographs each Gulper phase, then the calmed core.
 
 var scene: Node
 
@@ -27,18 +26,31 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	await create_timer(0.6).timeout
-	print("STAGE  title")
-	await _shot("19-title-shifts")
 
-	print("STAGE  briefing")
-	scene.begin_shift(2)
-	await create_timer(1.4).timeout
-	await _shot("20-briefing")
+	print("STAGE  shift 5")
+	scene.begin_shift(5)
 	while scene.player.locked:
 		await process_frame
-	await create_timer(0.8).timeout
-	print("STAGE  area=", scene.area_id, " shift=", scene.shift_index, " night=", scene.world.raining if scene.world.get("raining") != null else "n/a")
-	await _shot("21-shift2-hud")
+	await create_timer(0.5).timeout
+	print("STAGE  entering plant")
+	scene._enter_interior("plant")
+	while scene.boss == null:
+		await process_frame
+	await create_timer(2.5).timeout
+	print("STAGE  boss phase ", scene.boss.phase, " health ", scene.boss.health)
+	await _shot("22-boss-phase1")
+
+	scene.boss.health = 200.0
+	scene.boss._check_phase()
+	await create_timer(1.6).timeout
+	print("STAGE  boss phase ", scene.boss.phase)
+	await _shot("23-boss-phase2")
+
+	scene.boss.health = 100.0
+	scene.boss._check_phase()
+	await create_timer(1.6).timeout
+	print("STAGE  boss phase ", scene.boss.phase, " core ", scene.boss.core_open)
+	await _shot("24-boss-phase3")
 
 	print("STAGE  done")
 	quit(0)

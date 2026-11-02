@@ -267,6 +267,36 @@ func _run() -> void:
 	story_dlg.start("miso")
 	story_dlg.advance()
 	_check("miso step completes the cat quest", state.quest_status("cat") == "done")
+
+	var boss = load("res://scripts/boss.gd").new()
+	root.add_child(boss)
+	boss.setup(null)
+	await process_frame
+	_check("boss starts at full", boss.health == boss.MAX_HEALTH)
+	_check("boss starts inactive", not boss.active)
+	boss.begin()
+	_check("boss wakes", boss.active)
+	boss.force_open("paper")
+	var hit: Dictionary = boss.feed("paper", [{"kind": "paper", "weight": 1.0}])
+	_check("correct chute feed damages", hit.damage > 0.0 and hit.accepted == 1)
+	_check("wrong chute rejected", boss.feed("glass", [{"kind": "paper"}]).damage == 0.0)
+	boss.health = 200.0
+	boss._check_phase()
+	_check("phase 2 at 200", boss.phase == 2)
+	boss.force_open("metal")
+	_check("phase 2 opens more chutes", boss.is_open("metal"))
+	boss.health = 100.0
+	boss._check_phase()
+	_check("phase 3 opens the core", boss.phase == 3 and boss.core_open)
+	boss.health = 50.0
+	boss.feed_core([{"kind": "paper"}])
+	_check("core feed does not heal", boss.health == 50.0)
+	var calm_left := int(boss.CALM_GOAL - boss.calm)
+	for i in calm_left:
+		boss.feed_core([{"kind": "metal", "weight": 1.0}])
+	_check("boss calms at goal", boss.calm >= boss.CALM_GOAL)
+	boss.queue_free()
+	await process_frame
 	story_dlg.queue_free()
 	await process_frame
 
