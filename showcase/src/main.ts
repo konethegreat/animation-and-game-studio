@@ -61,6 +61,19 @@ function parseRoute(pathname: string): Route {
   return { name: "missing" };
 }
 
+function announce(): string {
+  return `
+  <aside class="announce" id="announcement" aria-label="Studio announcement">
+    <div class="wrap announce-inner">
+      <p class="announce-copy">
+        <span class="announce-tag mono">In production</span>
+        <span>More films, characters and games are on the way.</span>
+      </p>
+      <button type="button" class="announce-close mono" id="announce-close" aria-label="Dismiss announcement">Dismiss</button>
+    </div>
+  </aside>`;
+}
+
 function head(active?: string): string {
   const nav = [
     { label: "Work", href: `${href()}#work`, key: "work" },
@@ -83,11 +96,12 @@ function head(active?: string): string {
           )
           .join("")}
       </nav>
-      <a class="repo-pill mono" href="${REPO}" target="_blank" rel="noreferrer">
-        <span class="live-dot" aria-hidden="true"></span>Open source
+      <a class="repo-pill mono" href="${href()}#ownership" data-link>
+        <span class="live-dot" aria-hidden="true"></span>Original work
       </a>
     </div>
-  </header>`;
+  </header>
+  ${announce()}`;
 }
 
 function foot(): string {
@@ -96,24 +110,29 @@ function foot(): string {
     <div class="wrap foot-top">
       <div>
         <p class="eyebrow light">Kone Studio</p>
-        <p class="foot-line">Animation, characters and small games, generated from source.</p>
+        <p class="foot-line">Animation, characters and small games, made by Kone Tshivhinda.</p>
       </div>
       <nav class="foot-nav" aria-label="Footer">
         <a href="${href()}#work" data-link>Work</a>
         <a href="${href("demo/three")}" data-link>3D demo</a>
         <a href="${href("play/011-bin-city")}" data-link>Play</a>
         <a href="${REPO}" target="_blank" rel="noreferrer">GitHub</a>
+        <a href="${REPO}/blob/main/LICENSE" target="_blank" rel="noreferrer">Licence</a>
       </nav>
     </div>
+    <div class="wrap foot-own" id="ownership">
+      <p class="mono foot-own-label">Original work</p>
+      <p>Every film, model, game, score and line of code here is original work by Kone Tshivhinda. All rights reserved. Third party tools and fonts keep their own licences.</p>
+    </div>
     <div class="wrap foot-bottom mono">
-      <span>2026 / Renders made in house</span>
+      <span>© 2026 Kone Tshivhinda / All rights reserved</span>
       <span>Blender / Godot / FFmpeg</span>
     </div>
   </footer>`;
 }
 
 function ticker(): string {
-  const words = ["2D animation", "3D characters", "Playable games", "Open pipeline"];
+  const words = ["2D animation", "3D characters", "Playable games", "Original work"];
   const run = words
     .map((word) => `<span>${word}</span><i aria-hidden="true"></i>`)
     .join("");
@@ -163,9 +182,9 @@ function home(): string {
   <main id="main">
     <section class="hero wrap">
       <div class="hero-copy">
-        <p class="eyebrow"><span class="pulse" aria-hidden="true"></span>Independent animation + game studio <span class="dim">/ 2026</span></p>
+        <p class="eyebrow"><span class="pulse" aria-hidden="true"></span><span class="owner-name">Kone Tshivhinda</span> <span class="dim">/ Independent animation + game studio / 2026</span></p>
         <h1>Small worlds,<br />built <em>frame by frame.</em><span class="hero-star" aria-hidden="true">&#10033;</span></h1>
-        <p class="lede">A working studio for 2D animation, 3D characters and playable games. Everything here is generated from source in one open pipeline. No stock footage, no purchased models.</p>
+        <p class="lede">A working studio for 2D animation, 3D characters and playable games. Everything here is generated from source in one studio pipeline. No stock footage, no purchased models.</p>
         <div class="hero-actions">
           <a class="btn btn-ink" href="${href()}#work" data-link>See the work</a>
           <a class="btn btn-glow" href="${href("play/011-bin-city")}" data-link><span class="play-glyph" aria-hidden="true"></span>Play BIN CITY</a>
@@ -313,6 +332,7 @@ function projectPage(project: Project, index: number): string {
       <h1>${esc(project.title)}</h1>
       <p class="lede">${esc(project.summary)}</p>
       <ul class="tags">${project.tags.map((tag) => `<li>${esc(tag)}</li>`).join("")}</ul>
+      <p class="own-line mono">Original work / Kone Tshivhinda / All rights reserved</p>
     </header>
     <div class="detail-stage">${mediaStage(project)}</div>
     <div class="detail-grid">
@@ -517,6 +537,31 @@ function mountDemo(project: Project) {
     .catch((error: unknown) => console.warn("3D demo unavailable", error));
 }
 
+function bindAnnouncement() {
+  const bar = document.getElementById("announcement");
+  const close = document.getElementById("announce-close");
+  if (!bar || !close) return;
+  const key = "kone-announce-2026-11";
+  let dismissed = false;
+  try {
+    dismissed = localStorage.getItem(key) === "1";
+  } catch {
+    dismissed = false;
+  }
+  if (dismissed) {
+    bar.remove();
+    return;
+  }
+  close.addEventListener("click", () => {
+    bar.remove();
+    try {
+      localStorage.setItem(key, "1");
+    } catch {
+      /* storage can be blocked; the banner still closes for this visit */
+    }
+  });
+}
+
 function bindHome() {
   const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-filter]"));
   const cards = Array.from(document.querySelectorAll<HTMLElement>(".card"));
@@ -632,7 +677,7 @@ function render() {
     markup = home();
     setMeta(
       "Kone Studio / Animation and Game Studio",
-      "A working studio for 2D animation, 3D characters and playable games, generated from source in one open pipeline.",
+      "Original work by Kone Tshivhinda. 2D animation, 3D characters and playable games, generated from source in one studio pipeline.",
     );
   } else if (route.name === "project") {
     const index = projects.findIndex((project) => project.id === route.id);
@@ -668,6 +713,7 @@ function render() {
   }
 
   app.innerHTML = markup;
+  bindAnnouncement();
 
   if (route.name === "home") {
     bindHome();

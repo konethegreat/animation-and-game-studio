@@ -90,7 +90,7 @@ export const PLAY: Record<string, PlayInfo> = {
       { label: "Run", body: "Shift, LB, or the RUN pad. Rank 2 unlocks a third carry slot." },
     ],
     loop: "Vacuum litter, sort it into four depot bins, and carry the heavy things to the skip. Clean 90 percent of Dawn Market before the shutters open.",
-    credits: "Designed, built, written and scored by Kone Tshivhinda. No imported models, textures or audio.",
+    credits: "Designed, built, written and scored by Kone Tshivhinda. Original work, all rights reserved. No imported models, textures or audio.",
   },
 };
 
