@@ -12,9 +12,13 @@ def contact_sheet(input_path: Path, output_path: Path, cols: int = 4, rows: int 
     if not ffmpeg:
         raise RuntimeError("ffmpeg not found; run studio doctor")
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    duration = media.probe(input_path)["duration"] or 1.0
-    rate = max(cols * rows / duration, 0.25)
-    vf = f"fps={rate:.4f},scale=480:-1,tile={cols}x{rows}"
+    info = media.probe(input_path)
+    duration = info["duration"] or 1.0
+    fps = info["fps"] or 24.0
+    total = max(1, int(round(duration * fps)))
+    step = max(1, total // (cols * rows))
+    # Select frames by index; fps resampling before tile can emit them out of order.
+    vf = f"select='not(mod(n\\,{step}))',scale=480:-1,tile={cols}x{rows}"
     result = subprocess.run(
         [str(ffmpeg), "-y", "-i", str(input_path), "-vf", vf, "-frames:v", "1", str(output_path)],
         capture_output=True,
