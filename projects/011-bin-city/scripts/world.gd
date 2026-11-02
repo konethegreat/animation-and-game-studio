@@ -120,12 +120,12 @@ func _build_ground() -> void:
 	var ground := Node3D.new()
 	ground.name = "Ground"
 	add_child(ground)
-	ground_mat = K.texture_material(_cobble, Vector3(14, 10, 1), Color(0.78, 0.76, 0.73))
+	ground_mat = K.texture_material(_cobble, Vector3(14, 10, 1), Color(1.0, 0.98, 0.94))
 	K.plane(ground, Vector2(44, 29), Vector3(0, 0, 0.2), K.STONE, ground_mat)
 	K.collider(ground, Vector3(44, 1, 29), Vector3(0, -0.5, 0.2))
 
 	# A dusty apron around the plaza, split so the canal stays open water.
-	var apron_mat := K.material(Color(0.62, 0.57, 0.47))
+	var apron_mat := K.material(Color(0.5, 0.46, 0.39))
 	for piece in [
 		{"size": Vector2(110, 22), "pos": Vector3(0, -0.06, -25.5)},
 		{"size": Vector2(110, 22), "pos": Vector3(0, -0.06, 40.0)},
@@ -147,7 +147,7 @@ func _build_ground() -> void:
 	disc.height = 0.02
 	disc.radial_segments = 22
 	patch.mesh = disc
-	patch.material_override = K.clear_material(Color(0.38, 0.33, 0.26), 0.16)
+	patch.material_override = K.clear_material(Color(0.38, 0.33, 0.26), 0.09)
 	patch.position = Vector3(-2, 0.012, 2)
 	patch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	ground.add_child(patch)

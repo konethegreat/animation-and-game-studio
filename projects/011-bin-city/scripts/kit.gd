@@ -200,21 +200,31 @@ static func make_cobble() -> ImageTexture:
 	var img := Image.create(256, 256, false, Image.FORMAT_RGB8)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 11
-	img.fill(Color(0.46, 0.41, 0.34))
+	img.fill(Color(0.27, 0.26, 0.24))
 	var cells := 8
 	var cell := 256 / cells
 	for cy in cells:
 		for cx in cells:
-			var base := 0.52 + rng.randf() * 0.14
-			var warm := rng.randf() * 0.05
+			var base := 0.4 + rng.randf() * 0.13
+			var warm := rng.randf() * 0.06
+			var tilt := rng.randf_range(-0.02, 0.02)
 			var x0 := cx * cell + rng.randi_range(2, 4)
 			var y0 := cy * cell + rng.randi_range(2, 4)
 			var w := cell - rng.randi_range(4, 7)
 			var h := cell - rng.randi_range(4, 7)
+			# Two soft pits per tile keep the slab from reading as flat paint.
+			var pits := []
+			for i in 2:
+				pits.append(Vector3(rng.randf_range(x0, x0 + w), rng.randf_range(y0, y0 + h), rng.randf_range(0.025, 0.05)))
 			for y in range(y0, min(y0 + h, 256)):
 				for x in range(x0, min(x0 + w, 256)):
-					var n := rng.randf_range(-0.035, 0.035)
-					img.set_pixel(x, y, Color(base + n + warm, base * 0.94 + n, base * 0.85 + n))
+					var n := rng.randf_range(-0.02, 0.02)
+					var shade := 0.0
+					for p in pits:
+						var d := Vector2(x - p.x, y - p.y).length()
+						shade += p.z * (1.0 - clampf(d / 9.0, 0.0, 1.0))
+					var v := base + n + warm - shade + tilt * (float(y - y0) / float(h))
+					img.set_pixel(x, y, Color(v + 0.01, v * 0.96, v * 0.9))
 	img.generate_mipmaps()
 	return ImageTexture.create_from_image(img)
 

@@ -7,6 +7,50 @@ const UI = preload("res://scripts/ui.gd")
 const LITTER = preload("res://scripts/litter.gd")
 const PILE = preload("res://scripts/pile.gd")
 const RAT = preload("res://scripts/rat.gd")
+const POSTFX = preload("res://scripts/postfx.gd")
+
+const MOODS := {
+	"dawn": {
+		"zenith": Color(0.26, 0.43, 0.62), "horizon": Color(1.0, 0.79, 0.57),
+		"ground": Color(0.47, 0.41, 0.35), "sun": Color(1.0, 0.8, 0.55),
+		"sun_angle": Vector3(-31.0, -40.0, 0.0), "sun_energy": 1.85,
+		"ambient": 0.52, "ambient_colour": Color(0.4, 0.5, 0.68),
+		"fog": Color(0.9, 0.79, 0.63), "fog_density": 0.0007,
+		"exposure": 0.74, "glow": false,
+	},
+	"canal": {
+		"zenith": Color(0.28, 0.48, 0.55), "horizon": Color(0.82, 0.9, 0.84),
+		"ground": Color(0.32, 0.42, 0.4), "sun": Color(0.95, 0.98, 0.9),
+		"sun_angle": Vector3(-42.0, -18.0, 0.0), "sun_energy": 1.15,
+		"ambient": 0.6, "ambient_colour": Color(0.46, 0.58, 0.64),
+		"fog": Color(0.76, 0.86, 0.83), "fog_density": 0.004,
+		"exposure": 0.93, "glow": false,
+	},
+	"night": {
+		"zenith": Color(0.04, 0.08, 0.16), "horizon": Color(0.14, 0.26, 0.3),
+		"ground": Color(0.05, 0.06, 0.08), "sun": Color(0.52, 0.68, 0.9),
+		"sun_angle": Vector3(-38.0, 24.0, 0.0), "sun_energy": 0.32,
+		"ambient": 0.3, "ambient_colour": Color(0.26, 0.36, 0.55),
+		"fog": Color(0.16, 0.24, 0.3), "fog_density": 0.0044,
+		"exposure": 1.12, "glow": false,
+	},
+	"neon": {
+		"zenith": Color(0.03, 0.04, 0.12), "horizon": Color(0.22, 0.07, 0.24),
+		"ground": Color(0.04, 0.04, 0.08), "sun": Color(0.6, 0.5, 0.9),
+		"sun_angle": Vector3(-30.0, 36.0, 0.0), "sun_energy": 0.24,
+		"ambient": 0.3, "ambient_colour": Color(0.36, 0.26, 0.56),
+		"fog": Color(0.16, 0.1, 0.24), "fog_density": 0.0046,
+		"exposure": 1.16, "glow": true,
+	},
+	"boss": {
+		"zenith": Color(0.06, 0.05, 0.05), "horizon": Color(0.3, 0.16, 0.1),
+		"ground": Color(0.06, 0.05, 0.05), "sun": Color(1.0, 0.6, 0.35),
+		"sun_angle": Vector3(-24.0, 12.0, 0.0), "sun_energy": 0.55,
+		"ambient": 0.28, "ambient_colour": Color(0.44, 0.3, 0.3),
+		"fog": Color(0.24, 0.16, 0.12), "fog_density": 0.006,
+		"exposure": 1.1, "glow": true,
+	},
+}
 
 const AREA_SCRIPTS := {
 	"dawn_market": preload("res://scripts/world.gd"),
@@ -37,6 +81,10 @@ var phase := "title"
 var world
 var area
 var area_id := "dawn_market"
+var postfx
+var env: Environment
+var sun_light: DirectionalLight3D
+var sky_material: ShaderMaterial
 var player
 var ui
 var cam_yaw: Node3D
@@ -80,6 +128,13 @@ func _ready() -> void:
 	rng.seed = 20261102
 	_setup_input()
 	_build_light()
+	postfx = POSTFX.new()
+	postfx.name = "PostFX"
+	add_child(postfx)
+	var state = get_node_or_null("/root/GameState")
+	if state != null:
+		postfx.set_quality(str(state.settings.get("quality", "standard")))
+	_apply_mood("dawn")
 	world = WORLD.new()
 	world.name = "DawnMarket"
 	add_child(world)
@@ -176,6 +231,9 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F7:
+		if postfx != null:
+			postfx.rect.visible = not postfx.rect.visible
 	if event is InputEventMouseButton:
 		var mouse := event as InputEventMouseButton
 		if mouse.pressed and mouse.button_index == MOUSE_BUTTON_WHEEL_UP:
@@ -249,42 +307,79 @@ func _mouse(button: MouseButton) -> InputEventMouseButton:
 
 
 func _build_light() -> void:
-	var env := Environment.new()
+	env = Environment.new()
 	env.background_mode = Environment.BG_SKY
 	var sky := Sky.new()
-	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.36, 0.52, 0.66)
-	sky_mat.sky_horizon_color = Color(0.98, 0.82, 0.62)
-	sky_mat.ground_horizon_color = Color(0.86, 0.78, 0.64)
-	sky_mat.ground_bottom_color = Color(0.42, 0.38, 0.32)
-	sky_mat.sun_angle_max = 18.0
-	sky_mat.sun_curve = 0.18
-	sky.sky_material = sky_mat
+	sky_material = ShaderMaterial.new()
+	sky_material.shader = load("res://shaders/sky.gdshader")
+	sky.sky_material = sky_material
 	env.sky = sky
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 0.42
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_exposure = 0.88
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.4, 0.5, 0.68)
+	env.ambient_light_energy = 0.52
+	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	env.tonemap_exposure = 1.0
+	env.tonemap_white = 6.0
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.93, 0.83, 0.69)
-	env.fog_light_energy = 0.35
-	env.fog_density = 0.0032
-	env.fog_sky_affect = 0.2
+	env.fog_mode = Environment.FOG_MODE_DEPTH
+	env.fog_light_color = Color(0.95, 0.86, 0.72)
+	env.fog_light_energy = 0.5
+	env.fog_density = 0.001
+	env.fog_depth_begin = 30.0
+	env.fog_depth_end = 120.0
+	env.fog_sky_affect = 0.18
+	env.glow_enabled = false
+	env.glow_intensity = 0.35
+	env.glow_strength = 0.75
+	env.glow_bloom = 0.04
+	env.glow_mix = 0.15
+	env.glow_hdr_threshold = 1.1
 	env.adjustment_enabled = true
-	env.adjustment_brightness = 1.0
-	env.adjustment_contrast = 1.06
-	env.adjustment_saturation = 1.12
+	env.adjustment_brightness = 0.99
+	env.adjustment_contrast = 1.1
+	env.adjustment_saturation = 1.16
 	var holder := WorldEnvironment.new()
 	holder.environment = env
 	add_child(holder)
 
-	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-46.0, -34.0, 0.0)
-	sun.light_color = Color(1.0, 0.87, 0.68)
-	sun.light_energy = 1.0
-	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 46.0
-	add_child(sun)
+	sun_light = DirectionalLight3D.new()
+	sun_light.rotation_degrees = Vector3(-42.0, -32.0, 0.0)
+	sun_light.light_color = Color(1.0, 0.87, 0.68)
+	sun_light.light_energy = 1.05
+	sun_light.shadow_enabled = true
+	sun_light.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+	sun_light.directional_shadow_max_distance = 46.0
+	sun_light.directional_shadow_blend_splits = true
+	sun_light.shadow_bias = 0.03
+	sun_light.shadow_normal_bias = 1.1
+	sun_light.shadow_blur = 1.2
+	add_child(sun_light)
+
+
+func _apply_mood(mood: String) -> void:
+	if env == null:
+		return
+	var cfg: Dictionary = MOODS.get(mood, MOODS["dawn"])
+	sky_material.set_shader_parameter("zenith", cfg.zenith)
+	sky_material.set_shader_parameter("horizon", cfg.horizon)
+	sky_material.set_shader_parameter("ground", cfg.ground)
+	sky_material.set_shader_parameter("sun_colour", cfg.sun)
+	var sun_angle: Vector3 = cfg.sun_angle
+	sun_light.rotation_degrees = sun_angle
+	var sun_basis := Basis.from_euler(Vector3(deg_to_rad(sun_angle.x), deg_to_rad(sun_angle.y), 0.0))
+	sky_material.set_shader_parameter("sun_direction", sun_basis.z)
+	env.ambient_light_energy = float(cfg.ambient)
+	env.ambient_light_color = cfg.ambient_colour
+	env.fog_light_color = cfg.fog
+	env.fog_light_energy = 0.22
+	env.fog_density = float(cfg.fog_density)
+	env.tonemap_exposure = float(cfg.exposure)
+	env.glow_enabled = bool(cfg.glow)
+	sun_light.light_color = cfg.sun
+	sun_light.light_energy = float(cfg.sun_energy)
+	if postfx != null:
+		postfx.set_mood(mood)
 
 
 func _build_cameras() -> void:
