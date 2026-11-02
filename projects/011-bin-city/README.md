@@ -17,7 +17,7 @@ A browser game about a trash collector who levels up as they clean. Five shifts 
 - Canal Quarter: washing lines, boats, clogged drains and a bottle machine.
 - Neon Arcade: a night strip of signs, steam and Miso's high score.
 
-Every district has its own music, ambience, lighting mood and loading card.
+Every district has its own music, ambience, lighting mood and loading card. The market track is ready at boot; the other districts synthesise their score behind the loading card when you first enter. Phones start in a lower quality tier with a 60 fps cap and thinner particles. Add `?low=1` to force that tier on any device.
 
 ## Controls
 
@@ -30,9 +30,10 @@ WASD or left stick to move, Shift or L3 to run, Space or A to jump then double j
 - `scripts/game.gd` owns the shift loop, flow multiplier, cleanliness, districts, interiors and the boss hookup.
 - `scripts/npc.gd` and `scripts/crowd.gd` run the townsfolk, quests and reactions; `scripts/dialogue.gd` runs the lines.
 - `scripts/boss.gd` is the Gulper fight; `scripts/cutscene.gd` runs the cold open, intro and ending.
-- `scripts/sound.gd` synthesises every track and effect as PCM16 at 22050 Hz, five music loops, five ambience beds and crossfades between districts.
+- `scripts/sound.gd` synthesises every track and effect as PCM16 at 22050 Hz: five music loops, five ambience beds and crossfades between districts, built on demand so a first load stays short.
 - `scripts/postfx.gd` grades each mood; `shaders/toon.gdshader` and `shaders/outline.gdshader` give the inked look.
-- `tests/_logic.gd` and `tests/_smoke.gd` are headless checks; `tests/_shots.gd` captures stills of every district.
+- `tests/_logic.gd`, `tests/_smoke.gd` and `tests/_flow.gd` are headless checks; the flow check covers staged district loading, interior round trips and the boss room. `tests/_shots.gd` captures stills of every district.
+- The showcase play page has a fullscreen control with an iOS-safe theatre fallback. On phones the frame grows into a portrait stage and a tap opens fullscreen before play.
 
 There are no imported models, textures or audio files. Everything is primitives, generated images and synthesis. The poster is a still captured from the game's own `?poster=1` mode.
 
@@ -42,6 +43,9 @@ There are no imported models, textures or audio files. Everything is primitives,
 ./.venv/Scripts/python studio/studio.py build 011-bin-city
 ./.venv/Scripts/python studio/studio.py verify 011-bin-city
 ./.venv/Scripts/python -m pytest studio/tests/test_smoke_game.py -v
+godot --headless --path projects/011-bin-city -s res://tests/_logic.gd
+godot --headless --path projects/011-bin-city -s res://tests/_smoke.gd
+godot --headless --path projects/011-bin-city -s res://tests/_flow.gd
 ```
 
 The web build is playable from `build/web` through any static server.
