@@ -8,6 +8,10 @@ const LITTER = preload("res://scripts/litter.gd")
 const PILE = preload("res://scripts/pile.gd")
 const RAT = preload("res://scripts/rat.gd")
 
+const AREA_SCRIPTS := {
+	"dawn_market": preload("res://scripts/world.gd"),
+}
+
 const SPAWN := Vector3(2.0, 0.0, 2.0)
 const LIGHT_COUNT := 96
 const HEAVY_COUNT := 12
@@ -31,6 +35,8 @@ const BIG_HOPPER := 20
 
 var phase := "title"
 var world
+var area
+var area_id := "dawn_market"
 var player
 var ui
 var cam_yaw: Node3D
@@ -77,6 +83,8 @@ func _ready() -> void:
 	world = WORLD.new()
 	world.name = "DawnMarket"
 	add_child(world)
+	area = world
+	area_id = "dawn_market"
 	player = PLAYER.new()
 	player.name = "Collector"
 	add_child(player)
@@ -438,6 +446,23 @@ func _clear_run() -> void:
 	vacuum_time = 0.0
 	charge_lock = false
 	Sound.set_vacuum(false)
+
+
+func load_area(id: String, spawn_at: Vector3) -> void:
+	if area != null:
+		area.queue_free()
+	area = null
+	world = null
+	var script = AREA_SCRIPTS.get(id, AREA_SCRIPTS["dawn_market"])
+	var node = script.new()
+	node.name = id.to_pascal_case()
+	add_child(node)
+	area = node
+	world = node
+	area_id = id
+	total_weight = 0.0
+	clean_progress = 0.0
+	player.global_position = spawn_at
 
 
 func _spawn_market() -> void:

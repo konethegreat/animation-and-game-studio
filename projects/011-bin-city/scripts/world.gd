@@ -1,13 +1,7 @@
-extends Node3D
-
-const K = preload("res://scripts/kit.gd")
+extends "res://scripts/district.gd"
 
 const PLAZA := Rect2(-20.0, -13.0, 40.0, 27.0)
 
-var stations: Array[Dictionary] = []
-var skip_pos := Vector3(16.0, 0.0, 9.5)
-var blocked: Array[Dictionary] = []
-var puddles: Array[Dictionary] = []
 var lamps: Array[Dictionary] = []
 var plants: Array[Dictionary] = []
 var weeds: Array[Node3D] = []
@@ -16,7 +10,6 @@ var string_lights: Array[Dictionary] = []
 var robots: Array[Dictionary] = []
 var ground_mat: StandardMaterial3D
 var water_mat: ShaderMaterial
-var clean_level := 0.0
 var _time := 0.0
 var _cobble: ImageTexture
 var _stripe_a: ImageTexture
@@ -25,6 +18,15 @@ var _stripe_c: ImageTexture
 
 
 func _ready() -> void:
+	bounds = PLAZA
+	spawn = Vector3(2.0, 0.0, 2.0)
+	skip_pos = Vector3(16.0, 0.0, 9.5)
+	music = "market"
+	ambience = "market"
+	interiors = [
+		{"id": "depot", "title": "BUREAU DEPOT", "pos": Vector3(-6.0, 0.0, -8.0)},
+		{"id": "bakery", "title": "BAKERY", "pos": Vector3(-14.0, 0.0, -2.0)},
+	]
 	_cobble = K.make_cobble()
 	_stripe_a = K.make_stripes(K.CORAL, K.CREAM)
 	_stripe_b = K.make_stripes(K.TEAL, K.CREAM)
@@ -112,43 +114,6 @@ func set_clean(value: float) -> void:
 			mat.emission_energy_multiplier = 0.18 + 1.8 * smoothstep(0.2, 0.7, t)
 	if water_mat:
 		water_mat.set_shader_parameter("light_water", Color(0.28, 0.48, 0.45).lerp(Color(0.62, 0.78, 0.68), t))
-
-
-func is_free(point: Vector3) -> bool:
-	if point.x < PLAZA.position.x + 1.0 or point.x > PLAZA.end.x - 1.0:
-		return false
-	if point.z < PLAZA.position.y + 1.0 or point.z > PLAZA.end.y - 1.0:
-		return false
-	for item in blocked:
-		var p: Vector3 = item.pos
-		if Vector2(point.x - p.x, point.z - p.z).length() < float(item.r):
-			return false
-	return true
-
-
-func random_walkable(rng: RandomNumberGenerator) -> Vector3:
-	for attempt in 80:
-		var point := Vector3(
-			rng.randf_range(PLAZA.position.x + 1.2, PLAZA.end.x - 1.2),
-			0.0,
-			rng.randf_range(PLAZA.position.y + 1.2, PLAZA.end.y - 1.2)
-		)
-		if is_free(point):
-			return point
-	return Vector3(0.0, 0.0, 6.0)
-
-
-func near_puddle(point: Vector3, margin := 0.4) -> bool:
-	for item in puddles:
-		var center: Vector3 = item.pos
-		var radius := float(item.radius) + margin
-		if Vector2(point.x - center.x, point.z - center.z).length() < radius:
-			return true
-	return false
-
-
-func _block(pos: Vector3, radius: float) -> void:
-	blocked.append({"pos": pos, "r": radius})
 
 
 func _build_ground() -> void:

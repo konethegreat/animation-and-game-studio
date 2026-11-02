@@ -58,6 +58,22 @@ func _run() -> void:
 	_check("rank title lookup", GameData.rank_title(3) == "SCRAP KNIGHT")
 	_check("shift lookup", str(GameData.shift(2).id) == "shift_2")
 
+	var district = load("res://scripts/district.gd")
+	_check("district base loads", district != null)
+	var market = load("res://scripts/world.gd").new()
+	root.add_child(market)
+	await process_frame
+	var walk_rng := RandomNumberGenerator.new()
+	walk_rng.seed = 11
+	var walk: Vector3 = market.random_walkable(walk_rng)
+	_check("market exposes a spawn", market.spawn is Vector3)
+	_check("market exposes stations", market.stations.size() >= 2)
+	_check("market walks a point", walk is Vector3)
+	_check("market point is free", market.is_free(walk))
+	_check("market has interiors", market.interiors.size() >= 2)
+	market.queue_free()
+	await process_frame
+
 	state.delete_save()
 	print("failures: ", failures)
 	quit(0 if failures == 0 else 1)
