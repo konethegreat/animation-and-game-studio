@@ -8,12 +8,14 @@ import "@fontsource/ibm-plex-mono/500.css";
 import { projects, type Project } from "./projects.generated";
 import { ENGINE_LABEL, FILM, NOTES, PIPELINE, REPO, TOOLS, TYPE_LABEL, type FilmDetail } from "./content";
 import { mountTurntable, type ViewerHandle } from "./viewer";
+import { labMarkup, mountLab } from "./labs";
 
 const BASE = import.meta.env.BASE_URL;
 const app = document.querySelector<HTMLDivElement>("#app")!;
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 let viewer: ViewerHandle | null = null;
+let labDispose: (() => void) | null = null;
 
 const ESCAPES: Record<string, string> = {
   "&": "&amp;",
@@ -122,17 +124,18 @@ function card(project: Project, index: number): string {
   const label = TYPE_LABEL[project.type] ?? project.type;
   const meta = project.type === "game" ? `${project.fps} fps` : project.duration ?? `${project.frames} frames`;
   const mediaHref = project.type === "game" && project.play ? playHref(project) : projectHref(project);
-  const cta = project.type === "game" ? "Play now" : "View project";
+  const cta = project.type === "game" ? "Play now" : project.interactive ? "Take the controls" : "View project";
   const preview =
     project.mp4 && project.type !== "game"
       ? `<video class="card-preview" data-preview src="${asset(project.mp4)}" muted loop playsinline preload="none" aria-hidden="true"></video>`
       : "";
   return `
-  <article class="card" data-type="${project.type}" data-kind="${project.kind}">
+  <article class="card" data-type="${project.type}" data-kind="${project.kind}" data-interactive="${project.interactive ?? ""}">
     <a class="card-media" href="${mediaHref}" ${project.type === "game" && !project.play ? 'data-link' : "data-link"}>
       <img src="${asset(project.poster)}" alt="${esc(project.title)} still" decoding="async" />
       ${preview}
       <span class="type-chip mono">${esc(label)}</span>
+      ${project.interactive ? `<span class="lab-chip mono"><span class="live-dot" aria-hidden="true"></span>Interactive</span>` : ""}
       <span class="card-cta mono">${cta} <span aria-hidden="true">&#8599;</span></span>
     </a>
     <div class="card-body">
@@ -150,6 +153,7 @@ function card(project: Project, index: number): string {
 function home(): string {
   const hero = heroProject;
   const films = projects.filter((project) => project.kind === "film").length;
+  const labs = projects.filter((project) => project.interactive).length;
   const ordered = [...projects].sort(
     (a, b) => Number(b.kind === "film") - Number(a.kind === "film"),
   );
@@ -187,9 +191,9 @@ function home(): string {
       <div class="section-head">
         <div>
           <p class="eyebrow">Selected work</p>
-          <h2>Three ways to move.</h2>
+          <h2>Worlds you can step into.</h2>
         </div>
-        <p class="section-note">Loops, characters and a game. Each piece runs through the same manifest, render and publish pipeline.</p>
+        <p class="section-note">Loops, characters and a game. Each piece ships a rendered cut, and the interactive pieces carry a live lab you can play with right here.</p>
       </div>
       <div class="filters" role="group" aria-label="Filter work">
         <button type="button" data-filter="all" aria-pressed="true">All <span>${String(projects.length).padStart(2, "0")}</span></button>
@@ -197,6 +201,7 @@ function home(): string {
         <button type="button" data-filter="2d" aria-pressed="false">2D <span>${projects.filter((p) => p.type === "2d").length}</span></button>
         <button type="button" data-filter="3d" aria-pressed="false">3D <span>${projects.filter((p) => p.type === "3d").length}</span></button>
         <button type="button" data-filter="game" aria-pressed="false">Game <span>${projects.filter((p) => p.type === "game").length}</span></button>
+        ${labs ? `<button type="button" data-filter="interactive" aria-pressed="false">Interactive <span>${labs}</span></button>` : ""}
       </div>
       <div class="grid">${ordered.map(card).join("")}</div>
     </section>
@@ -329,6 +334,7 @@ function projectPage(project: Project, index: number): string {
         </dl>
         <div class="fact-links">
           ${project.type === "game" && project.play ? `<a class="btn btn-glow" href="${playHref(project)}" data-link><span class="play-glyph" aria-hidden="true"></span>Play the build</a>` : ""}
+          ${project.interactive ? `<a class="btn btn-ink" href="#lab" data-link>Try the lab</a>` : ""}
           ${project.model ? `<a class="btn btn-ink" href="#model">Orbit the model</a>` : ""}
           <a class="text-link mono" href="${sourceHref(project)}" target="_blank" rel="noreferrer">Source for this project <span aria-hidden="true">&#8599;</span></a>
         </div>
@@ -341,6 +347,7 @@ function projectPage(project: Project, index: number): string {
     }
     ${film ? filmSection(film) : ""}
     ${modelSection(project)}
+    ${labMarkup(project)}
     <nav class="next" aria-label="Next project">
       <span class="mono">Next</span>
       <a href="${projectHref(next)}" data-link>${esc(next.title)} <span aria-hidden="true">&#8594;</span></a>
@@ -426,6 +433,11 @@ function destroyViewer() {
   viewer = null;
 }
 
+function destroyLab() {
+  labDispose?.();
+  labDispose = null;
+}
+
 function mountHero() {
   const stage = document.getElementById("hero-stage");
   const project = heroProject;
@@ -489,6 +501,7 @@ function bindHome() {
       cards.forEach((item) => {
         if (filter === "all") item.hidden = false;
         else if (filter === "film") item.hidden = item.dataset.kind !== "film";
+        else if (filter === "interactive") item.hidden = !item.dataset.interactive;
         else item.hidden = item.dataset.type !== filter;
       });
     });
@@ -528,6 +541,7 @@ function setMeta(title: string, description?: string) {
 
 function render() {
   destroyViewer();
+  destroyLab();
   const route = parseRoute(location.pathname);
   let markup = "";
   document.body.dataset.route = route.name;
@@ -578,7 +592,10 @@ function render() {
     mountHero();
   } else if (route.name === "project") {
     const project = projects.find((item) => item.id === route.id);
-    if (project) mountModel(project);
+    if (project) {
+      mountModel(project);
+      if (project.interactive) labDispose = mountLab(project);
+    }
   } else if (route.name === "play") {
     bindFullscreen();
   } else if (route.name === "demo") {

@@ -220,14 +220,17 @@ def encode_project(project, frames_root: Path, width: int, height: int) -> dict[
     if gif:
         gif.parent.mkdir(parents=True, exist_ok=True)
         palette = gif.parent / "_palette.png"
+        fps = project.gif_fps or project.fps
+        scale = f"fps={fps},scale={project.gif_width}:-1:flags=lanczos"
+        dither = "bayer:bayer_scale=3" if project.gif_dither == "bayer" else "none"
         _run([
             str(find_tool("ffmpeg")), "-y", "-i", str(mp4 or master), "-vf",
-            "fps=24,scale=720:-1:flags=lanczos,palettegen=max_colors=128", str(palette),
+            f"{scale},palettegen=max_colors={project.gif_colors}", str(palette),
         ])
         _run([
             str(find_tool("ffmpeg")), "-y", "-i", str(mp4 or master), "-i", str(palette),
-            "-lavfi", "fps=24,scale=720:-1:flags=lanczos[x];[x][1:v]"
-            "paletteuse=dither=bayer:bayer_scale=3", str(gif),
+            "-lavfi", f"{scale}[x];[x][1:v]"
+            f"paletteuse=dither={dither}", str(gif),
         ])
         palette.unlink(missing_ok=True)
         check_budget(gif)

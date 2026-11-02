@@ -71,6 +71,45 @@ def test_poster_time_defaults_and_parses(tmp_path):
     assert project.poster_time == 4.4
 
 
+def test_interactive_defaults_and_parses(tmp_path):
+    project = manifest.load(write(tmp_path, GOOD))
+    assert project.interactive is None
+    tuned = manifest.load(write(tmp_path, GOOD + "\ninteractive: bounce\n"))
+    assert tuned.interactive == "bounce"
+    assert manifest.validate(tuned) == []
+
+
+def test_rejects_unknown_interactive(tmp_path):
+    project = manifest.load(write(tmp_path, GOOD + "\ninteractive: pinball\n"))
+    assert any("interactive" in error for error in manifest.validate(project))
+
+
+def test_gif_settings_default_and_parse(tmp_path):
+    project = manifest.load(write(tmp_path, GOOD))
+    assert (project.gif_width, project.gif_fps, project.gif_colors, project.gif_dither) == (
+        720, 0, 128, "bayer"
+    )
+    tuned = manifest.load(write(
+        tmp_path,
+        GOOD + "\ngif: {width: 600, fps: 20, colors: 112, dither: none}\n",
+    ))
+    assert (tuned.gif_width, tuned.gif_fps, tuned.gif_colors, tuned.gif_dither) == (
+        600, 20, 112, "none"
+    )
+    assert manifest.validate(tuned) == []
+
+
+def test_rejects_out_of_range_gif_settings(tmp_path):
+    for body in (
+        "gif: {width: 40}",
+        "gif: {fps: 90}",
+        "gif: {colors: 400}",
+        "gif: {dither: ordered}",
+    ):
+        project = manifest.load(write(tmp_path, GOOD + "\n" + body + "\n"))
+        assert any("gif" in error for error in manifest.validate(project)), body
+
+
 def test_v2_loads_shots_audio_and_engine_args(tmp_path):
     project = manifest.load(write(tmp_path, V2, ("film.py", "a.py", "b.py")))
     assert project.kind == "film"
