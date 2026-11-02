@@ -1,8 +1,8 @@
 id: 003-micro-game
 type: game
 title: Orbit Run
-summary: A one-screen arcade game about collecting stars and dodging rocks, made with Godot.
-tags: [game, godot, arcade]
+summary: A radial orbit runner. Drag in and out to steer a paper courier around a small planet, thread debris and chase the surge drive.
+tags: [game, godot, arcade, radial]
 engine: godot
 entry: project.godot
 render:
