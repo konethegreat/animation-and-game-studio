@@ -19,14 +19,14 @@ from mathutils import Vector
 
 import film_common as film
 
-SAND = (0.52, 0.31, 0.16)
-SAND_FAR = (0.32, 0.22, 0.14)
+SAND = (0.34, 0.27, 0.22)
+SAND_FAR = (0.21, 0.19, 0.19)
 LIME = (0.55, 1.0, 0.12)
 
 
 def terrain(mat, phase=0.4):
     bpy.ops.mesh.primitive_grid_add(
-        x_subdivisions=240, y_subdivisions=240, size=1.0, location=(0.0, 25.0, 0.0),
+        x_subdivisions=360, y_subdivisions=360, size=1.0, location=(0.0, 25.0, 0.0),
     )
     obj = bpy.context.object
     obj.name = "Dunes"
@@ -37,27 +37,19 @@ def terrain(mat, phase=0.4):
         far = min(1.0, max(0.0, (y + 5.0) / 50.0))
         amplitude = 0.6 + 6.0 * far ** 1.2
         ridge = (
-            0.55 * abs(math.sin(x * 0.26 + y * 0.31 + phase)) ** 0.75
+            0.55 * abs(math.sin(x * 0.26 + y * 0.31 + phase))
             + 0.22 * math.sin(y * 0.20 + x * 0.06 + phase * 0.7)
             + 0.18 * math.sin(y * 0.44 - x * 0.16 + phase * 1.3)
-            + 0.04 * math.sin(x * 2.6 + y * 1.9 + phase * 2.0)
+            + 0.12 * math.sin(x * 0.12 + y * 0.05 + phase * 1.6)
         )
         vertex.co.z = amplitude * ridge
     obj.data.update()
-    film.smooth(obj, 70.0)
+    modifier = obj.modifiers.new("Crests", "SUBSURF")
+    modifier.levels = 1
+    modifier.render_levels = 1
+    film.smooth(obj, 180.0)
     obj.data.materials.append(mat)
     return obj
-
-
-def spurs(mat):
-    for index, (x, y, sx, sy, sz) in enumerate((
-        (-4.6, 0.6, 6.2, 3.8, 0.62),
-        (3.4, -0.2, 5.0, 3.2, 0.52),
-        (-1.2, 1.6, 3.4, 2.2, 0.38),
-        (7.2, 1.1, 5.6, 3.0, 0.58),
-        (-8.4, 0.2, 5.2, 3.4, 0.66),
-    )):
-        film.sphere(f"Spur{index}", (x, y, -0.18), (sx, sy, sz), mat, 48, 24)
 
 
 def sun(name, location, target, energy, color, angle=0.02):
@@ -85,7 +77,6 @@ def build(scene, args):
     ember = film.material("Ember", (1.0, 0.55, 0.18), roughness=1.0, emission=(1.0, 0.48, 0.14), strength=2.6)
 
     terrain(sand, phase=0.4)
-    spurs(film.material("DuneSpur", (0.24, 0.15, 0.09), roughness=0.96))
 
     bpy.ops.mesh.primitive_circle_add(
         vertices=96, radius=1.45, fill_type="NGON",
@@ -121,10 +112,10 @@ def build(scene, args):
         film.parent_keep(lantern[key], lantern_pivot)
     film.parent_keep(lantern["light"], lantern_pivot)
 
-    film.keyframe(lantern_pivot, "location", 1, (0.25, 2.4, 1.72))
-    film.keyframe(lantern_pivot, "location", 90, (0.40, 3.1, 1.80))
-    film.keyframe(lantern_pivot, "location", 170, (0.72, 3.8, 1.76))
-    film.keyframe(lantern_pivot, "location", 240, (1.02, 4.5, 1.86))
+    film.keyframe(lantern_pivot, "location", 1, (0.25, 3.0, 2.20))
+    film.keyframe(lantern_pivot, "location", 90, (0.45, 3.7, 2.25))
+    film.keyframe(lantern_pivot, "location", 170, (0.75, 4.5, 2.20))
+    film.keyframe(lantern_pivot, "location", 240, (1.05, 5.2, 2.30))
     film.ease(lantern_pivot)
 
     ember_pivot = film.empty("EmberDrift", (0.10, 2.6, 1.10))
@@ -137,35 +128,35 @@ def build(scene, args):
         size = rng.uniform(0.003, 0.005)
         mote = film.sphere(f"Ember{index}", point, (size, size, size), ember, 8, 6)
         film.parent_keep(mote, ember_pivot)
-    film.keyframe(ember_pivot, "location", 1, (0.13, 2.55, 1.62))
-    film.keyframe(ember_pivot, "location", 240, (0.96, 3.55, 1.80))
+    film.keyframe(ember_pivot, "location", 1, (0.13, 3.15, 2.10))
+    film.keyframe(ember_pivot, "location", 240, (0.99, 4.25, 2.25))
     film.keyframe(ember_pivot, "rotation_euler", 1, (0.0, 0.0, 0.0))
     film.keyframe(ember_pivot, "rotation_euler", 240, (0.0, 0.0, math.radians(6)))
     film.ease(ember_pivot)
 
-    sun("Moonlight", (-18.0, -9.0, 11.0), (0.0, 7.0, 0.0), energy=1.5, color=(0.74, 0.72, 0.88), angle=0.07)
+    sun("Moonlight", (-18.0, -9.0, 11.0), (0.0, 7.0, 0.0), energy=3.0, color=(0.72, 0.80, 1.0), angle=0.02)
     film.area_light(
         "MoonRim", (-8.0, 18.0, 9.0), (0.0, 6.0, 0.6),
-        energy=220, size=6.0, color=(0.55, 0.68, 1.0),
+        energy=180, size=6.0, color=(0.60, 0.72, 1.0),
     )
     film.area_light(
-        "LanternPool", (0.35, 2.9, 0.95), (0.1, 3.2, 0.2),
-        energy=26, size=1.0, color=(1.0, 0.70, 0.38),
+        "LanternPool", (0.35, 3.4, 2.0), (0.1, 3.2, 1.0),
+        energy=30, size=1.2, color=(1.0, 0.70, 0.38),
     )
     film.world(scene, color=(0.018, 0.028, 0.062), strength=0.34)
     film.haze(scene, size=(24.0, 30.0, 10.0), center=(0.0, 6.0, 2.0), density=0.0006, color=(0.55, 0.62, 0.85), anisotropy=0.35)
 
     rig = film.camera(
-        (-0.10, -1.20, 1.70), (0.12, 3.0, 1.62),
+        (-0.15, -2.00, 2.00), (0.15, 5.0, 1.55),
         lens=42, fstop=2.0,
     )
     camera, target = rig["camera"], rig["target"]
-    film.keyframe(camera, "location", 1, (-0.10, -1.20, 1.70))
-    film.keyframe(camera, "location", 120, (0.05, -0.20, 1.74))
-    film.keyframe(camera, "location", 240, (0.22, 0.75, 1.78))
-    film.keyframe(target, "location", 1, (0.12, 3.0, 1.60))
-    film.keyframe(target, "location", 120, (0.30, 3.6, 1.68))
-    film.keyframe(target, "location", 240, (0.52, 4.2, 1.76))
+    film.keyframe(camera, "location", 1, (-0.15, -2.00, 2.00))
+    film.keyframe(camera, "location", 120, (0.05, -1.20, 2.05))
+    film.keyframe(camera, "location", 240, (0.30, -0.50, 2.10))
+    film.keyframe(target, "location", 1, (0.15, 5.0, 1.55))
+    film.keyframe(target, "location", 120, (0.35, 5.5, 1.60))
+    film.keyframe(target, "location", 240, (0.60, 6.0, 1.65))
     film.ease(camera)
     film.ease(target)
 

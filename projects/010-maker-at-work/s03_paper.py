@@ -198,7 +198,7 @@ def build(scene, args):
 
     sun_mat = film.material(
         "PaperSun", (1.0, 0.95, 0.82), roughness=0.5,
-        emission=(1.0, 0.91, 0.72), strength=2.2,
+        emission=(1.0, 0.60, 0.26), strength=1.0,
     )
     bpy.ops.mesh.primitive_circle_add(
         vertices=96, radius=0.72, fill_type="NGON",
@@ -255,7 +255,7 @@ def build(scene, args):
         "FarRim", (0.0, 10.0, 3.6), (0.0, 4.0, 1.2),
         energy=40, size=2.6, color=(1.0, 0.80, 0.58),
     )
-    film.world(scene, color=(0.96, 0.92, 0.84), strength=0.55)
+    film.world(scene, color=(1.0, 0.88, 0.72), strength=0.5)
     film.haze(scene, size=(14.0, 20.0, 7.0), center=(0.0, 4.5, 2.6), density=0.003, color=(1.0, 0.94, 0.82))
 
     motes = film.dust(scene, count=32, center=(0.0, 2.6, 1.6), spread=(2.2, 3.4, 1.6), seed=21)
@@ -314,6 +314,8 @@ def build(scene, args):
     film.keyframe(motes, "location", 1, (0.0, 2.6, 1.55))
     film.keyframe(motes, "location", 240, (0.0, 2.8, 1.80))
     film.ease(motes)
+
+    film.glow(scene, threshold=0.65, size=14, mix=-0.55)
 
     return {"camera": camera, "target": target, "sheets": sheets, "sun": sun}
 
