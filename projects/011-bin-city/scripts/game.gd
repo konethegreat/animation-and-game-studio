@@ -42,8 +42,8 @@ const MOODS := {
 	"neon": {
 		"zenith": Color(0.03, 0.04, 0.12), "horizon": Color(0.22, 0.07, 0.24),
 		"ground": Color(0.04, 0.04, 0.08), "sun": Color(0.6, 0.5, 0.9),
-		"sun_angle": Vector3(-30.0, 36.0, 0.0), "sun_energy": 0.24,
-		"ambient": 0.3, "ambient_colour": Color(0.36, 0.26, 0.56),
+		"sun_angle": Vector3(-30.0, 36.0, 0.0), "sun_energy": 0.34,
+		"ambient": 0.46, "ambient_colour": Color(0.38, 0.28, 0.58),
 		"fog": Color(0.16, 0.1, 0.24), "fog_density": 0.0046,
 		"exposure": 1.16, "glow": true,
 	},
@@ -113,6 +113,8 @@ var world
 var area
 var area_id := "dawn_market"
 var postfx
+var _debug_label: Label
+var _debug_ms := PackedFloat32Array()
 var env: Environment
 var sun_light: DirectionalLight3D
 var sky_material: ShaderMaterial
@@ -237,6 +239,14 @@ func _ready() -> void:
 	ui.dialogue_choice.connect(_choose_dialogue)
 	var dialogue = get_node_or_null("/root/Dialogue")
 	if dialogue != null:
+		var debug_layer := CanvasLayer.new()
+		debug_layer.name = "DebugLayer"
+		add_child(debug_layer)
+		_debug_label = Label.new()
+		_debug_label.visible = false
+		_debug_label.position = Vector2(12, 60)
+		_debug_label.add_theme_color_override("font_color", Color(0.95, 0.92, 0.8))
+		debug_layer.add_child(_debug_label)
 		dialogue.started.connect(_on_dialogue_started)
 		dialogue.line.connect(_on_dialogue_line)
 		dialogue.finished.connect(_on_dialogue_finished)
@@ -349,12 +359,32 @@ func _process(delta: float) -> void:
 	if crowd != null:
 		crowd.update_player(player.global_position, player.vacuuming)
 		crowd.watch_clean(clean_progress / maxf(total_weight, 0.001))
+	_update_debug_frame()
+
+
+func _update_debug_frame() -> void:
+	if _debug_label == null or not _debug_label.visible:
+		return
+	var ms := Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0
+	_debug_ms.append(ms)
+	if _debug_ms.size() > 90:
+		_debug_ms.remove_at(0)
+	var peak := 0.0
+	for sample in _debug_ms:
+		peak = maxf(peak, sample)
+	_debug_label.text = "fps %d  frame %.1f ms  peak %.1f ms  draw %d" % [
+		Engine.get_frames_per_second(), ms, peak,
+		Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
+	]
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F7:
 		if postfx != null:
 			postfx.rect.visible = not postfx.rect.visible
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F3:
+		if _debug_label != null:
+			_debug_label.visible = not _debug_label.visible
 	if event is InputEventMouseButton:
 		var mouse := event as InputEventMouseButton
 		if mouse.pressed and mouse.button_index == MOUSE_BUTTON_WHEEL_UP:

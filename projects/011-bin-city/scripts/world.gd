@@ -59,6 +59,8 @@ func _ready() -> void:
 	_build_plants()
 	_build_puddles()
 	_build_bounds()
+	add_dust()
+	add_leaves()
 	set_clean(0.0)
 
 

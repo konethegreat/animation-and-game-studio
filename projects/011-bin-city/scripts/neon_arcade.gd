@@ -523,6 +523,7 @@ func _build_vents() -> void:
 			K.box(blades, Vector3(0.9, 0.04, 0.16), Vector3.ZERO, K.INK, Vector3(0, side * PI / 2.0, 0))
 		K.cylinder(node, 0.5, 0.08, Vector3(0, 0.72, 0), K.INK, Vector3.ZERO, 12).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		fans.append({"node": blades, "speed": 3.0 + float(int(spec.x) % 3)})
+		add_steam(node.position + Vector3(0, 0.8, 0), 10)
 
 
 func _build_depot() -> void:

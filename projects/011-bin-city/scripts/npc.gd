@@ -299,6 +299,7 @@ func _build() -> void:
 		var mesh := node as MeshInstance3D
 		if mesh != null:
 			mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	K.apply_toon(_rig, 0.05)
 
 
 func _build_person(skin: Color, shirt: Color, trousers: Color, size: Vector3) -> void:

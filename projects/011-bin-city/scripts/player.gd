@@ -116,6 +116,18 @@ func _ready() -> void:
 	shape.position = Vector3(0, 0.85, 0)
 	add_child(shape)
 	_build_body()
+	# Toon shading and a warm rim keep the sweeper readable in a busy frame.
+	K.apply_toon(rig, 0.045, [_shirt_mat, _apron_mat, _cap_mat])
+	var rim := SpotLight3D.new()
+	rim.name = "Rim"
+	rim.position = Vector3(0.0, 2.6, -1.4)
+	rim.rotation.x = deg_to_rad(-32.0)
+	rim.light_color = Color(1.0, 0.82, 0.6)
+	rim.light_energy = 1.6
+	rim.spot_range = 6.0
+	rim.spot_angle = 34.0
+	rim.shadow_enabled = false
+	add_child(rim)
 	rotation.y = PI
 	_prev_yaw = rotation.y
 	set_rank(1)

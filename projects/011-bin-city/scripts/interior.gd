@@ -569,6 +569,8 @@ func _build_plant() -> void:
 	_practical(Vector3(-4.4, 3.75, -1.0), Color(0.76, 0.88, 0.86), 1.6, 7.0)
 	_practical(Vector3(3.8, 3.75, -1.0), Color(0.76, 0.88, 0.86), 1.6, 7.0)
 	_practical(Vector3(0, 3.4, 4.2), Color(1.0, 0.72, 0.4), 1.2, 5.5, "lantern")
+	add_steam(Vector3(-6.4, 5.1, -5.2), 12)
+	add_steam(Vector3(6.4, 5.1, -5.2), 12)
 
 	stations = []
 

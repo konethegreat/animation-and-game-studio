@@ -24,6 +24,69 @@ const METAL := Color(0.706, 0.722, 0.714)
 const COMPOST := Color(0.463, 0.525, 0.294)
 
 static var _materials: Dictionary = {}
+static var _toon_shader: Shader = null
+static var _outline_shader: Shader = null
+static var _toon_materials: Dictionary = {}
+static var _outline_materials: Dictionary = {}
+
+
+static func toon_material(color: Color) -> ShaderMaterial:
+	var key := color.to_html()
+	if _toon_materials.has(key):
+		return _toon_materials[key]
+	if _toon_shader == null:
+		_toon_shader = load("res://shaders/toon.gdshader")
+	var mat := ShaderMaterial.new()
+	mat.shader = _toon_shader
+	mat.set_shader_parameter("albedo", color)
+	_toon_materials[key] = mat
+	return mat
+
+
+static func outline_material(color: Color) -> ShaderMaterial:
+	var key := color.to_html()
+	if _outline_materials.has(key):
+		return _outline_materials[key]
+	if _outline_shader == null:
+		_outline_shader = load("res://shaders/outline.gdshader")
+	var mat := ShaderMaterial.new()
+	mat.shader = _outline_shader
+	mat.set_shader_parameter("ink", color)
+	_outline_materials[key] = mat
+	return mat
+
+
+static func outline_mesh(mesh_instance: MeshInstance3D, thickness := 0.02, color := Color(0.16, 0.13, 0.11)) -> MeshInstance3D:
+	var hull := MeshInstance3D.new()
+	hull.name = "Outline"
+	hull.mesh = mesh_instance.mesh
+	hull.material_override = outline_material(color)
+	hull.scale = Vector3.ONE * (1.0 + thickness)
+	hull.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mesh_instance.add_child(hull)
+	return hull
+
+
+# Convert a built character or prop to the toon look. Only plain opaque
+# standard materials are swapped; textured, additive and glowing materials
+# keep their own look. With thickness above zero every swapped mesh also
+# grows an inverted hull outline.
+static func apply_toon(node: Node3D, thickness := 0.0, skip: Array = []) -> void:
+	for child in node.get_children():
+		if child is MeshInstance3D:
+			var mat: Material = child.material_override
+			if mat is StandardMaterial3D:
+				var std := mat as StandardMaterial3D
+				var convertible := std.albedo_texture == null and std.albedo_color.a >= 0.99
+				convertible = convertible and std.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED
+				convertible = convertible and std.emission_energy_multiplier < 0.25
+				convertible = convertible and not skip.has(std)
+				if convertible:
+					child.material_override = toon_material(std.albedo_color)
+					if thickness > 0.0:
+						outline_mesh(child, thickness)
+		if child is Node3D:
+			apply_toon(child, thickness, skip)
 
 
 static func material(color: Color, roughness := 0.92, metallic := 0.0, emission := Color(0, 0, 0), energy := 0.0) -> StandardMaterial3D:

@@ -321,6 +321,7 @@ func _build_machine() -> void:
 	for gx in [-1.4, 0.0, 1.4]:
 		K.box(_arena, Vector3(0.12, 2.3, 0.12), Vector3(6.9 + gx, 1.15, -4.6), K.METAL)
 	K.label(_arena, "GANTRY", Vector3(6.9, 2.75, -4.6), 14, K.CREAM)
+	K.apply_toon(root, 0.03)
 
 
 func set_chute_lights(open_kinds_list: Array) -> void:

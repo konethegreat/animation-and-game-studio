@@ -120,6 +120,10 @@ func build(kind: String, rng: RandomNumberGenerator) -> void:
 			display = "Litter"
 			_paper(rng)
 	scale = Vector3.ONE * rng.randf_range(0.92, 1.1)
+	if heavy:
+		# Heavy items are the props the player handles most, so they get the
+		# ink outline that marks key objects in the toon look.
+		K.apply_toon(self, 0.05)
 	if floating:
 		set_process(true)
 
