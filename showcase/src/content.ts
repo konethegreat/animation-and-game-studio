@@ -35,19 +35,21 @@ export const NOTES: Record<string, ProjectNotes> = {
     ],
   },
   "003-micro-game": {
-    madeWith: ["Godot 4.7.2", "GDScript", "Web export"],
+    madeWith: ["Godot 4.7.2", "GDScript", "Shader", "Web export"],
     notes: [
-      "One screen, one ship, two verbs: collect stars and dodge rocks. Difficulty ramps as the score climbs.",
-      "The best score persists in a local config file. Sound effects are generated from raw waveforms by a small Python script.",
-      "The web build runs at 60 fps in a 960 by 540 canvas and does not need cross-origin isolation headers.",
+      "One planet, one orbit and one courier. Drag toward or away from the planet to change your radius, thread the debris ring and catch stars before they drift past.",
+      "Stars build a combo. Close passes fill the surge drive, and every milestone restores a shield and repaints the sky, so a long run keeps changing shape instead of repeating.",
+      "The planet and nebula are custom canvas shaders. Every line is drawn in code, and the score and effects are synthesised from waveforms when the build loads.",
+      "The web build runs at 60 fps in a 960 by 540 canvas with the GL Compatibility renderer, so it plays on Pages without cross-origin isolation headers. Calm mode slows the orbit and removes flashes.",
     ],
   },
   "004-lantern-keeper": {
-    madeWith: ["Blender 4.5 LTS", "Python", "EEVEE Next", "glTF"],
+    madeWith: ["Blender 4.5 LTS", "Python", "EEVEE Next", "glTF", "Three.js"],
     notes: [
-      "The keeper is built from primitives parented to an empty joint chain. There is no armature and no imported model or texture.",
-      "Three steps, a pause and a lantern lift are keyed over five seconds. A spline camera dollies in and arcs about 66 degrees to a three quarter hero angle.",
-      "The exported glTF is an in place walk loop, so the keeper walks on the spot in the live viewer while you orbit the camera.",
+      "The keeper is a real armature now: a spine, neck, arms and legs weighted by hand, with a pleated coat, a ribbon scarf and a lime lantern that hangs from its own bone.",
+      "Six seconds, 144 frames at 24 fps. Three steps carry a walk cycle, then the keeper stops, turns his head toward the city and lifts the lantern while the sky deepens and the windows wake in sequence.",
+      "Walk, idle and lift are exported as separate glTF clips. The diorama below loads that same file and drives it live: scrub the walk, turn dusk into night, raise the lantern and orbit the bridge.",
+      "The city, the arched bridge and the water are built in three.js around the exported rig, so the film's set and the playable set share one look and one character.",
     ],
   },
   "010-maker-at-work": {

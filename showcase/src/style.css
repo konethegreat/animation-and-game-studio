@@ -2027,6 +2027,21 @@ h2 em {
   background: radial-gradient(ellipse at 50% 38%, #fff9ee 0%, #f7e9d4 54%, #ead9bd 100%);
 }
 
+.lab-stage-keeper {
+  background: radial-gradient(ellipse at 50% 62%, #43304f 0%, #261a38 52%, #120c1c 100%);
+}
+
+.lab-stage-keeper .lab-live,
+.lab-stage-keeper .lab-count {
+  background: rgba(20, 15, 28, 0.72);
+  color: #f3ead9;
+}
+
+.lab-stage-keeper .lab-loading {
+  background: rgba(20, 15, 28, 0.82);
+  color: #d8cdbb;
+}
+
 .lab-viewer {
   position: absolute;
   inset: 0;
@@ -2219,6 +2234,10 @@ h2 em {
   }
 
   .lab-stage-companion {
+    aspect-ratio: 4 / 3;
+  }
+
+  .lab-stage-keeper {
     aspect-ratio: 4 / 3;
   }
 

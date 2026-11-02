@@ -376,8 +376,8 @@ function playPage(project: Project): string {
       </div>
     </div>
     <div class="wrap play-help">
-      <div><p class="eyebrow">Controls</p><p>Arrow keys or A and D to move. Drag on touch screens. Space starts the run.</p></div>
-      <div><p class="eyebrow">The loop</p><p>Collect stars, dodge rocks. Every hit costs a life. The best score stays on this device.</p></div>
+      <div><p class="eyebrow">Controls</p><p>Drag toward or away from the planet to change orbit, or use W and S with the arrow keys. Space, Enter, click or tap starts the run. C toggles calm mode.</p></div>
+      <div><p class="eyebrow">The loop</p><p>Collect stars to build a combo, graze debris to fill the surge drive, and reach each milestone for a shield and a new sky. The best score stays on this device.</p></div>
       <a class="btn btn-ink" href="${projectHref(project)}" data-link>How it was built</a>
     </div>
   </main>
@@ -572,7 +572,7 @@ function render() {
       setMeta(`${project.title} play / Kone Studio`, project.summary);
     }
   } else if (route.name === "demo") {
-    const project = projects.find((item) => item.model);
+    const project = projects.find((item) => item.interactive === "companion") ?? projects.find((item) => item.model);
     if (!project) {
       markup = missingPage();
       setMeta("Not found / Kone Studio");
@@ -599,7 +599,7 @@ function render() {
   } else if (route.name === "play") {
     bindFullscreen();
   } else if (route.name === "demo") {
-    const project = projects.find((item) => item.model);
+    const project = projects.find((item) => item.interactive === "companion") ?? projects.find((item) => item.model);
     if (project) mountDemo(project);
   }
 
