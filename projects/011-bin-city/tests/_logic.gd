@@ -158,6 +158,44 @@ func _run() -> void:
 		room.queue_free()
 		await process_frame
 
+	var canal = load("res://scripts/canal_quarter.gd").new()
+	root.add_child(canal)
+	await process_frame
+	_check("canal builds a quarter", canal.title == "CANAL QUARTER")
+	_check("canal spawn is free", canal.is_free(canal.spawn))
+	_check("canal seats a crowd", canal.crowd_points().size() >= 8)
+	_check("canal has three drains", canal.drains.size() == 3)
+	for i in canal.drains.size():
+		_check("canal drain %d starts clogged" % i, bool(canal.drains[i].clogged))
+		_check("canal drain %d sits on dry land" % i, not canal.is_water(canal.drains[i].pos))
+	_check("canal door has a title", str(canal.interiors[0].title) != "")
+	_check("canal door returns to a free spot", canal.is_free(canal.interiors[0].return_pos))
+	var canal_rng := RandomNumberGenerator.new()
+	canal_rng.seed = 47
+	for i in 12:
+		var spot: Vector3 = canal.float_spot(canal_rng)
+		_check("canal float spot %d is on water" % i, canal.is_water(spot))
+	for i in 3:
+		_check("canal grime spot %d is on dry land" % i, not canal.is_water(canal.next_grime_spot()))
+	canal.clear_drain(1)
+	_check("canal drain can be cleared", not bool(canal.drains[1].clogged))
+	canal.set_night(true)
+	_check("canal night flips the mood", canal.mood == "night")
+	canal.queue_free()
+	await process_frame
+
+	var grime_litter = load("res://scripts/litter.gd").new()
+	var kind_rng := RandomNumberGenerator.new()
+	kind_rng.seed = 5
+	grime_litter.build("grime", kind_rng)
+	_check("grime is compost litter", grime_litter.sort_kind == "compost" and grime_litter.kind == "grime")
+	grime_litter.queue_free()
+	var float_litter = load("res://scripts/litter.gd").new()
+	float_litter.build("float_bottle", kind_rng)
+	_check("float bottle knows it floats", float_litter.floating and float_litter.kind == "float_bottle")
+	float_litter.queue_free()
+	await process_frame
+
 	state.delete_save()
 	print("failures: ", failures)
 	quit(0 if failures == 0 else 1)

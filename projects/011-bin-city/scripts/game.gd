@@ -1,7 +1,6 @@
 extends Node3D
 
 const K = preload("res://scripts/kit.gd")
-const WORLD = preload("res://scripts/world.gd")
 const PLAYER = preload("res://scripts/player.gd")
 const UI = preload("res://scripts/ui.gd")
 const LITTER = preload("res://scripts/litter.gd")
@@ -66,23 +65,14 @@ const MOODS := {
 
 const AREA_SCRIPTS := {
 	"dawn_market": preload("res://scripts/world.gd"),
+	"canal_quarter": preload("res://scripts/canal_quarter.gd"),
 }
 
 const SPAWN := Vector3(2.0, 0.0, 2.0)
-const LIGHT_COUNT := 96
-const HEAVY_COUNT := 12
-const PILE_COUNT := 4
-const LIGHT_KINDS := [
-	"paper", "paper", "cup", "carton", "can", "can", "bottle",
-	"leaf", "bag", "paper", "can", "bottle", "cup", "leaf",
-]
-const HEAVY_KINDS := ["crate", "barrel", "sack", "tyre", "planks"]
-const PILE_SPOTS := [
-	Vector3(-1.0, 0.0, -3.0),
-	Vector3(5.0, 0.0, -5.5),
-	Vector3(-9.0, 0.0, 5.5),
-	Vector3(8.0, 0.0, 3.2),
-]
+const AREA_INTRO := {
+	"dawn_market": "The market opens in an hour. Get the street 90% clean before the shutters go up.",
+	"canal_quarter": "The tide brought the whole city's rubbish to your banks. Get the quarter 90% clean before the barge leaves.",
+}
 const GOAL := 0.9
 const FLOW_WINDOW := 14.0
 const BASE_HOPPER := 12
@@ -143,6 +133,8 @@ var title_time := 0.0
 var rat_spawn_marks := [35.0, 95.0]
 var rat_spawned := [false, false]
 var finished := false
+var start_area := "dawn_market"
+var start_night := false
 var _prompt_cache := ""
 
 
@@ -161,13 +153,20 @@ func _ready() -> void:
 			if forced >= 1 and forced <= Data.RANKS.size():
 				state.rank = forced
 				state.xp = maxi(state.xp, state.xp_floor(forced))
+			var forced_area := str(JavaScriptBridge.eval("new URLSearchParams(location.search).get('area') || ''", true))
+			if AREA_SCRIPTS.has(forced_area):
+				start_area = forced_area
+			start_night = bool(JavaScriptBridge.eval("location.search.indexOf('night=1') >= 0", true))
 	_apply_mood("dawn")
-	world = WORLD.new()
-	world.name = "DawnMarket"
+	var world_script = AREA_SCRIPTS[start_area]
+	world = world_script.new()
+	world.name = start_area.to_pascal_case()
 	add_child(world)
+	if start_night and world.has_method("set_night"):
+		world.set_night(true)
 	area = world
 	outdoor = world
-	area_id = "dawn_market"
+	area_id = start_area
 	player = PLAYER.new()
 	player.name = "Collector"
 	add_child(player)
@@ -277,6 +276,7 @@ func _process(delta: float) -> void:
 		flow_chain = 0
 	_update_camera(delta)
 	_update_vacuum(delta)
+	_update_drains(delta)
 	_update_rats(delta)
 	_check_slip()
 	_check_progress()
@@ -502,6 +502,8 @@ func _start_shift() -> void:
 	get_tree().paused = false
 	_leave_room_now()
 	_clear_run()
+	if world == null or not is_instance_valid(world) or area_id != start_area:
+		load_area(start_area, Vector3.ZERO)
 	_spawn_market()
 	crowd.watch_clean(0.0)
 	_build_crowd()
@@ -524,7 +526,7 @@ func _start_shift() -> void:
 	rat_spawned[0] = false
 	rat_spawned[1] = false
 	_prompt_cache = ""
-	player.reset_player(SPAWN)
+	player.reset_player(world.spawn)
 	player.rotation.y = 0.0
 	player.set_rank(rank)
 	player.visible = true
@@ -538,7 +540,7 @@ func _start_shift() -> void:
 	phase = "play"
 	ui.set_phase("play")
 	ui.set_muted(Sound.muted)
-	ui.subtitle("The market opens in an hour. Get the street 90% clean before the shutters go up.", 6.0)
+	ui.subtitle(str(AREA_INTRO.get(area_id, AREA_INTRO["dawn_market"])), 6.0)
 	Sound.play("click")
 	Sound.set_vacuum(false)
 	if not Sound.muted and not Sound.music.playing:
@@ -622,6 +624,8 @@ func load_area(id: String, spawn_at: Vector3) -> void:
 	area = node
 	world = node
 	area_id = id
+	start_area = id
+	_apply_mood(node.mood)
 	total_weight = 0.0
 	clean_progress = 0.0
 	player.global_position = spawn_at
@@ -719,7 +723,7 @@ func _exit_interior() -> void:
 	transitioning = false
 	player.locked = false
 	Sound.play("door", 1.05, -7.0)
-	ui.subtitle("Back on the street. The market still needs you.", 3.5)
+	ui.subtitle("Back on the street. The shift still needs you.", 3.5)
 
 
 func _leave_room_now() -> void:
@@ -771,6 +775,12 @@ func _cast_for_area() -> Array:
 			return [{"role": "arcade_kid", "pos": Vector3(-1.3, 0.0, -4.2), "dialogue": "arcade_kid", "name": "JOYSTICK"}]
 		"plant":
 			return [{"role": "keeper", "pos": Vector3(3.4, 0.0, 1.6), "dialogue": "keeper_0", "name": "PLANT KEEPER"}]
+		"canal_quarter":
+			return [
+				{"role": "rook", "pos": Vector3(-8.0, 0.0, 0.2), "dialogue": "rook", "name": "ROOK"},
+				{"role": "keeper", "pos": Vector3(-17.0, 0.0, 1.2), "dialogue": "keeper_1", "name": "LOCK KEEPER"},
+				{"role": "cat", "pos": Vector3(12.0, 0.0, 14.2), "dialogue": "miso", "name": "MISO"},
+			]
 	return [
 		{"role": "nell", "pos": Vector3(7.4, 0.0, 3.4), "dialogue": "nell", "name": "NELL QUILL"},
 		{"role": "rook", "pos": Vector3(-7.0, 0.0, 5.6), "dialogue": "rook", "name": "ROOK"},
@@ -782,38 +792,51 @@ func _cast_for_area() -> Array:
 func _spawn_market() -> void:
 	world.set_clean(0.0)
 	total_weight = 0.0
-	for i in LIGHT_COUNT:
-		var kind: String = LIGHT_KINDS[rng.randi_range(0, LIGHT_KINDS.size() - 1)]
-		_spawn_litter(kind)
-	for i in HEAVY_COUNT:
-		var kind: String = HEAVY_KINDS[i % HEAVY_KINDS.size()]
-		_spawn_litter(kind)
-	for i in PILE_COUNT:
-		var spot: Vector3 = PILE_SPOTS[i % PILE_SPOTS.size()]
+	var mix: Array = world.litter_mix()
+	for i in int(world.light_count):
+		_spawn_litter(str(mix[rng.randi_range(0, mix.size() - 1)]))
+	var heavies: Array = world.heavy_mix()
+	for i in int(world.heavy_count):
+		_spawn_litter(str(heavies[i % heavies.size()]))
+	var spots: Array = world.pile_spots()
+	for i in int(world.pile_count):
+		if spots.is_empty():
+			break
+		var spot: Vector3 = spots[i % spots.size()]
 		var pile = PILE.new()
 		pile.position = spot
 		world.add_child(pile)
 		piles.append({"node": pile})
 		total_weight += float(pile.get("base_weight"))
+	var grime_total := int(world.get("grime_count"))
+	for i in grime_total:
+		_spawn_litter("grime")
 
 
 func _spawn_litter(kind: String) -> void:
 	var node = LITTER.new()
 	node.build(kind, rng)
-	node.position = _free_spot(1.15)
+	if bool(node.get("floating")) and world.has_method("float_spot"):
+		node.position = world.float_spot(rng)
+	elif kind == "grime" and world.has_method("next_grime_spot"):
+		node.position = world.next_grime_spot()
+	else:
+		node.position = _free_spot(1.15)
 	world.add_child(node)
 	litter_nodes.append(node)
 	total_weight += float(node.get("weight"))
 
 
 func _free_spot(clearance: float) -> Vector3:
+	var home: Vector3 = world.spawn
+	var spots: Array = world.pile_spots()
 	var fallback: Vector3 = world.random_walkable(rng)
 	for attempt in 60:
 		var point: Vector3 = world.random_walkable(rng)
-		if Vector2(point.x - SPAWN.x, point.z - SPAWN.z).length() < 3.4:
+		if Vector2(point.x - home.x, point.z - home.z).length() < 3.4:
 			continue
 		var clear := true
-		for spot in PILE_SPOTS:
+		for spot in spots:
 			if Vector2(point.x - spot.x, point.z - spot.z).length() < 2.2:
 				clear = false
 				break
@@ -827,6 +850,88 @@ func _free_spot(clearance: float) -> Vector3:
 		if clear:
 			return point
 	return fallback
+
+
+func _update_drains(delta: float) -> void:
+	if inside_interior or world == null or not world.has_method("clear_drain"):
+		return
+	var drains: Array = world.get("drains")
+	for entry in drains:
+		if not bool(entry.clogged):
+			continue
+		entry.timer = float(entry.timer) + delta
+		var target = entry.get("target")
+		if target == null or not _available(target):
+			entry.target = null
+			if float(entry.timer) >= 2.5:
+				entry.timer = 0.0
+				var grate: Vector3 = entry.pos
+				var found = _nearest_floating(grate, 4.5)
+				if found != null:
+					entry.target = found
+		else:
+			var grate: Vector3 = entry.pos
+			target.call("pull", grate, delta * 0.9)
+			var flat := Vector2(target.position.x - grate.x, target.position.z - grate.z)
+			if flat.length() < 0.55:
+				_swallow(target)
+				entry.target = null
+
+
+func _nearest_floating(origin: Vector3, radius: float):
+	var best_node = null
+	var best := radius
+	for node in litter_nodes:
+		if not _available(node) or not bool(node.get("floating")):
+			continue
+		var distance := Vector2(node.global_position.x - origin.x, node.global_position.z - origin.z).length()
+		if distance < best:
+			best = distance
+			best_node = node
+	return best_node
+
+
+func _swallow(node: Node3D) -> void:
+	total_weight = maxf(1.0, total_weight - float(node.get("weight")))
+	node.set("collected", true)
+	node.queue_free()
+	Sound.play("rustle", 0.7, -7.0)
+
+
+func _clear_drain_at(pos: Vector3) -> void:
+	var index := _nearest_clogged_drain(3.2, pos)
+	if index < 0:
+		return
+	var drains: Array = world.get("drains")
+	var grate: Vector3 = drains[index].pos
+	world.clear_drain(index)
+	_grant_xp(40)
+	for release_kind in ["float_bottle", "float_bag", "bottle_cap"]:
+		_spawn_litter(release_kind)
+		var node = litter_nodes[litter_nodes.size() - 1]
+		node.position = grate + Vector3(rng.randf_range(-0.8, 0.8), 0.0, rng.randf_range(1.0, 1.7))
+	ui.subtitle("Drain clear. The trapped bottles bob loose by the grate.", 4.0)
+	Sound.play("burst", 0.85, -4.0)
+
+
+func _nearest_clogged_drain(radius: float, origin := Vector3(1.0e9, 0.0, 0.0)) -> int:
+	if world == null or not world.has_method("clear_drain"):
+		return -1
+	if origin.x > 1.0e8:
+		origin = player.global_position
+	var best := -1
+	var best_distance := radius
+	var drains: Array = world.get("drains")
+	for i in drains.size():
+		var entry: Dictionary = drains[i]
+		if not bool(entry.clogged):
+			continue
+		var grate: Vector3 = entry.pos
+		var distance := Vector2(origin.x - grate.x, origin.z - grate.z).length()
+		if distance < best_distance:
+			best_distance = distance
+			best = i
+	return best
 
 
 # ---------------------------------------------------------------- vacuum
@@ -942,6 +1047,8 @@ func _collect(node: Node3D) -> void:
 	if not _available(node):
 		return
 	node.set("collected", true)
+	var was_grime := str(node.get("kind")) == "grime"
+	var was_pos: Vector3 = node.global_position
 	var item := {
 		"name": str(node.get("display")),
 		"kind": str(node.get("sort_kind")),
@@ -950,6 +1057,8 @@ func _collect(node: Node3D) -> void:
 	}
 	hopper.append(item)
 	node.queue_free()
+	if was_grime:
+		_clear_drain_at(was_pos)
 	score += 2
 	_grant_xp(8)
 	flow_time = FLOW_WINDOW
@@ -957,7 +1066,10 @@ func _collect(node: Node3D) -> void:
 	if hopper.size() == 1:
 		ui.subtitle("Litter goes in the hopper. Sorting happens at a depot.", 4.5)
 	if hopper.size() >= hopper_capacity:
-		ui.subtitle("Hopper full. Head for VIBES UNIT 7 or SORT IT RIGHT.", 5.0)
+		var station_label := "A DEPOT"
+		if world.stations.size() > 0:
+			station_label = str(world.stations[0].get("label", "A DEPOT"))
+		ui.subtitle("Hopper full. Head for %s." % station_label, 5.0)
 
 
 # ---------------------------------------------------------------- carry and sort
@@ -1506,6 +1618,8 @@ func _update_prompt() -> void:
 			text = "E  ENTER %s" % str(door.get("title", "THE ROOM"))
 	elif _near_save():
 		text = "E  SAVE THE SHIFT"
+	elif not inside_interior and _nearest_clogged_drain(2.8) >= 0:
+		text = "DRAIN CLOGGED  /  VACUUM THE GRIME"
 	elif hopper.size() >= hopper_capacity:
 		if inside_interior:
 			text = "HOPPER FULL  /  SORT AT THE FRONT DESK"

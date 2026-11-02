@@ -3,20 +3,26 @@ extends Node3D
 const K = preload("res://scripts/kit.gd")
 
 var display := "Litter"
+var kind := ""
 var sort_kind := "paper"
 var tint := Color(0.9, 0.88, 0.8)
 var weight := 1.0
 var heavy := false
+var floating := false
 var collected := false
 var spin_speed := 2.0
 var _pull_target := Vector3.ZERO
 var _pulling := false
 var _pull_time := 0.0
 var _vx := 0.0
+var _bob := 0.0
+var _base_y := 0.0
 
 
 func build(kind: String, rng: RandomNumberGenerator) -> void:
+	self.kind = kind
 	rotation.y = rng.randf_range(0.0, TAU)
+	_bob = rng.randf_range(0.0, TAU)
 	match kind:
 		"paper":
 			display = ["Wax paper", "Market flyer", "Receipt"][rng.randi_range(0, 2)]
@@ -78,10 +84,38 @@ func build(kind: String, rng: RandomNumberGenerator) -> void:
 			heavy = true
 			weight = 5.0
 			_planks(rng)
+		"float_bottle":
+			display = "Canal bottle"
+			sort_kind = "glass"
+			tint = Color(0.4, 0.62, 0.48)
+			floating = true
+			weight = 1.2
+			_float_bottle(rng)
+		"float_bag":
+			display = "Waterlogged bag"
+			sort_kind = "paper"
+			tint = Color(0.84, 0.84, 0.78)
+			floating = true
+			_float_bag(rng)
+		"bottle_cap":
+			display = "Bottle cap"
+			sort_kind = "metal"
+			tint = Color(0.66, 0.3, 0.24)
+			floating = true
+			weight = 0.6
+			_cap(rng)
+		"grime":
+			display = "Drain grime"
+			sort_kind = "compost"
+			tint = Color(0.3, 0.28, 0.22)
+			weight = 1.5
+			_grime(rng)
 		_:
 			display = "Litter"
 			_paper(rng)
 	scale = Vector3.ONE * rng.randf_range(0.92, 1.1)
+	if floating:
+		set_process(true)
 
 
 func _paper(rng: RandomNumberGenerator) -> void:
@@ -162,6 +196,41 @@ func _planks(rng: RandomNumberGenerator) -> void:
 		K.box(self, Vector3(1.0, 0.06, 0.22), Vector3(0.02 * i, 0.05 + i * 0.065, 0.0), K.WOOD if i % 2 == 0 else Color(0.64, 0.46, 0.3), Vector3(0, rng.randf_range(-0.08, 0.08), 0))
 
 
+func _float_bottle(rng: RandomNumberGenerator) -> void:
+	_base_y = -0.52
+	position.y = _base_y
+	var body := K.cylinder(self, 0.055, 0.26, Vector3(0, 0.03, 0), Color(0.4, 0.62, 0.48), Vector3(PI / 2.0 + rng.randf_range(-0.2, 0.2), 0, 0), 9)
+	body.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	K.cylinder(self, 0.026, 0.07, Vector3(0.15, 0.05, 0), Color(0.4, 0.62, 0.48), Vector3(PI / 2.0, 0, 0), 7).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	K.cylinder(self, 0.03, 0.025, Vector3(0.19, 0.05, 0), K.OCHRE, Vector3(PI / 2.0, 0, 0), 7).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+func _float_bag(rng: RandomNumberGenerator) -> void:
+	_base_y = -0.5
+	position.y = _base_y
+	var bag := K.sphere(self, 0.18, Vector3(0, -0.02, 0), Color(0.84, 0.84, 0.78), Vector3(1.2, 0.55, 0.9))
+	bag.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	K.cone(self, 0.02, 0.05, 0.1, Vector3(0.05, 0.1, 0), Color(0.8, 0.8, 0.74), Vector3(rng.randf_range(-0.4, 0.4), 0, 0), 6).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+func _cap(rng: RandomNumberGenerator) -> void:
+	_base_y = -0.54
+	position.y = _base_y
+	var cap := K.cylinder(self, 0.07, 0.02, Vector3(0, 0.0, 0), Color(0.66, 0.3, 0.24), Vector3(PI / 2.0, 0, rng.randf()), 10)
+	cap.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	K.cylinder(self, 0.055, 0.012, Vector3(0.02, 0.01, 0), Color(0.72, 0.36, 0.28), Vector3(PI / 2.0, 0, 0), 10).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+func _grime(rng: RandomNumberGenerator) -> void:
+	var mound := K.sphere(self, 0.3, Vector3(0, 0.08, 0), Color(0.3, 0.28, 0.22), Vector3(1.4, 0.4, 1.1))
+	mound.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for i in 6:
+		var angle := rng.randf_range(0.0, TAU)
+		var speck := K.sphere(self, 0.05, Vector3(cos(angle) * 0.28, 0.1, sin(angle) * 0.22), [Color(0.42, 0.36, 0.2), Color(0.24, 0.24, 0.2), Color(0.5, 0.44, 0.28)][i % 3], Vector3(1, 0.6, 1))
+		speck.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	K.box(self, Vector3(0.34, 0.01, 0.24), Vector3(0, 0.16, 0), Color(0.22, 0.21, 0.17)).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
 func pull(toward: Vector3, delta: float) -> void:
 	if not _pulling:
 		_pulling = true
@@ -179,6 +248,12 @@ func pull(toward: Vector3, delta: float) -> void:
 	scale = Vector3.ONE * maxf(0.35, 1.0 - _pull_time * 0.25)
 
 
-func _process(_delta: float) -> void:
-	if not _pulling:
-		set_process(false)
+func _process(delta: float) -> void:
+	if _pulling:
+		return
+	if floating and not collected:
+		_bob += delta
+		position.y = _base_y + sin(_bob * 1.4) * 0.04
+		rotation.y += 0.12 * delta
+		return
+	set_process(false)

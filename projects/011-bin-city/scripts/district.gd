@@ -14,6 +14,10 @@ var ambience := "market"
 var blocked: Array[Dictionary] = []
 var puddles: Array[Dictionary] = []
 var clean_level := 0.0
+var light_count := 96
+var heavy_count := 12
+var pile_count := 4
+var grime_count := 0
 
 
 func build() -> void:
@@ -25,11 +29,18 @@ func set_clean(_value: float) -> void:
 
 
 func litter_mix() -> Array:
-	return ["paper", "paper", "cup", "carton", "can", "bottle", "leaf", "bag"]
+	return [
+		"paper", "paper", "cup", "carton", "can", "can", "bottle",
+		"leaf", "bag", "paper", "can", "bottle", "cup", "leaf",
+	]
 
 
 func heavy_mix() -> Array:
 	return ["crate", "barrel", "sack", "tyre", "planks"]
+
+
+func pile_spots() -> Array:
+	return []
 
 
 func crowd_points() -> Array:

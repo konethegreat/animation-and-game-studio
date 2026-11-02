@@ -1,6 +1,12 @@
 extends "res://scripts/district.gd"
 
 const PLAZA := Rect2(-20.0, -13.0, 40.0, 27.0)
+const PILE_SPOTS := [
+	Vector3(-1.0, 0.0, -3.0),
+	Vector3(5.0, 0.0, -5.5),
+	Vector3(-9.0, 0.0, 5.5),
+	Vector3(8.0, 0.0, 3.2),
+]
 
 var lamps: Array[Dictionary] = []
 var plants: Array[Dictionary] = []
@@ -133,6 +139,10 @@ func crowd_points() -> Array:
 		Vector3(1.2, 0.0, -1.4), Vector3(-9.2, 0.0, 0.2), Vector3(12.4, 0.0, -6.0),
 		Vector3(18.0, 0.0, 6.0), Vector3(-18.2, 0.0, -6.2),
 	]
+
+
+func pile_spots() -> Array:
+	return PILE_SPOTS
 
 
 func _build_ground() -> void:
