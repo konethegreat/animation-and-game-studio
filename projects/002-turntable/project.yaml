@@ -1,14 +1,21 @@
 id: 002-turntable
 type: 3d
-title: Turntable
-summary: A stylized robot companion, modelled and lit in Blender, turning slowly in a soft studio.
-tags: [3d, blender, character]
+title: Companion
+summary: A small companion floats above a dark disc, waves hello, and turns through a warm studio built from light.
+tags: [3d, blender, character, turnaround]
 engine: blender
 entry: scene.py
+interactive: companion
 render:
   resolution: [1920, 1080]
   fps: 24
   frames: 192
+  poster_time: 0.5
+gif:
+  width: 560
+  fps: 16
+  colors: 112
+  dither: none
 outputs:
   - media/002-turntable/reel.mp4
   - media/002-turntable/reel.webm

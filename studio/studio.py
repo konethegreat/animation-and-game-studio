@@ -9,16 +9,29 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from studio.lib import config, godot, manifest, publish, render, sheet  # noqa: E402
+from studio.lib import assets, config, cut, engines, manifest, publish, render, sheet, verify  # noqa: E402
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
     rows = config.doctor()
     for row in rows:
         mark = "ok" if row["ok"] else "missing"
-        print(f"{row['name']:8} {mark:8} {row['path']}")
+        print(f"{row['name']:10} {mark:8} {row['path']}")
         if row["version"]:
-            print(f"         {row['version']}")
+            print(f"           {row['version']}")
+    if args.deep:
+        print("\nadapters")
+        for probe in engines.probe_all():
+            mark = "ok" if probe.ok else "blocked"
+            kinds = ",".join(probe.kinds)
+            print(f"{probe.name:10} {mark:8} {kinds:10} {probe.path}")
+            if probe.version:
+                print(f"           {probe.version}")
+            for blocker in probe.blockers:
+                print(f"           {blocker}")
+        gpu = config.gpu_name()
+        if gpu:
+            print(f"\ngpu        {gpu}")
     ok = all(row["ok"] for row in rows)
     return 0 if ok or args.soft else 1
 
@@ -42,36 +55,55 @@ def cmd_render(args: argparse.Namespace) -> int:
     errors = manifest.validate(project)
     if errors:
         raise SystemExit("invalid project:\n  " + "\n  ".join(errors))
-    render.run(project)
+    shot_ids = [args.shot] if args.shot else None
+    resume = args.resume or project.kind == "film"
+    render.run(project, shot_ids=shot_ids, preview=args.preview, resume=resume)
+    return 0
+
+
+def cmd_verify(args: argparse.Namespace) -> int:
+    project = manifest.find(args.id)
+    checks = verify.run(project, stage="all")
+    failed = False
+    for check in checks:
+        mark = "ok  " if check.ok else "FAIL"
+        print(f"{mark} {check.name:8} {check.detail}")
+        failed = failed or not check.ok
+    return 1 if failed else 0
+
+
+def cmd_build(args: argparse.Namespace) -> int:
+    project = manifest.find(args.id)
+    if project.kind != "game":
+        raise SystemExit(f"{project.id} is not a game; use studio render")
+    adapter = engines.get(project.engine)
+    out = project.root / "build" / "web"
+    target = adapter.build(project, out)
+    if not target:
+        raise SystemExit(f"{project.engine} has no build target")
+    print(f"web build -> {target}")
     return 0
 
 
 def cmd_export(args: argparse.Namespace) -> int:
     project = manifest.find(args.id)
-    if project.engine == "godot":
-        godot.export_web(project.root, project.root / "build" / "web")
-        print(f"web build -> {project.root / 'build' / 'web'}")
-        return 0
+    adapter = engines.get(project.engine)
     if project.engine == "blender":
-        blender = config.find_tool("blender")
-        if not blender:
-            raise SystemExit("blender not found")
-        declared = [ROOT / output for output in project.outputs if output.lower().endswith(".glb")]
-        target = declared[0] if declared else project.root / "build" / f"{project.id}.glb"
-        target.parent.mkdir(parents=True, exist_ok=True)
-        import subprocess
-
-        result = subprocess.run(
-            [
-                str(blender), "-b", "--python", str(project.root / project.entry),
-                "--", "--export-glb", str(target),
-            ]
-        )
-        if result.returncode != 0:
-            raise SystemExit("glb export failed")
-        print(f"glb -> {target}")
+        target = project.output_path(".glb") or project.root / "build" / f"{project.id}.glb"
+        result = adapter.export(project, target)
+        print(f"glb -> {result}")
         return 0
+    if project.kind == "game":
+        return cmd_build(args)
     raise SystemExit(f"{project.id} has no export target")
+
+
+def cmd_cut(args: argparse.Namespace) -> int:
+    project = manifest.find(args.id)
+    shots = [part.strip() for part in args.shots.split(",") if part.strip()]
+    audio = Path(args.audio).resolve() if args.audio else None
+    cut.cut(project, shots, Path(args.out).resolve(), audio=audio)
+    return 0
 
 
 def cmd_sheet(args: argparse.Namespace) -> int:
@@ -83,6 +115,20 @@ def cmd_sheet(args: argparse.Namespace) -> int:
 def cmd_publish(_: argparse.Namespace) -> int:
     publish.run()
     return 0
+
+
+def cmd_assets(args: argparse.Namespace) -> int:
+    if args.action == "fetch":
+        problems = assets.fetch()
+    elif args.action == "verify":
+        problems = assets.verify(offline=args.offline)
+    else:
+        path = assets.write_credits()
+        print(f"credits -> {path}")
+        return 0
+    for problem in problems:
+        print(f"FAIL {problem}")
+    return 1 if problems else 0
 
 
 def cmd_new(args: argparse.Namespace) -> int:
@@ -110,6 +156,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     doctor = sub.add_parser("doctor", help="check installed tools")
     doctor.add_argument("--soft", action="store_true", help="exit 0 even if tools are missing")
+    doctor.add_argument("--deep", action="store_true", help="also probe engine adapters")
     doctor.set_defaults(func=cmd_doctor)
 
     validate = sub.add_parser("validate", help="validate every project manifest")
@@ -123,19 +170,42 @@ def build_parser() -> argparse.ArgumentParser:
 
     render_cmd = sub.add_parser("render", help="render a project to media")
     render_cmd.add_argument("id")
+    render_cmd.add_argument("--shot", default="", help="render one shot")
+    render_cmd.add_argument("--resume", action="store_true", help="skip completed shots")
+    render_cmd.add_argument("--preview", action="store_true", help="half resolution preview")
     render_cmd.set_defaults(func=cmd_render)
 
     export = sub.add_parser("export", help="export GLB or web build")
     export.add_argument("id")
     export.set_defaults(func=cmd_export)
 
-    sheet = sub.add_parser("sheet", help="make a contact sheet from a video")
-    sheet.add_argument("input")
-    sheet.add_argument("output")
-    sheet.set_defaults(func=cmd_sheet)
+    build_cmd = sub.add_parser("build", help="build a playable game")
+    build_cmd.add_argument("id")
+    build_cmd.set_defaults(func=cmd_build)
+
+    verify_cmd = sub.add_parser("verify", help="verify rendered outputs")
+    verify_cmd.add_argument("id")
+    verify_cmd.set_defaults(func=cmd_verify)
+
+    sheet_cmd = sub.add_parser("sheet", help="make a contact sheet from a video")
+    sheet_cmd.add_argument("input")
+    sheet_cmd.add_argument("output")
+    sheet_cmd.set_defaults(func=cmd_sheet)
+
+    cut_cmd = sub.add_parser("cut", help="assemble a review cut from rendered shots")
+    cut_cmd.add_argument("id")
+    cut_cmd.add_argument("--shots", required=True, help="comma separated shot ids")
+    cut_cmd.add_argument("--out", required=True)
+    cut_cmd.add_argument("--audio", default="")
+    cut_cmd.set_defaults(func=cmd_cut)
 
     publish_cmd = sub.add_parser("publish", help="refresh showcase data")
     publish_cmd.set_defaults(func=cmd_publish)
+
+    assets_cmd = sub.add_parser("assets", help="fetch, verify or credit assets")
+    assets_cmd.add_argument("action", choices=["fetch", "verify", "credits"])
+    assets_cmd.add_argument("--offline", action="store_true", help="skip missing embed and private files")
+    assets_cmd.set_defaults(func=cmd_assets)
     return parser
 
 

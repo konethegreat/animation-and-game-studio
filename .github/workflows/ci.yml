@@ -21,14 +21,17 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
+      - name: Ensure ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
       - name: Test studio
         run: python -m pytest studio/tests -v
 
       - name: Validate project manifests
         run: python studio/studio.py validate
 
-      - name: Ensure ffmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Verify assets
+        run: python studio/studio.py assets verify --offline
 
       - uses: pnpm/action-setup@v4
         with:

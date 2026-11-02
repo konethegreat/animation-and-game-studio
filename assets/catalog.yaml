@@ -1,0 +1,21 @@
+- id: fraunces
+  lane: repo
+  license: OFL-1.1
+  source: https://github.com/google/fonts/tree/main/ofl/fraunces
+  path: assets/repo/fonts/Fraunces.ttf
+  sha256: 177ff6c0f14e5550a3c624247cd1189611d4eb65d000b14944c63d967958abbb
+  credit: Fraunces Project Authors
+- id: owner-portrait
+  lane: private
+  license: owner-consent
+  source: Owner public portfolio portrait, 2026-11-01
+  path: assets/private/portrait.png
+  sha256: d9f64697f6aedcf9e3677d20b05c05c17331de002bc6e18bee09f002c6bc47ce
+  credit: Kone
+- id: owner-voice
+  lane: private
+  license: owner-consent
+  source: Owner voice reference, 2026-11-01
+  path: assets/private/voice-reference.m4a
+  sha256: 2d96fcf46bbf64d9df3d2f4a00a45a70dcc642e79e2f2ee27f30ea36e12e8c77
+  credit: Kone

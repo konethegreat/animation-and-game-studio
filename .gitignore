@@ -1,4 +1,5 @@
 .venv/
+.venv-ml/
 __pycache__/
 *.pyc
 .pytest_cache/
@@ -15,6 +16,18 @@ projects/**/.godot/
 projects/**/qa/
 projects/**/*.blend1
 media/**/_frames/
+media/**/_audio/
 media/**/_preview/
 media/**/_test/
+media/**/qa/
 *.log
+assets/embed/
+assets/private/
+showcase/src/credits.generated.ts
+Temp/
+Library/
+Logs/
+UserSettings/
+/Packages/
+/ProjectSettings/
+projects/**/obj/

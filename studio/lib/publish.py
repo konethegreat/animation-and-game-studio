@@ -4,7 +4,7 @@ import json
 import shutil
 from pathlib import Path
 
-from . import manifest, media
+from . import assets, manifest, media
 from .config import ROOT
 
 GENERATED = ROOT / "showcase" / "src" / "projects.generated.ts"
@@ -16,6 +16,55 @@ def _duration_label(seconds: float) -> str:
     return f"{total // 60}:{total % 60:02d}"
 
 
+def build_entry(project) -> dict | None:
+    outputs = [ROOT / output for output in project.outputs if (ROOT / output).exists()]
+    if not outputs:
+        return None
+    media_dir = ROOT / "media" / project.id
+    if not (media_dir / "poster.jpg").exists():
+        return None
+    by_suffix: dict[str, Path] = {}
+    for path in outputs:
+        suffix = path.suffix.lower()
+        if suffix not in by_suffix and suffix in {".mp4", ".webm", ".gif", ".jpg", ".png", ".glb"}:
+            by_suffix[suffix] = path
+    entry: dict = {
+        "id": project.id,
+        "kind": project.kind,
+        "type": project.type,
+        "title": project.title,
+        "summary": project.summary,
+        "tags": project.tags,
+        "poster": f"media/{project.id}/poster.jpg",
+        "engine": project.engine,
+        "resolution": f"{project.resolution[0]}x{project.resolution[1]}",
+        "fps": project.fps,
+        "frames": project.frames,
+    }
+    if mp4 := by_suffix.get(".mp4"):
+        entry["mp4"] = f"media/{project.id}/{mp4.name}"
+        entry["duration"] = _duration_label(media.probe(mp4)["duration"])
+    if webm := by_suffix.get(".webm"):
+        entry["webm"] = f"media/{project.id}/{webm.name}"
+    if gif := by_suffix.get(".gif"):
+        entry["gif"] = f"media/{project.id}/{gif.name}"
+    if glb := by_suffix.get(".glb"):
+        entry["model"] = f"models/{project.id}.glb"
+    sheet = media_dir / "sheet.jpg"
+    if sheet.exists():
+        entry["sheet"] = f"media/{project.id}/sheet.jpg"
+    hero = media_dir / "hero.png"
+    if hero.exists():
+        entry["hero"] = f"media/{project.id}/hero.png"
+    if project.kind == "game":
+        build = project.root / "build" / "web"
+        if (build / "index.html").exists():
+            entry["play"] = f"builds/{project.id}/index.html"
+    if project.interactive:
+        entry["interactive"] = project.interactive
+    return entry
+
+
 def run() -> Path:
     projects = [p for p in manifest.load_all() if not manifest.validate(p)]
     if not projects:
@@ -24,72 +73,45 @@ def run() -> Path:
     PUBLIC.mkdir(parents=True, exist_ok=True)
     entries = []
     for project in projects:
-        outputs = {Path(o).name: ROOT / o for o in project.outputs if (ROOT / o).exists()}
-        if not outputs:
-            print(f"skip {project.id}: no outputs yet")
+        entry = build_entry(project)
+        if not entry:
+            print(f"skip {project.id}: no outputs or poster yet")
             continue
-        if not (project.media_dir / "poster.jpg").exists():
-            print(f"skip {project.id}: add media/{project.id}/poster.jpg")
-            continue
-
         target = PUBLIC / "media" / project.id
         target.mkdir(parents=True, exist_ok=True)
-        for path in outputs.values():
-            if path.suffix.lower() in {".mp4", ".webm", ".gif", ".jpg", ".png"}:
+        for output in project.outputs:
+            path = ROOT / output
+            if path.exists() and path.suffix.lower() in {".mp4", ".webm", ".gif", ".jpg", ".png"}:
                 shutil.copy2(path, target / path.name)
-
-        entry: dict = {
-            "id": project.id,
-            "type": project.type,
-            "title": project.title,
-            "summary": project.summary,
-            "tags": project.tags,
-            "poster": f"media/{project.id}/poster.jpg",
-            "engine": project.engine,
-            "resolution": f"{project.resolution[0]}x{project.resolution[1]}",
-            "fps": project.fps,
-            "frames": project.frames,
-        }
-        if "reel.mp4" in outputs:
-            entry["mp4"] = f"media/{project.id}/reel.mp4"
-            entry["duration"] = _duration_label(media.probe(outputs["reel.mp4"])["duration"])
-        if "reel.webm" in outputs:
-            entry["webm"] = f"media/{project.id}/reel.webm"
-        if "reel.gif" in outputs:
-            entry["gif"] = f"media/{project.id}/reel.gif"
-        sheet = project.media_dir / "sheet.jpg"
-        if sheet.exists():
-            shutil.copy2(sheet, target / sheet.name)
-            entry["sheet"] = f"media/{project.id}/sheet.jpg"
-        hero = project.media_dir / "hero.png"
-        if hero.exists():
-            shutil.copy2(hero, target / hero.name)
-            entry["hero"] = f"media/{project.id}/hero.png"
-        glb = next((path for path in outputs.values() if path.suffix.lower() == ".glb"), None)
-        if glb:
-            model_dir = PUBLIC / "models"
-            model_dir.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(glb, model_dir / f"{project.id}.glb")
-            entry["model"] = f"models/{project.id}.glb"
-        if project.type == "game":
+        media_dir = ROOT / "media" / project.id
+        for extra in ("sheet.jpg", "hero.png"):
+            path = media_dir / extra
+            if path.exists():
+                shutil.copy2(path, target / extra)
+        if entry.get("model"):
+            model = next((ROOT / output for output in project.outputs if output.lower().endswith(".glb")), None)
+            if model and model.exists():
+                (PUBLIC / "models").mkdir(parents=True, exist_ok=True)
+                shutil.copy2(model, PUBLIC / "models" / f"{project.id}.glb")
+        if entry.get("play"):
             build = project.root / "build" / "web"
-            if (build / "index.html").exists():
-                play_dir = PUBLIC / "builds" / project.id
-                if play_dir.exists():
-                    shutil.rmtree(play_dir)
-                shutil.copytree(build, play_dir)
-                (play_dir / ".nojekyll").touch()
-                entry["play"] = f"builds/{project.id}/index.html"
+            play_dir = PUBLIC / "builds" / project.id
+            if play_dir.exists():
+                shutil.rmtree(play_dir)
+            shutil.copytree(build, play_dir)
+            (play_dir / ".nojekyll").touch()
         entries.append(entry)
 
+    assets.write_credits()
     body = json.dumps(entries, indent=2)
     GENERATED.write_text(
         "// generated by studio publish, do not edit\n"
         "export type Project = {\n"
-        '  id: string; type: "2d" | "3d" | "game"; title: string; summary: string;\n'
+        '  id: string; kind: "film" | "game"; type: "2d" | "3d" | "game"; title: string; summary: string;\n'
         "  tags: string[]; poster: string; sheet?: string; hero?: string;\n"
         "  mp4?: string; webm?: string;\n"
         "  gif?: string; model?: string; play?: string; duration?: string;\n"
+        '  interactive?: "bounce" | "companion" | "keeper";\n'
         "  engine: string; resolution: string; fps: number; frames: number;\n"
         "};\n\n"
         f"export const projects: Project[] = {body};\n",
