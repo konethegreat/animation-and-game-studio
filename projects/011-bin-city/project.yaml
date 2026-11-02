@@ -1,7 +1,7 @@
 id: 011-bin-city
 type: game
 title: BIN CITY
-summary: A 3D browser game about one trash collector cleaning a beautiful, ridiculous market before it opens.
+summary: A 3D browser game about a trash collector who levels up through five ranks across three districts, with quests, enterable buildings, a boss fight and an inked toon look.
 tags: [game, godot, 3d, arcade, browser]
 engine: godot
 entry: project.godot
