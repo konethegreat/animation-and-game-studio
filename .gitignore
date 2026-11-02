@@ -12,6 +12,7 @@ showcase/src/projects.generated.ts
 assets/generated/
 projects/**/build/*
 !projects/003-micro-game/build/web/
+!projects/011-bin-city/build/web/
 projects/**/.godot/
 projects/**/qa/
 projects/**/*.blend1
