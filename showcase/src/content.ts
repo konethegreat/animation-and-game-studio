@@ -27,11 +27,11 @@ export const NOTES: Record<string, ProjectNotes> = {
     ],
   },
   "002-turntable": {
-    madeWith: ["Blender 4.5 LTS", "Python", "EEVEE Next", "glTF"],
+    madeWith: ["Blender 4.5 LTS", "Python", "EEVEE Next", "glTF", "Three.js"],
     notes: [
-      "The robot, studio lights and pedestal are built procedurally in Blender Python. There are no imported models or textures.",
-      "A 192 frame turntable loop closes seamlessly at 24 fps, with a slow hover, head drift and swinging antenna.",
-      "The same scene exports a glTF binary that powers the live viewer on this site.",
+      "The companion, the cyclorama studio and every light are built procedurally in Blender Python. There are no imported models or textures.",
+      "A 192 frame loop at 24 fps carries an idle performance: breathing, blinks, antenna follow through and a wave that lands while the visor faces camera.",
+      "The export merges the rig into one baked Idle animation, so the glTF viewer can play the wave and the web lab can keep steering the head and arms live.",
     ],
   },
   "003-micro-game": {

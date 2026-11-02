@@ -179,8 +179,8 @@ function home(): string {
       <div class="hero-stage" id="hero-stage">
         <div class="stage-grid" aria-hidden="true"></div>
         <div class="stage-disc" aria-hidden="true"></div>
-        ${fallback ? `<img class="stage-poster" src="${asset(fallback)}" alt="Cream robot companion on a dark turntable" />` : ""}
-        <div class="stage-tag mono"><span class="live-dot" aria-hidden="true"></span><span>Live glTF</span><span class="dim">01 / Turntable</span></div>
+        ${fallback ? `<img class="stage-poster" src="${asset(fallback)}" alt="Cream companion robot floating above a dark disc" />` : ""}
+        <div class="stage-tag mono"><span class="live-dot" aria-hidden="true"></span><span>Live glTF</span><span class="dim">01 / Companion</span></div>
         <a class="stage-link mono" href="${href("demo/three")}" data-link>Open 3D demo <span aria-hidden="true">&#8599;</span></a>
       </div>
     </section>
@@ -390,9 +390,9 @@ function demoPage(project: Project): string {
   <main id="main" class="demo">
     <div class="wrap demo-head">
       <div>
-        <a class="back mono" href="${projectHref(project)}" data-link><span aria-hidden="true">&#8592;</span> Turntable project</a>
-        <h1>Orbit the robot.</h1>
-        <p class="lede">The turntable loop is baked into the glTF. Drag to rotate, scroll to zoom, or let it turn on its own.</p>
+        <a class="back mono" href="${projectHref(project)}" data-link><span aria-hidden="true">&#8592;</span> Companion project</a>
+        <h1>Orbit the companion.</h1>
+        <p class="lede">The idle wave is baked into the glTF. Drag to rotate, scroll to zoom, or let it turn on its own.</p>
       </div>
       <div class="demo-actions">
         <button type="button" class="text-button mono" id="reset-view">Reset view</button>
@@ -401,7 +401,7 @@ function demoPage(project: Project): string {
     </div>
     <div class="demo-stage">
       <div id="demo-viewer">
-        <img class="model-fallback" src="${asset(project.hero ?? project.poster)}" alt="Cream robot companion on a dark turntable" />
+        <img class="model-fallback" src="${asset(project.hero ?? project.poster)}" alt="Cream companion robot floating above a dark disc" />
       </div>
       <div class="demo-hint mono"><span>Drag</span><span>Scroll</span></div>
     </div>
@@ -578,7 +578,7 @@ function render() {
       setMeta("Not found / Kone Studio");
     } else {
       markup = demoPage(project);
-      setMeta("3D demo / Kone Studio", "Orbit the turntable robot live in the browser.");
+      setMeta("3D demo / Kone Studio", "Orbit the companion robot live in the browser.");
     }
   } else {
     markup = missingPage();
