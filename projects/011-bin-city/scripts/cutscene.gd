@@ -96,6 +96,10 @@ func _wait(seconds: float) -> void:
 func _line(step: Dictionary) -> void:
 	var speaker := str(step.get("speaker", ""))
 	var text := str(step.get("text", ""))
+	if speaker != "":
+		var sound = _game.get_node_or_null("Sound")
+		if sound != null and sound.has_method("blip"):
+			sound.blip(speaker)
 	var full := "%s: %s" % [speaker, text] if speaker != "" else text
 	var dur := clampf(1.8 + text.length() * 0.055, 2.6, 6.5)
 	_game.ui.subtitle(full, dur)

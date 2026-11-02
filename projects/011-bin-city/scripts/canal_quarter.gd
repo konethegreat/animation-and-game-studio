@@ -25,8 +25,8 @@ func _ready() -> void:
 	bounds = QUARTER
 	spawn = Vector3(-19.0, 0.0, -1.0)
 	skip_pos = Vector3(-18.0, 0.0, -10.5)
-	music = "market"
-	ambience = "market"
+	music = "canal"
+	ambience = "canal"
 	title = "CANAL QUARTER"
 	mood = "canal"
 	light_count = 84

@@ -576,8 +576,8 @@ func _show_title() -> void:
 	ui.set_phase("title")
 	ui.set_muted(Sound.muted)
 	Sound.set_vacuum(false)
-	if not Sound.muted and not Sound.music.playing:
-		Sound.music.play()
+	Sound.play_music("market", 2.0)
+	Sound.play_ambience("market")
 
 
 func current_shift() -> Dictionary:
@@ -667,8 +667,6 @@ func _start_shift() -> void:
 	ui.set_muted(Sound.muted)
 	Sound.play("click")
 	Sound.set_vacuum(false)
-	if not Sound.muted and not Sound.music.playing:
-		Sound.music.play()
 	_update_hud()
 	_show_briefing()
 
@@ -815,9 +813,8 @@ func load_area(id: String, spawn_at: Vector3) -> void:
 	total_weight = 0.0
 	clean_progress = 0.0
 	player.global_position = spawn_at
-
-
-# ---------------------------------------------------------------- doors
+	Sound.play_music(str(node.music))
+	Sound.play_ambience(str(node.ambience))
 
 func _enter_interior(id: String) -> void:
 	if transitioning or inside_interior or phase != "play":
@@ -850,6 +847,7 @@ func _enter_interior(id: String) -> void:
 		_deliver_sacks()
 		_maybe_spawn_nest()
 	_apply_mood(world.mood)
+	Sound.play_ambience("plant" if id == "plant" else "interior")
 	outdoor_camera_distance = camera_distance
 	camera_distance = 6.4
 	player.global_position = world.to_global(world.spawn)
@@ -863,6 +861,7 @@ func _enter_interior(id: String) -> void:
 	await get_tree().process_frame
 	transition.reveal()
 	await transition.revealed
+	Sound.play("reveal", 1.0, -10.0)
 	transitioning = false
 	if phase == "play":
 		player.locked = false
@@ -895,6 +894,7 @@ func _exit_interior() -> void:
 	world.visible = true
 	world.process_mode = Node.PROCESS_MODE_INHERIT
 	_apply_mood(world.mood)
+	Sound.play_ambience(str(world.ambience))
 	camera_distance = outdoor_camera_distance
 	if entered_door.is_empty():
 		player.global_position = world.to_global(world.spawn)
@@ -912,6 +912,7 @@ func _exit_interior() -> void:
 	await get_tree().process_frame
 	transition.reveal()
 	await transition.revealed
+	Sound.play("reveal", 0.9, -11.0)
 	transitioning = false
 	player.locked = false
 	Sound.play("door", 1.05, -7.0)
@@ -941,6 +942,9 @@ func _leave_room_now() -> void:
 		world.set_clean(_clean())
 	camera_distance = outdoor_camera_distance
 	_apply_mood(world.mood if world != null else "dawn")
+	if world != null:
+		Sound.play_music(str(world.music), 1.5)
+		Sound.play_ambience(str(world.ambience))
 
 
 func _build_crowd() -> void:
@@ -1385,6 +1389,7 @@ func _collect(node: Node3D) -> void:
 		_grant_xp(150)
 		ui.subtitle("Nest cleared. The storeroom airs out and the rats relocate to the canal.", 5.0)
 	if str(node.get("kind")) == "token":
+		Sound.play("token", 1.0, -2.0)
 		var state = get_node_or_null("/root/GameState")
 		if state != null and state.quest_status("high_score") == "active":
 			state.advance_quest("high_score", 1)
@@ -1649,7 +1654,7 @@ func _feed_boss_core() -> void:
 
 
 func _on_boss_stomp() -> void:
-	Sound.play("land", 0.7, 2.0)
+	Sound.play("stomp", 0.95, 0.0)
 	ui.boss_warn()
 	if player != null and player.is_on_floor():
 		player.apply_shock()
@@ -1679,7 +1684,8 @@ func _on_boss_volley(origin: Vector3) -> void:
 
 
 func _on_boss_phase(phase_number: int) -> void:
-	Sound.play("zap", 0.8, 0.0)
+	Sound.set_boss_layer(phase_number)
+	Sound.play("roar", 1.0 + (phase_number - 1) * 0.08, 0.0)
 	ui.boss_warn()
 	if phase_number == 2:
 		boss.grime_blocked = true
@@ -1715,6 +1721,7 @@ func _ending() -> void:
 	var cam_wide: Vector3 = world.to_global(player_local + Vector3(-4.4, 3.4, 3.6))
 	var cam_close: Vector3 = world.to_global(player_local + Vector3(0.6, 2.4, 4.2))
 	cutscene.play("ending", [
+		{"t": "music", "track": "ending"},
 		{"t": "cam", "pos": cam_wide, "look": mouth, "s": 2.2},
 		{"t": "line", "speaker": "", "text": "The drum winds down. Steam sighs out of the stacks. The Gulper sleeps."},
 		{"t": "line", "speaker": "SULLAGE", "text": "Radio: No. No, no, no. Do you know what that machine was worth? That was my retirement."},
@@ -2152,6 +2159,12 @@ func _on_dialogue_started(_id: String) -> void:
 
 func _on_dialogue_line(speaker: String, text: String, choices: Array) -> void:
 	ui.open_dialogue(speaker, text, choices)
+	if speaker == "MISO":
+		Sound.play("cat", 1.0, -2.0)
+	elif speaker == "PIGEON":
+		Sound.play("pigeon", 1.0, -2.0)
+	else:
+		Sound.blip(speaker)
 
 
 func _on_cutscene_finished(id: String) -> void:
@@ -2162,7 +2175,8 @@ func _on_cutscene_finished(id: String) -> void:
 		boss.begin()
 		ui.show_boss("THE GULPER")
 		ui.subtitle("The Gulper wakes. Feed each chute the litter it asks for.", 6.0)
-		Sound.play("zap", 0.5, -4.0)
+		Sound.play_music("boss", 0.5)
+		Sound.play("roar", 0.9, -2.0)
 	if phase == "play" and not talking and player != null:
 		player.locked = false
 
@@ -2226,6 +2240,8 @@ func _finish() -> void:
 		state.save()
 	_objective_done("clean")
 	Sound.play("finish", 1.0, -2.0)
+	Sound.play("bell", 0.9, -6.0)
+	Sound.play("unlock", 1.0, -9.0)
 	ui.set_phase("results")
 	var next := 0
 	var next_title := ""

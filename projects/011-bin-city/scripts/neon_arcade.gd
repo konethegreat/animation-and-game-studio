@@ -29,8 +29,8 @@ func _ready() -> void:
 	bounds = STRIP
 	spawn = Vector3(0.0, 0.0, 10.0)
 	skip_pos = Vector3(-19.0, 0.0, 10.0)
-	music = "market"
-	ambience = "market"
+	music = "neon"
+	ambience = "neon"
 	title = "NEON ARCADE"
 	mood = "neon"
 	light_count = 78
