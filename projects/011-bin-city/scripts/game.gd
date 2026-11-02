@@ -113,6 +113,7 @@ var world
 var area
 var area_id := "dawn_market"
 var postfx
+var low_end := false
 var _debug_label: Label
 var _debug_ms := PackedFloat32Array()
 var env: Environment
@@ -186,15 +187,18 @@ var cutscene = null
 
 
 func _ready() -> void:
+	Engine.max_fps = 60
 	rng.seed = 20261102
 	_setup_input()
 	_build_light()
+	_detect_device()
 	postfx = POSTFX.new()
 	postfx.name = "PostFX"
 	add_child(postfx)
+	_apply_device_tier()
 	var state = get_node_or_null("/root/GameState")
 	if state != null:
-		postfx.set_quality(str(state.settings.get("quality", "standard")))
+		postfx.set_quality(_quality_setting(state))
 		if OS.has_feature("web"):
 			var forced := int(JavaScriptBridge.eval("Number(new URLSearchParams(location.search).get('rank')) || 0", true))
 			if forced >= 1 and forced <= Data.RANKS.size():
@@ -209,6 +213,7 @@ func _ready() -> void:
 	world = world_script.new()
 	world.name = start_area.to_pascal_case()
 	add_child(world)
+	_thin_particles(world)
 	if start_night and world.has_method("set_night"):
 		world.set_night(true)
 	area = world
@@ -276,6 +281,52 @@ func _ready() -> void:
 		_poster_mode()
 	else:
 		_show_title()
+	print("BIN CITY booted in %d ms, tier %s" % [Time.get_ticks_msec(), "low" if low_end else "standard"])
+
+
+func _detect_device() -> void:
+	if not OS.has_feature("web"):
+		return
+	if bool(JavaScriptBridge.eval("location.search.indexOf('low=1') >= 0", true)):
+		low_end = true
+		return
+	low_end = bool(JavaScriptBridge.eval(
+		"matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) <= 900",
+		true,
+	))
+
+
+func _quality_setting(state) -> String:
+	var chosen := "standard"
+	if state != null:
+		chosen = str(state.settings.get("quality", "standard"))
+	if low_end and chosen == "standard":
+		return "low"
+	return chosen
+
+
+func _apply_device_tier() -> void:
+	if not low_end:
+		return
+	var view := get_viewport()
+	view.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
+	view.scaling_3d_scale = 0.72
+	view.msaa_3d = Viewport.MSAA_DISABLED
+	view.msaa_2d = Viewport.MSAA_DISABLED
+	if sun_light != null:
+		sun_light.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+		sun_light.directional_shadow_max_distance = 30.0
+		sun_light.shadow_blur = 0.6
+
+
+func _thin_particles(node: Node) -> void:
+	if not low_end or node == null:
+		return
+	for child in node.get_children():
+		if child is GPUParticles3D:
+			var particles := child as GPUParticles3D
+			particles.amount = maxi(4, int(round(float(particles.amount) * 0.4)))
+		_thin_particles(child)
 
 
 func _wants_poster() -> bool:
@@ -529,7 +580,7 @@ func _apply_mood(mood: String) -> void:
 	env.fog_light_energy = 0.22
 	env.fog_density = float(cfg.fog_density)
 	env.tonemap_exposure = float(cfg.exposure)
-	env.glow_enabled = bool(cfg.glow)
+	env.glow_enabled = bool(cfg.glow) and not low_end
 	sun_light.light_color = cfg.sun
 	sun_light.light_energy = float(cfg.sun_energy)
 	if postfx != null:
@@ -615,12 +666,33 @@ func current_shift() -> Dictionary:
 
 
 func begin_shift(index: int) -> void:
+	if transitioning:
+		return
 	var state = get_node_or_null("/root/GameState")
 	if state != null:
 		state.shift_index = clampi(index, 1, Data.SHIFTS.size())
 	shift_index = clampi(index, 1, Data.SHIFTS.size())
 	start_area = str(current_shift().get("district", "dawn_market"))
+	if phase == "title" and start_area != area_id:
+		_begin_shift_staged(index)
+		return
 	_start_shift()
+
+
+func _begin_shift_staged(index: int) -> void:
+	transitioning = true
+	transition.hold(
+		"SHIFT %d" % index,
+		"BUILDING %s" % start_area.replace("_", " ").to_upper(),
+		"CLEARING THE ROUTE",
+	)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not is_inside_tree():
+		return
+	Sound.prepare_area(start_area)
+	_start_shift()
+	transitioning = false
 
 
 func _title_shifts() -> Array:
@@ -835,6 +907,7 @@ func load_area(id: String, spawn_at: Vector3) -> void:
 	var node = script.new()
 	node.name = id.to_pascal_case()
 	add_child(node)
+	_thin_particles(node)
 	area = node
 	world = node
 	area_id = id
@@ -857,6 +930,17 @@ func _enter_interior(id: String) -> void:
 	Sound.play("door", 0.95, -3.0)
 	ui.prompt("")
 	_prompt_cache = ""
+	transition.hold(
+		str(entered_door.get("title", "THE ROOM")).to_upper(),
+		"OPENING THE DOOR",
+		INTERIORS.tip(id),
+		"OPENING THE DOOR",
+	)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not is_inside_tree():
+		return
+	Sound.prepare_room(id)
 	var room = INTERIORS.build(id)
 	await transition.cover(str(room.title), str(room.greeting), INTERIORS.tip(id))
 	if not is_inside_tree():
@@ -871,6 +955,7 @@ func _enter_interior(id: String) -> void:
 	interior = room
 	interior_id = id
 	add_child(interior)
+	_thin_particles(interior)
 	inside_interior = true
 	world = interior
 	if id == "bakery":

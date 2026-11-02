@@ -137,6 +137,20 @@ func _process(delta: float) -> void:
 		_open_gate()
 
 
+func hold(title: String, line: String, tip: String, status := "BUILDING THE STREET") -> void:
+	title_label.text = title
+	line_label.text = line
+	tip_label.text = tip
+	status_label.text = status
+	root.visible = true
+	root.modulate.a = 1.0
+	bar_fill.scale = Vector2(0.001, 1.0)
+	if _bar_tween != null:
+		_bar_tween.kill()
+	_bar_tween = create_tween()
+	_bar_tween.tween_property(bar_fill, "scale:x", 1.0, 1.1).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+
+
 func cover(title: String, line: String, tip: String) -> void:
 	title_label.text = title
 	line_label.text = line

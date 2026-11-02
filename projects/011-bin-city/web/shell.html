@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
+		<meta name="theme-color" content="#f6f0e5">
+		<title>$GODOT_PROJECT_NAME</title>
+		$GODOT_HEAD_INCLUDE
+		<style>
+			html, body, #canvas {
+				margin: 0;
+				padding: 0;
+				border: 0;
+			}
+
+			body {
+				color: #15161a;
+				background-color: #0d0e11;
+				overflow: hidden;
+				touch-action: none;
+			}
+
+			#canvas {
+				display: block;
+				width: 100%;
+				height: 100%;
+			}
+
+			#canvas:focus {
+				outline: none;
+			}
+
+			#status {
+				position: fixed;
+				inset: 0;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				padding: 24px;
+				background:
+					radial-gradient(120% 90% at 50% 0%, #fbf7ef 0%, #f6f0e5 52%, #ede2ce 100%);
+				opacity: 1;
+				transition: opacity 0.4s ease;
+				z-index: 10;
+			}
+
+			#status.is-done {
+				opacity: 0;
+				pointer-events: none;
+			}
+
+			#status.is-failed {
+				background: #f6f0e5;
+			}
+
+			.boot-card {
+				width: min(520px, 100%);
+				text-align: left;
+			}
+
+			.boot-kicker {
+				margin: 0 0 10px;
+				font-family: "Manrope", "Segoe UI", system-ui, sans-serif;
+				font-size: 10px;
+				font-weight: 600;
+				letter-spacing: 0.22em;
+				text-transform: uppercase;
+				color: #d85b3f;
+			}
+
+			.boot-title {
+				margin: 0 0 18px;
+				font-family: "Fraunces", Georgia, "Times New Roman", serif;
+				font-weight: 700;
+				font-size: clamp(44px, 12vw, 76px);
+				line-height: 0.94;
+				letter-spacing: -0.03em;
+				color: #15161a;
+			}
+
+			.boot-line {
+				margin: 0 0 14px;
+				font-family: "Manrope", "Segoe UI", system-ui, sans-serif;
+				font-size: 15px;
+				line-height: 1.4;
+				color: #3f3a31;
+				min-height: 1.4em;
+			}
+
+			.boot-track {
+				position: relative;
+				height: 8px;
+				overflow: hidden;
+				border-radius: 999px;
+				background: rgba(21, 22, 26, 0.12);
+			}
+
+			#status-bar {
+				position: absolute;
+				inset: 0;
+				border-radius: inherit;
+				background: #d85b3f;
+				transform: scaleX(0.02);
+				transform-origin: left center;
+				transition: transform 0.25s ease;
+			}
+
+			.boot-meta {
+				display: flex;
+				align-items: baseline;
+				justify-content: space-between;
+				gap: 16px;
+				margin-top: 10px;
+				font-family: "Manrope", "Segoe UI", system-ui, sans-serif;
+				font-size: 10px;
+				letter-spacing: 0.14em;
+				text-transform: uppercase;
+				color: #7b7264;
+			}
+
+			#status-percent {
+				font-variant-numeric: tabular-nums;
+				color: #3f3a31;
+			}
+
+			.boot-note {
+				margin: 26px 0 0;
+				font-family: "Manrope", "Segoe UI", system-ui, sans-serif;
+				font-size: 11px;
+				line-height: 1.5;
+				color: #7b7264;
+				max-width: 38ch;
+			}
+
+			#status-notice {
+				display: none;
+				margin-top: 18px;
+				padding: 14px 16px;
+				border: 1px solid rgba(21, 22, 26, 0.18);
+				border-radius: 12px;
+				background: #fffaf0;
+				font-family: "Manrope", "Segoe UI", system-ui, sans-serif;
+				font-size: 12px;
+				line-height: 1.5;
+				color: #5b3943;
+				overflow-wrap: anywhere;
+			}
+
+			#status.is-failed #status-notice {
+				display: block;
+			}
+
+			#status.is-failed .boot-track,
+			#status.is-failed .boot-meta,
+			#status.is-failed .boot-note {
+				display: none;
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				#status,
+				#status-bar {
+					transition: none;
+				}
+			}
+		</style>
+		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
+		<link rel="apple-touch-icon" href="index.apple-touch-icon.png" />
+	</head>
+	<body>
+		<canvas id="canvas">
+			Your browser does not support the canvas tag.
+		</canvas>
+
+		<noscript>
+			Your browser does not support JavaScript.
+		</noscript>
+
+		<div id="status" role="status" aria-live="polite">
+			<div class="boot-card">
+				<p class="boot-kicker">A Kone Studio game</p>
+				<h1 class="boot-title">BIN CITY</h1>
+				<p class="boot-line" id="status-line">Waking up the market</p>
+				<div class="boot-track">
+					<div id="status-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
+				</div>
+				<div class="boot-meta">
+					<span>First shift</span>
+					<span id="status-percent">0%</span>
+				</div>
+				<p class="boot-note">First load takes a moment. The browser keeps the game after that.</p>
+				<div id="status-notice"></div>
+			</div>
+		</div>
+
+		<script src="$GODOT_URL"></script>
+		<script>
+			const GODOT_CONFIG = $GODOT_CONFIG;
+			const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
+			const engine = new Engine(GODOT_CONFIG);
+
+			(function () {
+				const overlay = document.getElementById('status');
+				const bar = document.getElementById('status-bar');
+				const percent = document.getElementById('status-percent');
+				const line = document.getElementById('status-line');
+				const notice = document.getElementById('status-notice');
+				let initializing = true;
+				let slowTimer = 0;
+
+				function setProgress(current, total) {
+					if (!(current > 0 && total > 0)) {
+						bar.style.transform = 'scaleX(0.35)';
+						percent.textContent = '';
+						return;
+					}
+					const value = Math.min(100, Math.round((current / total) * 100));
+					bar.style.transform = 'scaleX(' + Math.max(0.02, value / 100) + ')';
+					bar.setAttribute('aria-valuenow', String(value));
+					percent.textContent = value + '%';
+					if (value >= 100) {
+						line.textContent = 'Starting the shift';
+						if (!slowTimer) {
+							slowTimer = window.setTimeout(function () {
+								line.textContent = 'Building the market';
+							}, 1800);
+						}
+					}
+				}
+
+				function hide() {
+					if (!initializing) {
+						return;
+					}
+					initializing = false;
+					overlay.classList.add('is-done');
+					window.setTimeout(function () {
+						overlay.remove();
+					}, 450);
+				}
+
+				function fail(err) {
+					console.error(err);
+					initializing = false;
+					overlay.classList.add('is-failed');
+					line.textContent = 'The game could not start';
+					const message = err instanceof Error ? err.message : String(err || 'Unknown error.');
+					notice.textContent = message;
+				}
+
+				const missing = Engine.getMissingFeatures({
+					threads: GODOT_THREADS_ENABLED,
+				});
+
+				if (missing.length !== 0) {
+					fail(new Error('This browser is missing: ' + missing.join(', ')));
+					return;
+				}
+
+				const started = performance.now();
+				engine.startGame({
+					onProgress: setProgress,
+				}).then(function () {
+					console.log('[bin-city] engine ready in ' + Math.round(performance.now() - started) + ' ms');
+					hide();
+				}, fail);
+			}());
+		</script>
+	</body>
+</html>

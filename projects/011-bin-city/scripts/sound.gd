@@ -99,6 +99,7 @@ func _ambience_target_db() -> float:
 
 func play_music(track: String, fade := 1.0) -> void:
 	var key := "music_" + track
+	_ensure(key)
 	if not library.has(key):
 		return
 	if current_music == key and music.playing:
@@ -116,6 +117,7 @@ func play_ambience(bed: String) -> void:
 	if current_ambience == key:
 		return
 	current_ambience = key
+	_ensure(key)
 	if not library.has(key):
 		ambience.stop()
 		return
@@ -128,6 +130,7 @@ func play_ambience(bed: String) -> void:
 func set_boss_layer(layer: int) -> void:
 	boss_layer = clampi(layer, 1, 3)
 	var key := "music_boss_%d" % boss_layer
+	_ensure(key)
 	if not library.has(key):
 		return
 	current_music = "music_boss"
@@ -195,17 +198,57 @@ func _build_library() -> void:
 	var market := _wav(_market_music(), true)
 	library["music_market"] = market
 	library["music"] = market
-	library["music_canal"] = _wav(_canal_music(), true)
-	library["music_neon"] = _wav(_neon_music(), true)
-	library["music_boss_1"] = _wav(_boss_music(1), true)
-	library["music_boss_2"] = _wav(_boss_music(2), true)
-	library["music_boss_3"] = _wav(_boss_music(3), true)
-	library["music_ending"] = _wav(_ending_music(), true)
 	library["amb_market"] = _wav(_amb_market(), true)
-	library["amb_canal"] = _wav(_amb_canal(), true)
-	library["amb_neon"] = _wav(_amb_neon(), true)
-	library["amb_interior"] = _wav(_amb_interior(), true)
-	library["amb_plant"] = _wav(_amb_plant(), true)
+
+
+const AREA_BEDS := {
+	"dawn_market": "market",
+	"canal_quarter": "canal",
+	"neon_arcade": "neon",
+}
+
+
+func prepare_area(id: String) -> void:
+	var bed := str(AREA_BEDS.get(id, "market"))
+	_ensure("music_" + bed)
+	_ensure("amb_" + bed)
+
+
+func prepare_room(id: String) -> void:
+	if id == "plant":
+		_ensure("music_boss_1")
+		_ensure("music_boss_2")
+		_ensure("music_boss_3")
+		_ensure("music_ending")
+		_ensure("amb_plant")
+	else:
+		_ensure("amb_interior")
+
+
+func _ensure(key: String) -> void:
+	if library.has(key):
+		return
+	match key:
+		"music_canal":
+			library[key] = _wav(_canal_music(), true)
+		"music_neon":
+			library[key] = _wav(_neon_music(), true)
+		"music_boss_1":
+			library[key] = _wav(_boss_music(1), true)
+		"music_boss_2":
+			library[key] = _wav(_boss_music(2), true)
+		"music_boss_3":
+			library[key] = _wav(_boss_music(3), true)
+		"music_ending":
+			library[key] = _wav(_ending_music(), true)
+		"amb_canal":
+			library[key] = _wav(_amb_canal(), true)
+		"amb_neon":
+			library[key] = _wav(_amb_neon(), true)
+		"amb_interior":
+			library[key] = _wav(_amb_interior(), true)
+		"amb_plant":
+			library[key] = _wav(_amb_plant(), true)
 
 
 func _wav(samples: PackedFloat32Array, loop := false) -> AudioStreamWAV:
