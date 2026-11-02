@@ -22,6 +22,12 @@ func _run() -> void:
 	await process_frame
 	game._start_shift()
 	await process_frame
+	if game.cutscene.active:
+		game.cutscene.skip()
+		while game.cutscene.active:
+			await process_frame
+	game.player.locked = false
+	await process_frame
 
 	var barrel = load("res://scripts/litter.gd").new()
 	var rng := RandomNumberGenerator.new()
