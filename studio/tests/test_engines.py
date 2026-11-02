@@ -127,6 +127,48 @@ def test_godot_build_delegates_to_export_web(tmp_path, monkeypatch):
     assert target == tmp_path / "build" / "web"
 
 
+def test_godot_windows_build_packages_a_zip(tmp_path, monkeypatch):
+    from studio.lib.engines.godot import GodotAdapter
+
+    project = make_project(tmp_path)
+    project.engine = "godot"
+    project.kind = "game"
+    calls = []
+    monkeypatch.setattr(
+        "studio.lib.engines.godot.godot_tool.export_windows",
+        lambda root, out, exe: calls.append((root, out, exe)) or tmp_path / "build" / "099-adapter-test-windows.zip",
+    )
+    target = GodotAdapter().build(project, tmp_path / "build" / "windows", target="windows")
+    assert calls == [(tmp_path, tmp_path / "build" / "windows", "099-adapter-test.exe")]
+    assert target.name == "099-adapter-test-windows.zip"
+
+
+def test_godot_rejects_an_unknown_target(tmp_path):
+    import pytest
+
+    from studio.lib.engines.godot import GodotAdapter
+
+    project = make_project(tmp_path)
+    project.engine = "godot"
+    project.kind = "game"
+    with pytest.raises(ValueError):
+        GodotAdapter().build(project, tmp_path / "build" / "linux", target="linux")
+
+
+def test_zip_dir_keeps_flat_entries(tmp_path):
+    import zipfile
+
+    from studio.lib.godot import zip_dir
+
+    source = tmp_path / "windows"
+    source.mkdir()
+    (source / "BinCity.exe").write_bytes(b"exe")
+    (source / "BinCity.pck").write_bytes(b"pck")
+    dest = zip_dir(source, tmp_path / "BinCity-windows.zip")
+    with zipfile.ZipFile(dest) as archive:
+        assert archive.namelist() == ["BinCity.exe", "BinCity.pck"]
+
+
 from studio import studio as cli
 
 

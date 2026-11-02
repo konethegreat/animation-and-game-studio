@@ -23,6 +23,8 @@ Never commit `.venv`, `node_modules`, raw frames, Godot `.godot/`, or build outp
 ./.venv/Scripts/python studio/studio.py render 010-maker-at-work --preview
 ./.venv/Scripts/python studio/studio.py render 010-maker-at-work --shot s02-portrait
 ./.venv/Scripts/python studio/studio.py build 003-micro-game
+./.venv/Scripts/python studio/studio.py build 011-bin-city --target windows
+./.venv/Scripts/python studio/studio.py build 011-bin-city --target all
 ./.venv/Scripts/python studio/studio.py export 004-lantern-keeper
 ./.venv/Scripts/python studio/studio.py verify 004-lantern-keeper
 ./.venv/Scripts/python studio/studio.py assets verify --offline
@@ -52,7 +54,7 @@ projects/<id>/
 └─ README.md         what it is and how to reproduce it
 ```
 
-Starter templates live in `studio/templates/{2d,3d,game}`. They use `__ID__` and `__TITLE__` placeholders that `studio new` substitutes. `studio/tests/test_templates.py` keeps them valid.
+Starter templates live in `studio/templates/{2d,3d,game,game3d}`. They use `__ID__` and `__TITLE__` placeholders that `studio new` substitutes. `studio/tests/test_templates.py` keeps them valid.
 
 Manifest rules: id is `NNN-lowercase-name`, type is `2d | 3d | game`, kind is `film | game`, and the engine must be one the registry supports for that kind. Resolution never exceeds 1920x1080. Outputs are repo-relative paths. Blender exports go to the declared `.glb` output. Optional `render.poster_time` (seconds, default 1) picks the poster frame.
 

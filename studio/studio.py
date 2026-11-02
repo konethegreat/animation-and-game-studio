@@ -77,11 +77,14 @@ def cmd_build(args: argparse.Namespace) -> int:
     if project.kind != "game":
         raise SystemExit(f"{project.id} is not a game; use studio render")
     adapter = engines.get(project.engine)
-    out = project.root / "build" / "web"
-    target = adapter.build(project, out)
-    if not target:
-        raise SystemExit(f"{project.engine} has no build target")
-    print(f"web build -> {target}")
+    wanted = getattr(args, "target", "web")
+    targets = ("web", "windows") if wanted == "all" else (wanted,)
+    for name in targets:
+        out = project.root / "build" / name
+        built = adapter.build(project, out, target=name)
+        if not built:
+            raise SystemExit(f"{project.engine} has no {name} build target")
+        print(f"{name} build -> {built}")
     return 0
 
 
@@ -163,7 +166,7 @@ def build_parser() -> argparse.ArgumentParser:
     validate.set_defaults(func=cmd_validate)
 
     new = sub.add_parser("new", help="scaffold a project")
-    new.add_argument("type", choices=["2d", "3d", "game"])
+    new.add_argument("type", choices=["2d", "3d", "game", "game3d"])
     new.add_argument("name")
     new.add_argument("--title", default="Untitled")
     new.set_defaults(func=cmd_new)
@@ -181,6 +184,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     build_cmd = sub.add_parser("build", help="build a playable game")
     build_cmd.add_argument("id")
+    build_cmd.add_argument("--target", choices=["web", "windows", "all"], default="web")
     build_cmd.set_defaults(func=cmd_build)
 
     verify_cmd = sub.add_parser("verify", help="verify rendered outputs")

@@ -11,7 +11,7 @@ from studio.lib.config import ROOT
 TEMPLATES = ROOT / "studio" / "templates"
 
 
-@pytest.mark.parametrize("kind", ["2d", "3d", "game"])
+@pytest.mark.parametrize("kind", ["2d", "3d", "game", "game3d"])
 def test_template_scaffolds_to_valid_project(tmp_path: Path, kind: str) -> None:
     dest = tmp_path / f"099-sample-{kind}"
     shutil.copytree(TEMPLATES / kind, dest)

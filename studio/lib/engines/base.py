@@ -74,7 +74,7 @@ class EngineAdapter:
     def render(self, project, shot, out: Path) -> int:
         raise NotImplementedError(f"{self.name} cannot render yet")
 
-    def build(self, project, out: Path) -> Path | None:
+    def build(self, project, out: Path, target: str = "web") -> Path | None:
         return None
 
     def export(self, project, target: Path) -> Path | None:

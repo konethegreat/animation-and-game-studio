@@ -1,0 +1,14 @@
+id: __ID__
+type: game
+title: __TITLE__
+summary: A small playable 3D game built with Godot and exported for the web.
+tags: [game, godot, 3d]
+engine: godot
+entry: project.godot
+render:
+  resolution: [1280, 720]
+  fps: 60
+  frames: 1
+outputs:
+  - media/__ID__/poster.jpg
+  - projects/__ID__/build/web/index.html
