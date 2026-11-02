@@ -1,7 +1,7 @@
 extends SceneTree
 
-# Temporary capture harness: boots the real game, starts shift 5, enters the
-# plant and photographs each Gulper phase, then the calmed core.
+# Temporary capture harness: boots the real game, photographs the cold open
+# cutscene, skips it, then starts shift 5 and photographs the boss intro.
 
 var scene: Node
 
@@ -27,30 +27,32 @@ func _run() -> void:
 	await process_frame
 	await create_timer(0.6).timeout
 
-	print("STAGE  shift 5")
+	print("STAGE  cold open")
+	root.get_node("GameState").reset_new_game()
+	scene.begin_shift(1)
+	while not scene.cutscene.active:
+		await process_frame
+	await create_timer(4.2).timeout
+	await _shot("25-cold-open")
+	scene.cutscene.skip()
+	while scene.cutscene.active:
+		await process_frame
+	await create_timer(0.6).timeout
+	print("STAGE  playable after skip  locked=", scene.player.locked)
+	await _shot("26-after-skip")
+
+	print("STAGE  boss intro")
+	root.get_node("GameState").set_flag("seen_neon_arcade")
 	scene.begin_shift(5)
 	while scene.player.locked:
 		await process_frame
-	await create_timer(0.5).timeout
-	print("STAGE  entering plant")
+	await create_timer(0.4).timeout
 	scene._enter_interior("plant")
-	while scene.boss == null:
+	while not scene.cutscene.active:
 		await process_frame
-	await create_timer(2.5).timeout
-	print("STAGE  boss phase ", scene.boss.phase, " health ", scene.boss.health)
-	await _shot("22-boss-phase1")
-
-	scene.boss.health = 200.0
-	scene.boss._check_phase()
-	await create_timer(1.6).timeout
-	print("STAGE  boss phase ", scene.boss.phase)
-	await _shot("23-boss-phase2")
-
-	scene.boss.health = 100.0
-	scene.boss._check_phase()
-	await create_timer(1.6).timeout
-	print("STAGE  boss phase ", scene.boss.phase, " core ", scene.boss.core_open)
-	await _shot("24-boss-phase3")
+	await create_timer(3.4).timeout
+	print("STAGE  intro cutscene=", scene.cutscene.active, " boss active=", scene.boss.active if scene.boss != null else false)
+	await _shot("27-boss-intro")
 
 	print("STAGE  done")
 	quit(0)

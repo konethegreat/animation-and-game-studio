@@ -12,6 +12,7 @@ signal sort_closed
 signal interact_pressed
 signal dialogue_next
 signal dialogue_choice(index: int)
+signal skip_pressed
 
 const K = preload("res://scripts/kit.gd")
 const TouchStick = preload("res://scripts/touch_stick.gd")
@@ -65,6 +66,7 @@ var rank_line: Label
 var rank_panel: PanelContainer
 var title_play: Button
 var title_shifts: VBoxContainer
+var title_note: Label
 var objective_label: Label
 var results_next: Button
 var results_line: Label
@@ -75,6 +77,7 @@ var boss_phase_pips: Array[ColorRect] = []
 var boss_strip: Label
 var boss_flash: ColorRect
 var _boss_flash_tween: Tween
+var skip_button: Button
 var touch_root: Control
 var stick: Control
 var look_pad: Control
@@ -406,6 +409,20 @@ func _build_hud() -> void:
 	boss_strip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	boss_box.add_child(boss_strip)
 
+	skip_button = _text_button("SKIP  >>", K.CORAL, 13)
+	skip_button.anchor_left = 1.0
+	skip_button.anchor_right = 1.0
+	skip_button.offset_left = -120
+	skip_button.offset_right = -24
+	skip_button.offset_top = 64
+	skip_button.visible = false
+	skip_button.pressed.connect(func() -> void: skip_pressed.emit())
+	hud.add_child(skip_button)
+
+
+func show_skip(on: bool) -> void:
+	skip_button.visible = on
+
 
 func show_boss(name_text: String) -> void:
 	boss_panel.visible = true
@@ -622,6 +639,9 @@ func _build_title() -> void:
 	var goal := _label("TODAY'S JOB  /  GET THE STREET 90% CLEAN BEFORE OPENING", 11, K.TEAL_DARK, true)
 	goal.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(goal)
+	title_note = _label("", 13, K.TEAL_DARK, true)
+	title_note.visible = false
+	box.add_child(title_note)
 	box.add_child(_spacer(6))
 
 	title_shifts = VBoxContainer.new()
@@ -1111,7 +1131,9 @@ func hide_rank() -> void:
 	rank_layer.visible = false
 
 
-func show_shifts(entries: Array) -> void:
+func show_shifts(entries: Array, note := "") -> void:
+	title_note.visible = note != ""
+	title_note.text = note
 	for child in title_shifts.get_children():
 		child.queue_free()
 	for entry in entries:

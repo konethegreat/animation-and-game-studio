@@ -12,6 +12,7 @@ const CROWD = preload("res://scripts/crowd.gd")
 const INTERIORS = preload("res://scripts/interiors.gd")
 const TRANSITION = preload("res://scripts/transition.gd")
 const BOSS = preload("res://scripts/boss.gd")
+const CUTSCENE = preload("res://scripts/cutscene.gd")
 
 const MOODS := {
 	"dawn": {
@@ -179,6 +180,7 @@ var _nest_node: Node3D = null
 var boss = null
 var _boss_grime: Array[Node3D] = []
 var _boss_grime_alive := 0
+var cutscene = null
 
 
 func _ready() -> void:
@@ -244,6 +246,12 @@ func _ready() -> void:
 	transition = TRANSITION.new()
 	transition.name = "Transition"
 	add_child(transition)
+	cutscene = CUTSCENE.new()
+	cutscene.name = "Cutscene"
+	add_child(cutscene)
+	cutscene._game = self
+	cutscene.finished.connect(_on_cutscene_finished)
+	ui.skip_pressed.connect(cutscene.skip)
 	player.stack_tumbled.connect(_on_tumble)
 	player.pulse_requested.connect(_on_pulse)
 	player.dash_started.connect(_on_dash)
@@ -302,6 +310,11 @@ func _process(delta: float) -> void:
 	if phase != "play":
 		return
 	if transitioning:
+		return
+	if cutscene != null and cutscene.active:
+		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("pause"):
+			cutscene.skip()
+		_update_hud()
 		return
 	if talking:
 		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("vacuum"):
@@ -555,7 +568,11 @@ func _show_title() -> void:
 	world.set_clean(0.0)
 	title_time = 0.0
 	title_cam.current = true
-	ui.show_shifts(_title_shifts())
+	var state = get_node_or_null("/root/GameState")
+	var note := ""
+	if state != null and state.has_flag("gulper_calmed"):
+		note = "THE GULPER SLEEPS  /  THE CITY IS CLEAN  /  THANK YOU FOR PLAYING"
+	ui.show_shifts(_title_shifts(), note)
 	ui.set_phase("title")
 	ui.set_muted(Sound.muted)
 	Sound.set_vacuum(false)
@@ -671,7 +688,50 @@ func _show_briefing() -> void:
 	await transition.revealed
 	if phase == "play" and not talking:
 		player.locked = false
-	ui.subtitle(str(AREA_INTRO.get(area_id, AREA_INTRO["dawn_market"])), 6.0)
+	var state = get_node_or_null("/root/GameState")
+	if _wants_poster() or state == null:
+		ui.subtitle(str(AREA_INTRO.get(area_id, AREA_INTRO["dawn_market"])), 6.0)
+		return
+	var seen: bool = state.has_flag("seen_" + area_id)
+	if shift_index == 1 and not state.has_flag("cold_open"):
+		_cold_open()
+	elif not seen:
+		_district_pan()
+	else:
+		ui.subtitle(str(AREA_INTRO.get(area_id, AREA_INTRO["dawn_market"])), 6.0)
+
+
+func _cold_open() -> void:
+	var center: Vector3 = player.global_position
+	var high := center + Vector3(-12.0, 9.5, 13.0)
+	var close := center + Vector3(1.6, 2.3, 5.2)
+	cutscene.play("cold_open", [
+		{"t": "cam", "pos": high, "look": center + Vector3(0.0, 1.0, -6.0), "s": 3.2},
+		{"t": "line", "speaker": "NELL", "text": "Radio: Bin City Sanitation, shift one. The whole market dumped overnight. Again."},
+		{"t": "line", "speaker": "NELL", "text": "Radio: Vacuum it, sort it, bank the XP. And keep an eye on the drains. Something is clogging them on purpose."},
+		{"t": "line", "speaker": "NELL", "text": "Radio: Welcome to Bin City, sweeper. Try not to smell the river."},
+		{"t": "cam", "pos": close, "look": center + Vector3(0.0, 1.3, 0.0), "s": 3.0},
+		{"t": "line", "speaker": "", "text": "BIN CITY"},
+		{"t": "flag", "name": "cold_open"},
+		{"t": "flag", "name": "seen_dawn_market"},
+		{"t": "release"},
+	])
+
+
+func _district_pan() -> void:
+	var state = get_node_or_null("/root/GameState")
+	if state != null:
+		state.set_flag("seen_" + area_id)
+	var center: Vector3 = player.global_position
+	var wide := center + Vector3(-9.0, 6.5, 11.0)
+	var sweep := center + Vector3(9.0, 5.0, 11.0)
+	var line := str(AREA_INTRO.get(area_id, AREA_INTRO["dawn_market"]))
+	cutscene.play("district", [
+		{"t": "cam", "pos": wide, "look": center + Vector3(0.0, 1.2, -4.0), "s": 2.6},
+		{"t": "line", "speaker": "NELL", "text": "Radio: %s" % line},
+		{"t": "cam", "pos": sweep, "look": center + Vector3(0.0, 1.2, -2.0), "s": 2.8},
+		{"t": "release"},
+	])
 
 
 func _pause() -> void:
@@ -1480,16 +1540,26 @@ func _start_boss() -> void:
 	boss = BOSS.new()
 	world.add_child(boss)
 	boss.setup(world)
-	boss.begin()
 	boss.damaged.connect(func(_health: float) -> void: Sound.play("burst", 0.8, -4.0))
 	boss.stomp.connect(_on_boss_stomp)
 	boss.suction.connect(_on_boss_suction)
 	boss.volley.connect(_on_boss_volley)
 	boss.phase_changed.connect(_on_boss_phase)
 	boss.defeated.connect(_ending)
-	ui.show_boss("THE GULPER")
-	ui.subtitle("The Gulper wakes. Feed each chute the litter it asks for.", 6.0)
-	Sound.play("zap", 0.5, -4.0)
+	var mouth: Vector3 = boss.mouth_position()
+	var player_local: Vector3 = world.to_local(player.global_position)
+	var cam_wide: Vector3 = world.to_global(player_local + Vector3(3.8, 2.6, 2.4))
+	var cam_close: Vector3 = world.to_global(player_local + Vector3(-2.6, 2.2, 3.4))
+	cutscene.play("boss_intro", [
+		{"t": "shake", "amount": 0.3, "s": 1.2},
+		{"t": "cam", "pos": cam_wide, "look": mouth, "s": 1.8},
+		{"t": "line", "speaker": "SULLAGE", "text": "Radio: Well, well. The little sweeper. You are standing on my gravy train."},
+		{"t": "line", "speaker": "SULLAGE", "text": "Radio: The Gulper eats what I dump and I dump what the city pays me to lose. Keep it dirty, keep me rich."},
+		{"t": "line", "speaker": "NELL", "text": "Radio: That is a Sullage Haulage band, broadcasting from under your feet. Calm the Gulper and his ledger is ours."},
+		{"t": "flag", "name": "sullage_overclock"},
+		{"t": "cam", "pos": cam_close, "look": player.global_position + Vector3(0.0, 1.4, 0.0), "s": 1.4},
+		{"t": "release"},
+	])
 
 
 func _update_boss(delta: float) -> void:
@@ -1634,13 +1704,26 @@ func _ending() -> void:
 	if boss != null and is_instance_valid(boss):
 		boss.active = false
 	ui.hide_boss()
+	Sound.play("finish", 0.8, -2.0)
 	var state = get_node_or_null("/root/GameState")
 	if state != null:
 		state.set_flag("gulper_calmed")
 		state.add_xp(800)
 	_objective_done("boss")
-	ui.subtitle("The drum winds down. The plant goes quiet.", 5.0)
-	_finish()
+	var mouth: Vector3 = boss.mouth_position() if boss != null and is_instance_valid(boss) else player.global_position + Vector3(0.0, 1.5, -6.0)
+	var player_local: Vector3 = world.to_local(player.global_position)
+	var cam_wide: Vector3 = world.to_global(player_local + Vector3(-4.4, 3.4, 3.6))
+	var cam_close: Vector3 = world.to_global(player_local + Vector3(0.6, 2.4, 4.2))
+	cutscene.play("ending", [
+		{"t": "cam", "pos": cam_wide, "look": mouth, "s": 2.2},
+		{"t": "line", "speaker": "", "text": "The drum winds down. Steam sighs out of the stacks. The Gulper sleeps."},
+		{"t": "line", "speaker": "SULLAGE", "text": "Radio: No. No, no, no. Do you know what that machine was worth? That was my retirement."},
+		{"t": "line", "speaker": "NELL", "text": "Radio: Whole city heard that confession. Sanitation office, new badge, and the Sullage ledger. Promoted, sweeper."},
+		{"t": "flag", "name": "promoted"},
+		{"t": "cam", "pos": cam_close, "look": player.global_position + Vector3(0.0, 1.4, 0.0), "s": 2.2},
+		{"t": "line", "speaker": "", "text": "Bin City is clean. For tonight, anyway."},
+		{"t": "release"},
+	])
 
 
 func _near_arcade_cabinet() -> bool:
@@ -2043,6 +2126,16 @@ func _on_rank_changed(value: int) -> void:
 	ui.show_rank(rank, _rank_line(rank))
 	if phase == "play":
 		ui.subtitle("RANK UP. %s. %s" % [Data.rank_title(rank), _rank_line(rank)], 6.5)
+		if cutscene != null and not cutscene.active and not talking and not inside_interior:
+			var center: Vector3 = player.global_position
+			var yaw := cam_yaw.rotation.y
+			var from := center + Vector3(sin(yaw) * 5.2, 2.3, cos(yaw) * 5.2)
+			var to := center + Vector3(sin(yaw + PI) * 5.2, 2.3, cos(yaw + PI) * 5.2)
+			cutscene.play("rank", [
+				{"t": "cam", "pos": from, "look": center + Vector3(0.0, 1.2, 0.0), "s": 0.05},
+				{"t": "cam", "pos": to, "look": center + Vector3(0.0, 1.2, 0.0), "s": 2.2},
+				{"t": "release"},
+			])
 
 
 # ---------------------------------------------------------------- dialogue
@@ -2059,6 +2152,19 @@ func _on_dialogue_started(_id: String) -> void:
 
 func _on_dialogue_line(speaker: String, text: String, choices: Array) -> void:
 	ui.open_dialogue(speaker, text, choices)
+
+
+func _on_cutscene_finished(id: String) -> void:
+	if id == "ending":
+		_finish()
+		return
+	if id == "boss_intro" and boss != null and is_instance_valid(boss):
+		boss.begin()
+		ui.show_boss("THE GULPER")
+		ui.subtitle("The Gulper wakes. Feed each chute the litter it asks for.", 6.0)
+		Sound.play("zap", 0.5, -4.0)
+	if phase == "play" and not talking and player != null:
+		player.locked = false
 
 
 func _on_dialogue_finished(id: String) -> void:
@@ -2156,6 +2262,8 @@ func _save_best() -> void:
 # ---------------------------------------------------------------- update loops
 
 func _update_camera(delta: float) -> void:
+	if cutscene != null and cutscene.active:
+		return
 	cam_kick = maxf(0.0, cam_kick - delta)
 	camera.fov = lerpf(camera.fov, 58.0 + clampf(cam_kick / 0.22, 0.0, 1.0) * 7.0, minf(1.0, delta * 14.0))
 	var look := Input.get_vector("look_left", "look_right", "look_up", "look_down")

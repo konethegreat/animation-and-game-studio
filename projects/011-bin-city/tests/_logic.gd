@@ -6,6 +6,27 @@ const LITTER = preload("res://scripts/litter.gd")
 var failures := 0
 
 
+class _StubPlayer:
+	extends Node3D
+	var locked := false
+
+
+class _StubUI:
+	extends Node
+	var subtitles: Array = []
+	func subtitle(text: String, _seconds := 5.0) -> void:
+		subtitles.append(text)
+	func show_skip(_on: bool) -> void:
+		pass
+
+
+class _StubGame:
+	extends Node3D
+	var player: _StubPlayer
+	var camera: Camera3D
+	var ui: _StubUI
+
+
 func _check(name: String, ok: bool, detail: String = "") -> void:
 	if ok:
 		print("PASS  ", name)
@@ -298,6 +319,51 @@ func _run() -> void:
 	boss.queue_free()
 	await process_frame
 	story_dlg.queue_free()
+	await process_frame
+
+	var game_stub := _StubGame.new()
+	root.add_child(game_stub)
+	var player_stub := _StubPlayer.new()
+	game_stub.add_child(player_stub)
+	var cam_stub := Camera3D.new()
+	game_stub.add_child(cam_stub)
+	var ui_stub := _StubUI.new()
+	game_stub.add_child(ui_stub)
+	game_stub.player = player_stub
+	game_stub.camera = cam_stub
+	game_stub.ui = ui_stub
+	var cs = load("res://scripts/cutscene.gd").new()
+	root.add_child(cs)
+	cs._game = game_stub
+	var finished_log: Array = []
+	cs.finished.connect(func(id: String) -> void: finished_log.append(id))
+	state.flags.erase("cs_test_flag")
+	state.flags.erase("cs_late_flag")
+	cs.play("test_scene", [
+		{"t": "wait", "s": 0.05},
+		{"t": "line", "speaker": "NELL", "text": "Hello sweeper."},
+		{"t": "flag", "name": "cs_test_flag"},
+		{"t": "cam", "pos": Vector3(5.0, 5.0, 5.0), "look": Vector3.ZERO, "s": 0.05},
+		{"t": "flag", "name": "cs_late_flag"},
+	])
+	while cs.active:
+		await process_frame
+	_check("cutscene spoke its line", ui_stub.subtitles.size() == 1 and ui_stub.subtitles[0] == "NELL: Hello sweeper.")
+	_check("cutscene applied flags", state.has_flag("cs_test_flag") and state.has_flag("cs_late_flag"))
+	_check("cutscene restored camera", cam_stub.transform == Transform3D.IDENTITY)
+	_check("cutscene locked player during play", player_stub.locked)
+	_check("cutscene emitted finished id", finished_log == ["test_scene"])
+	state.flags.erase("cs_skip_flag")
+	cs.play("skip_scene", [
+		{"t": "wait", "s": 30.0},
+		{"t": "flag", "name": "cs_skip_flag"},
+	])
+	cs.skip()
+	while cs.active:
+		await process_frame
+	_check("skip still applies flags", state.has_flag("cs_skip_flag"))
+	cs.queue_free()
+	game_stub.queue_free()
 	await process_frame
 
 	var picker = Player.new()
