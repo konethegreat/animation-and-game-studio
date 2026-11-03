@@ -17,6 +17,11 @@ BUDGET_MB = {
     ".glb": 5.0,
 }
 
+TEASER_BUDGET_MB = 2.0
+TEASER_HEIGHT = 432
+TEASER_SLICE = 2.0
+TEASER_MAX = 16.0
+
 
 def parse_fps(value: str) -> float:
     if "/" in value:
@@ -192,6 +197,48 @@ def _final_mp4(project, master: Path, mp4: Path, audio: Path | None) -> None:
         print(f"{mp4.name} is over {limit:g} MB at crf {crf}; retrying at a higher crf")
 
 
+def teaser_segments(project) -> list[tuple[int, int]]:
+    limit = round(TEASER_MAX * project.fps)
+    if len(project.shots) < 2:
+        return [(0, min(project.frames, limit) - 1)]
+    span = round(min(TEASER_SLICE, TEASER_MAX / len(project.shots)) * project.fps)
+    segments = []
+    start = 0
+    for shot in project.shots:
+        take = min(span, shot.frames)
+        first = start + (shot.frames - take) // 2
+        segments.append((first, first + take - 1))
+        start += shot.frames
+    return segments
+
+
+def make_teaser(project, source: Path | None = None) -> Path:
+    ffmpeg = find_tool("ffmpeg")
+    if not ffmpeg:
+        raise RuntimeError("ffmpeg not found; run studio doctor")
+    source = source or resolve_mp4(project)
+    if not source or not source.exists():
+        raise RuntimeError(f"{project.id} has no reel to cut a teaser from")
+    out = project.media_dir / "teaser.mp4"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    pick = "+".join(f"between(n,{first},{last})" for first, last in teaser_segments(project))
+    # Cards are 16:9, so wider reels are centre cropped here instead of shipping hidden pixels.
+    _run([
+        str(ffmpeg), "-y", "-i", str(source), "-an", "-vf",
+        f"select='{pick}',setpts=N/FRAME_RATE/TB,"
+        "crop='trunc(min(iw,ih*16/9)/2)*2':'trunc(min(ih,iw*9/16)/2)*2',"
+        f"scale=-2:'min(ih,{TEASER_HEIGHT})':flags=lanczos",
+        "-c:v", "libx264", "-preset", "slow", "-crf", "26", "-pix_fmt", "yuv420p",
+        "-movflags", "+faststart", str(out),
+    ])
+    size_mb = out.stat().st_size / (1024 * 1024)
+    if size_mb > TEASER_BUDGET_MB:
+        raise ValueError(
+            f"{out.name} exceeds {TEASER_BUDGET_MB} MB teaser budget ({size_mb:.2f} MB)"
+        )
+    return out
+
+
 def encode_project(project, frames_root: Path, width: int, height: int) -> dict[str, Path]:
     mp4 = resolve_mp4(project)
     webm = resolve_webm(project)
@@ -211,6 +258,7 @@ def encode_project(project, frames_root: Path, width: int, height: int) -> dict[
             f"encoded {width}x{height} {project.fps}fps {info['duration']:.2f}s "
             f"({info['codec']}) -> {mp4}"
         )
+        outs["teaser"] = make_teaser(project, mp4)
     if webm:
         cmd = [str(find_tool("ffmpeg")), "-y", "-i", str(mp4 or master)]
         if audio and not mp4:

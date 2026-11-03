@@ -34,10 +34,10 @@ def make_project(tmp_path: Path, outputs: list[str], shots: list[Shot] | None = 
     )
 
 
-def frames(path: Path, count: int) -> Path:
+def frames(path: Path, count: int, size: tuple[int, int] = (160, 90)) -> Path:
     path.mkdir(parents=True, exist_ok=True)
     for index in range(1, count + 1):
-        Image.new("RGB", (160, 90), (index * 20, 40, 80)).save(path / f"frame_{index:04d}.png")
+        Image.new("RGB", size, (index * 20, 40, 80)).save(path / f"frame_{index:04d}.png")
     return path
 
 
@@ -131,3 +131,62 @@ def test_encode_project_concatenates_shots(tmp_path):
     outs = media.encode_project(project, tmp_path / "frames", 160, 90)
     info = media.probe(outs["mp4"])
     assert info["duration"] == pytest.approx(4 / 24, abs=0.2)
+
+
+def test_teaser_takes_a_slice_from_the_middle_of_each_shot(tmp_path):
+    project = make_project(tmp_path, ["media/099-media-test/reel.mp4"], shots=[
+        Shot("a", "scene.py", 96), Shot("b", "scene.py", 240), Shot("c", "scene.py", 24),
+    ])
+    project.frames = 360
+    assert media.teaser_segments(project) == [(24, 71), (192, 239), (336, 359)]
+
+
+def test_teaser_shares_the_length_cap_across_many_shots(tmp_path):
+    shots = [Shot(f"s{index:02d}", "scene.py", 240) for index in range(12)]
+    project = make_project(tmp_path, ["media/099-media-test/reel.mp4"], shots=shots)
+    project.frames = 240 * 12
+    segments = media.teaser_segments(project)
+    assert len(segments) == 12
+    assert sum(last - first + 1 for first, last in segments) <= media.TEASER_MAX * 24
+
+
+def test_teaser_loops_a_single_shot_up_to_the_cap(tmp_path):
+    project = make_project(tmp_path, ["media/099-media-test/reel.mp4"], shots=[Shot("main", "scene.py", 144)])
+    project.frames = 144
+    assert media.teaser_segments(project) == [(0, 143)]
+    project.frames = 1200
+    project.shots = [Shot("main", "scene.py", 1200)]
+    assert media.teaser_segments(project) == [(0, round(media.TEASER_MAX * 24) - 1)]
+
+
+def test_encode_project_cuts_a_silent_teaser_without_upscaling(tmp_path):
+    audio = tmp_path / "score.wav"
+    subprocess.run([
+        str(media.find_tool("ffmpeg")), "-y", "-f", "lavfi",
+        "-i", "sine=frequency=220:duration=0.2", str(audio),
+    ], check=True, capture_output=True)
+    frames(tmp_path / "frames" / "a", 2)
+    frames(tmp_path / "frames" / "b", 2)
+    project = make_project(tmp_path, [
+        "media/099-media-test/reel.mp4",
+        "media/099-media-test/poster.jpg",
+    ], shots=[Shot("a", "scene.py", 2), Shot("b", "scene.py", 2)])
+    project.audio = {"score": "score.wav"}
+    outs = media.encode_project(project, tmp_path / "frames", 160, 90)
+    teaser = outs["teaser"]
+    assert teaser == project.media_dir / "teaser.mp4"
+    info = media.probe(teaser)
+    assert (info["width"], info["height"]) == (160, 90)
+    assert media.has_audio(teaser) is False
+
+
+def test_teaser_crops_wide_reels_to_the_card_shape(tmp_path, monkeypatch):
+    frames(tmp_path / "frames", 4, size=(240, 100))
+    project = make_project(tmp_path, ["media/099-media-test/reel.mp4"])
+    project.resolution = (240, 100)
+    outs = media.encode_project(project, tmp_path / "frames", 240, 100)
+    info = media.probe(outs["teaser"])
+    assert (info["width"], info["height"]) == (176, 100)
+    monkeypatch.setattr(media, "TEASER_BUDGET_MB", 0.00001)
+    with pytest.raises(ValueError, match="budget"):
+        media.make_teaser(project)

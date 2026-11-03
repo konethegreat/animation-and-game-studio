@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from studio.lib import assets, config, cut, engines, manifest, publish, render, sheet, verify  # noqa: E402
+from studio.lib import assets, config, cut, engines, manifest, media, publish, render, sheet, verify  # noqa: E402
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
@@ -115,6 +115,20 @@ def cmd_sheet(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_teaser(args: argparse.Namespace) -> int:
+    if args.ids:
+        projects = [manifest.find(project_id) for project_id in args.ids]
+    else:
+        projects = [p for p in manifest.load_all() if p.kind == "film" and media.resolve_mp4(p)]
+    for project in projects:
+        reel = media.resolve_mp4(project)
+        if not reel or not reel.exists():
+            raise SystemExit(f"{project.id} has no encoded reel; run studio render first")
+        out = media.make_teaser(project, reel)
+        print(f"teaser {out.stat().st_size / (1024 * 1024):.2f} MB -> {out}")
+    return 0
+
+
 def cmd_publish(_: argparse.Namespace) -> int:
     publish.run()
     return 0
@@ -195,6 +209,10 @@ def build_parser() -> argparse.ArgumentParser:
     sheet_cmd.add_argument("input")
     sheet_cmd.add_argument("output")
     sheet_cmd.set_defaults(func=cmd_sheet)
+
+    teaser_cmd = sub.add_parser("teaser", help="cut the short silent loop the work cards play")
+    teaser_cmd.add_argument("ids", nargs="*", help="project ids; default is every film with a reel")
+    teaser_cmd.set_defaults(func=cmd_teaser)
 
     cut_cmd = sub.add_parser("cut", help="assemble a review cut from rendered shots")
     cut_cmd.add_argument("id")

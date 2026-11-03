@@ -95,6 +95,7 @@ cd showcase && pnpm install && cd ..
 ./.venv/Scripts/python studio/studio.py verify 004-lantern-keeper
 ./.venv/Scripts/python studio/studio.py assets verify --offline
 ./.venv/Scripts/python studio/studio.py sheet media/001-2d-bounce/reel.mp4 media/001-2d-bounce/sheet.jpg
+./.venv/Scripts/python studio/studio.py teaser
 ./.venv/Scripts/python studio/studio.py publish
 cd showcase && pnpm dev
 ```
@@ -110,6 +111,7 @@ cd showcase && pnpm dev
 | `verify` | Checks frames, media, audio, glTF and build size |
 | `assets` | Fetches, verifies or credits catalogued assets |
 | `sheet` | Builds a contact sheet from a rendered video |
+| `teaser` | Cuts the short silent loop a work card plays, under 2 MB at 432p; `render` also writes it |
 | `publish` | Copies media, models and builds into the showcase and writes the data and notices |
 
 ## Add a project
@@ -125,7 +127,7 @@ Templates live in `studio/templates/{2d,3d,game}` and are tested by the suite. A
 
 ## Media rules
 
-- GIF under 8 MB, MP4 and WebM under 20 MB, poster under 500 KB, GLB under 5 MB.
+- GIF under 8 MB, MP4 and WebM under 20 MB, card teaser under 2 MB, poster under 500 KB, GLB under 5 MB.
 - 1080p maximum render resolution.
 - Curated output only. Raw frames, caches, `node_modules` and build output stay out of git.
 - Long reels belong in GitHub Releases, never in git.

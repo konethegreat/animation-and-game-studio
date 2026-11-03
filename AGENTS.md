@@ -28,6 +28,7 @@ Never commit `.venv`, `node_modules`, raw frames, Godot `.godot/`, or build outp
 ./.venv/Scripts/python studio/studio.py export 004-lantern-keeper
 ./.venv/Scripts/python studio/studio.py verify 004-lantern-keeper
 ./.venv/Scripts/python studio/studio.py assets verify --offline
+./.venv/Scripts/python studio/studio.py teaser
 ./.venv/Scripts/python studio/studio.py publish
 ./.venv/Scripts/python -m pytest studio/tests -v
 cd showcase && pnpm typecheck && pnpm build
@@ -60,7 +61,7 @@ Manifest rules: id is `NNN-lowercase-name`, type is `2d | 3d | game`, kind is `f
 
 ## Media rules
 
-- GIF under 8 MB, MP4/WebM under 20 MB, poster under 500 KB, GLB under 5 MB.
+- GIF under 8 MB, MP4/WebM under 20 MB, card teaser under 2 MB, poster under 500 KB, GLB under 5 MB.
 - `studio render` validates with ffprobe and refuses oversized output.
 - Keep only curated output in `media/`. Raw frames live in `media/<id>/_frames/` and are ignored.
 - A project needs `media/<id>/poster.jpg` before `studio publish` will include it.

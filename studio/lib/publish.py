@@ -56,6 +56,8 @@ def build_entry(project) -> dict | None:
     hero = media_dir / "hero.png"
     if hero.exists():
         entry["hero"] = f"media/{project.id}/hero.png"
+    if (media_dir / "teaser.mp4").exists():
+        entry["teaser"] = f"media/{project.id}/teaser.mp4"
     if project.kind == "game":
         build = project.root / "build" / "web"
         if (build / "index.html").exists():
@@ -84,7 +86,7 @@ def run() -> Path:
             if path.exists() and path.suffix.lower() in {".mp4", ".webm", ".gif", ".jpg", ".png"}:
                 shutil.copy2(path, target / path.name)
         media_dir = ROOT / "media" / project.id
-        for extra in ("sheet.jpg", "hero.png"):
+        for extra in ("sheet.jpg", "hero.png", "teaser.mp4"):
             path = media_dir / extra
             if path.exists():
                 shutil.copy2(path, target / extra)
@@ -109,7 +111,7 @@ def run() -> Path:
         "export type Project = {\n"
         '  id: string; kind: "film" | "game"; type: "2d" | "3d" | "game"; title: string; summary: string;\n'
         "  tags: string[]; poster: string; sheet?: string; hero?: string;\n"
-        "  mp4?: string; webm?: string;\n"
+        "  mp4?: string; webm?: string; teaser?: string;\n"
         "  gif?: string; model?: string; play?: string; duration?: string;\n"
         '  interactive?: "bounce" | "companion" | "keeper";\n'
         "  engine: string; resolution: string; fps: number; frames: number;\n"
