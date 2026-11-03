@@ -13,9 +13,12 @@ import { labMarkup, mountLab } from "./labs";
 const BASE = import.meta.env.BASE_URL;
 const app = document.querySelector<HTMLDivElement>("#app")!;
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const saveData = Boolean((navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData);
+const stillOnly = reducedMotion || saveData;
 
 let viewer: ViewerHandle | null = null;
 let labDispose: (() => void) | null = null;
+let previewObserver: IntersectionObserver | null = null;
 
 const ESCAPES: Record<string, string> = {
   "&": "&amp;",
@@ -31,6 +34,7 @@ const href = (path = "") => `${BASE}${path.replace(/^\/+/, "")}`;
 const projectHref = (project: Project) => href(`project/${project.id}`);
 const playHref = (project: Project) => href(`play/${project.id}`);
 const sourceHref = (project: Project) => `${REPO}/tree/main/projects/${project.id}`;
+const typeLabel = (project: Project) => (FILM[project.id] ? "Short film" : TYPE_LABEL[project.type] ?? project.type);
 
 function durationSeconds(label?: string): number {
   if (!label) return 0;
@@ -140,13 +144,13 @@ function ticker(): string {
 }
 
 function card(project: Project, index: number): string {
-  const label = TYPE_LABEL[project.type] ?? project.type;
+  const label = typeLabel(project);
   const meta = project.type === "game" ? `${project.fps} fps` : project.duration ?? `${project.frames} frames`;
   const mediaHref = project.type === "game" && project.play ? playHref(project) : projectHref(project);
   const cta = project.type === "game" ? "Play now" : project.interactive ? "Take the controls" : "View project";
   const preview =
-    project.mp4 && project.type !== "game"
-      ? `<video class="card-preview" data-preview src="${asset(project.mp4)}" muted loop playsinline preload="none" aria-hidden="true"></video>`
+    project.teaser && !stillOnly
+      ? `<video class="card-preview" data-preview data-src="${asset(project.teaser)}" muted loop playsinline preload="none" aria-hidden="true"></video>`
       : "";
   return `
   <article class="card" data-type="${project.type}" data-kind="${project.kind}" data-interactive="${project.interactive ?? ""}">
@@ -263,7 +267,7 @@ function mediaStage(project: Project): string {
     }
     return `<div class="game-stage static">${still}<span class="play-label mono">Web build coming soon</span></div>`;
   }
-  return `<video class="reel" controls ${reducedMotion ? "" : "autoplay"} muted loop playsinline preload="metadata" poster="${asset(project.poster)}">
+  return `<video class="reel" controls ${stillOnly ? "" : "autoplay"} muted loop playsinline preload="metadata" poster="${asset(project.poster)}">
     ${project.webm ? `<source src="${asset(project.webm)}" type="video/webm" />` : ""}
     ${project.mp4 ? `<source src="${asset(project.mp4)}" type="video/mp4" />` : ""}
     Your browser does not support the video element.
@@ -319,7 +323,7 @@ function filmSection(film: FilmDetail): string {
 function projectPage(project: Project, index: number): string {
   const notes = NOTES[project.id];
   const film = FILM[project.id];
-  const label = TYPE_LABEL[project.type] ?? project.type;
+  const label = typeLabel(project);
   const engine = ENGINE_LABEL[project.engine] ?? project.engine;
   const next = projects[(index + 1) % projects.length];
   const lengthLabel = project.duration ?? `${project.frames} frames`;
@@ -484,13 +488,19 @@ function destroyLab() {
   labDispose = null;
 }
 
+function destroyPreviews() {
+  previewObserver?.disconnect();
+  previewObserver = null;
+}
+
 function mountHero() {
   const stage = document.getElementById("hero-stage");
   const project = heroProject;
-  if (!stage || !project?.model) return;
-  if (!window.matchMedia("(min-width: 900px)").matches || reducedMotion) return;
+  if (!stage || !project?.model || stillOnly) return;
+  // Touch screens get the baked loop without orbit, so a swipe over the stage still scrolls the page.
+  const interactive = !window.matchMedia("(pointer: coarse)").matches;
   const start = () => {
-    mountTurntable(stage, asset(project.model), { interactive: true, zoom: false })
+    mountTurntable(stage, asset(project.model), { interactive, zoom: false })
       .then((handle) => {
         viewer = handle;
         stage.classList.add("is-live");
@@ -508,7 +518,7 @@ function mountHero() {
 
 function mountModel(project: Project) {
   const host = document.getElementById("model-viewer");
-  if (!host || !project.model || reducedMotion) return;
+  if (!host || !project.model || stillOnly) return;
   host.classList.add("is-loading");
   mountTurntable(host, asset(project.model), { interactive: true, zoom: true })
     .then((handle) => {
@@ -578,20 +588,28 @@ function bindHome() {
     });
   }
 
-  if (reducedMotion) return;
-  const previews = document.querySelectorAll<HTMLVideoElement>("video[data-preview]");
-  previews.forEach((video) => {
-    const card = video.closest<HTMLElement>(".card");
-    if (!card) return;
-    card.addEventListener("pointerenter", () => {
-      void video.play().catch(() => undefined);
-      card.classList.add("is-previewing");
-    });
-    card.addEventListener("pointerleave", () => {
-      video.pause();
-      card.classList.remove("is-previewing");
-    });
-  });
+  if (stillOnly) return;
+  const previews = Array.from(document.querySelectorAll<HTMLVideoElement>("video[data-preview]"));
+  if (!previews.length) return;
+  previewObserver = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        const video = entry.target as HTMLVideoElement;
+        if (!entry.isIntersecting) {
+          video.pause();
+          continue;
+        }
+        if (!video.getAttribute("src") && video.dataset.src) video.src = video.dataset.src;
+        video.muted = true;
+        void video.play().catch(() => undefined);
+      }
+    },
+    { rootMargin: "120px 0px", threshold: 0.25 },
+  );
+  for (const video of previews) {
+    video.addEventListener("playing", () => video.closest(".card")?.classList.add("is-previewing"), { once: true });
+    previewObserver.observe(video);
+  }
 }
 
 let fullscreenSync: (() => void) | null = null;
@@ -668,6 +686,7 @@ function setMeta(title: string, description?: string) {
 function render() {
   destroyViewer();
   destroyLab();
+  destroyPreviews();
   document.body.classList.remove("is-theatre");
   const route = parseRoute(location.pathname);
   let markup = "";

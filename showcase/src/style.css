@@ -849,7 +849,9 @@ h2 em {
 }
 
 .card:hover .card-media img,
-.card:focus-within .card-media img {
+.card:focus-within .card-media img,
+.card:hover .card-preview,
+.card:focus-within .card-preview {
   transform: scale(1.045);
 }
 
