@@ -1700,7 +1700,7 @@ body.is-theatre .play-launch {
 
 .play-mobile-hint {
   display: none;
-  margin: 0 0 14px;
+  margin-block: 0 14px;
   font-size: 9.5px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -1708,7 +1708,7 @@ body.is-theatre .play-launch {
 }
 
 .play-load-note {
-  margin: 0 0 14px;
+  margin-block: 0 14px;
   font-size: 9.5px;
   letter-spacing: 0.11em;
   text-transform: uppercase;
