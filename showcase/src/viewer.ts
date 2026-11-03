@@ -96,6 +96,8 @@ export async function mountTurntable(
     : null;
 
   if (controls) {
+    // OrbitControls sets touch-action none, which traps page scroll on phones; vertical swipes should scroll.
+    renderer.domElement.style.touchAction = "pan-y";
     controls.enableDamping = true;
     controls.dampingFactor = 0.06;
     controls.enablePan = false;
