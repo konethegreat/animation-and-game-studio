@@ -12,6 +12,26 @@ type MorphMesh = { mesh: THREE.Mesh; targets: Map<string, number> };
 type SliderDef = { name: string; label: string };
 type ViewName = "face" | "three" | "bust" | "full";
 
+const SHAPE_SLIDERS: SliderDef[] = [
+  { name: "shape_jaw_width", label: "Jaw width" },
+  { name: "shape_jaw_angle", label: "Jaw corner" },
+  { name: "shape_chin_length", label: "Chin length" },
+  { name: "shape_chin_width", label: "Chin width" },
+  { name: "shape_cheek_hollow", label: "Cheek hollow" },
+  { name: "feat_cheeks", label: "Cheekbones" },
+];
+
+// Curated, the way the best creators do it: each is a set of anatomical controls
+// tuned together, so every choice is a face that already works.
+const FACE_SHAPES: Record<string, Record<string, number>> = {
+  Oval: {},
+  Round: { shape_jaw_width: 0.45, shape_jaw_angle: -0.4, shape_chin_length: -0.5, shape_chin_width: 0.4, shape_cheek_hollow: -0.8, feat_cheeks: 0.2 },
+  Square: { shape_jaw_width: 0.5, shape_jaw_angle: 0.9, shape_chin_length: 0.1, shape_chin_width: 0.6, shape_cheek_hollow: 0.3 },
+  Heart: { shape_jaw_width: -0.6, shape_jaw_angle: -0.7, shape_chin_length: 0.2, shape_chin_width: -0.6, feat_cheeks: 0.7 },
+  Diamond: { shape_jaw_width: -0.5, shape_jaw_angle: -0.2, shape_chin_length: 0.4, shape_chin_width: -0.5, shape_cheek_hollow: 0.5, feat_cheeks: 1.0 },
+  Long: { shape_jaw_width: -0.25, shape_chin_length: 0.9, shape_chin_width: -0.2, shape_cheek_hollow: 0.5 },
+};
+
 const BODY_SLIDERS: SliderDef[] = [
   { name: "body_width", label: "Build" },
   { name: "body_chest", label: "Chest" },
@@ -27,8 +47,7 @@ const FACE_SLIDERS: SliderDef[] = [
   { name: "feat_lips", label: "Lip fullness" },
   { name: "feat_nose_wide", label: "Nose width" },
   { name: "feat_nose_bridge", label: "Nose bridge" },
-  { name: "feat_cheeks", label: "Cheekbones" },
-  { name: "face_jaw", label: "Jaw" },
+  { name: "face_jaw", label: "Head size" },
   { name: "face_chin", label: "Chin" },
   { name: "face_midface", label: "Midface" },
   { name: "face_mouth", label: "Mouth" },
@@ -37,7 +56,6 @@ const FACE_SLIDERS: SliderDef[] = [
   { name: "face_brow", label: "Brow ridge" },
   { name: "face_cheeks", label: "Cheeks" },
   { name: "face_lips", label: "Lips" },
-  { name: "face_jawwidth", label: "Jaw width" },
 ];
 
 const EXPRESSIONS: Record<string, Record<string, number>> = {
@@ -101,16 +119,16 @@ type SkinTone = {
 };
 
 const SKIN_TONES: SkinTone[] = [
-  { label: "Ebony", value: 0x3a241b, lipUpper: 0x2d1917, lipLower: 0x4c2b28, palm: 0x8c6250, shine: 1.0 },
-  { label: "Espresso", value: 0x4d2f20, lipUpper: 0x38201c, lipLower: 0x5e3631, palm: 0x9e7059, shine: 0.95 },
-  { label: "Umber", value: 0x62402b, lipUpper: 0x472824, lipLower: 0x6e4139, palm: 0xad7f66, shine: 0.88 },
-  { label: "Mahogany", value: 0x74492f, lipUpper: 0x56302b, lipLower: 0x7f4c44, palm: 0xb88a6e, shine: 0.8 },
-  { label: "Chestnut", value: 0x8c5c3d, lipUpper: 0x653b36, lipLower: 0x8f5a51, palm: 0xc69a7c, shine: 0.7 },
-  { label: "Caramel", value: 0x97694a, lipUpper: 0x764743, lipLower: 0xa06a60, palm: 0xd2ab8d, shine: 0.6 },
-  { label: "Bronze", value: 0xac8059, lipUpper: 0x875550, lipLower: 0xad776d, palm: 0xdcb99c, shine: 0.54 },
-  { label: "Honey", value: 0xc89e77, lipUpper: 0x96625c, lipLower: 0xb6807a, palm: 0xe4c4a8, shine: 0.48 },
-  { label: "Sand", value: 0xdcbb98, lipUpper: 0xa56e68, lipLower: 0xbe8a82, palm: 0xecd0b6, shine: 0.46 },
-  { label: "Porcelain", value: 0xf3dcc8, lipUpper: 0xae7872, lipLower: 0xc6938c, palm: 0xf3dcc8, shine: 0.44 },
+  { label: "Ebony", value: 0x3a241b, lipUpper: 0x3c2320, lipLower: 0x4f2d29, palm: 0x8c6250, shine: 1.0 },
+  { label: "Espresso", value: 0x4d2f20, lipUpper: 0x4a2c27, lipLower: 0x5f3831, palm: 0x9e7059, shine: 0.95 },
+  { label: "Umber", value: 0x62402b, lipUpper: 0x5e3730, lipLower: 0x70433a, palm: 0xad7f66, shine: 0.88 },
+  { label: "Mahogany", value: 0x74492f, lipUpper: 0x733f33, lipLower: 0x8a5040, palm: 0xb88a6e, shine: 0.8 },
+  { label: "Chestnut", value: 0x8c5c3d, lipUpper: 0x84503f, lipLower: 0x9a5f4e, palm: 0xc69a7c, shine: 0.7 },
+  { label: "Caramel", value: 0x97694a, lipUpper: 0x7e4a3d, lipLower: 0xa86a58, palm: 0xd2ab8d, shine: 0.6 },
+  { label: "Bronze", value: 0xac8059, lipUpper: 0x905748, lipLower: 0xb47a66, palm: 0xdcb99c, shine: 0.54 },
+  { label: "Honey", value: 0xc89e77, lipUpper: 0xa06650, lipLower: 0xbf8470, palm: 0xe4c4a8, shine: 0.48 },
+  { label: "Sand", value: 0xdcbb98, lipUpper: 0xae7260, lipLower: 0xc98e7c, palm: 0xecd0b6, shine: 0.46 },
+  { label: "Porcelain", value: 0xf3dcc8, lipUpper: 0xb87a6c, lipLower: 0xd0988a, palm: 0xf3dcc8, shine: 0.44 },
 ];
 
 const HAIR_COLORS = [
@@ -142,6 +160,7 @@ const HAIR_STYLES = [
 type BodyType = "female" | "male";
 
 type Look = {
+  stubble?: number;
   id: string;
   label: string;
   body: BodyType;
@@ -155,13 +174,13 @@ type Look = {
 
 const LOOKS: Look[] = [
   { id: "amara", label: "Amara", body: "female", skin: "Umber", hair: "afro", hairColor: "Natural black", iris: "Dark brown", cloth: "Moss", shape: { feat_lips: 0.75, feat_nose_wide: 0.55, feat_nose_bridge: 0.35, feat_cheeks: 0.6 } },
-  { id: "thabo", label: "Thabo", body: "male", skin: "Espresso", hair: "fade", hairColor: "Natural black", iris: "Dark brown", cloth: "Ink", shape: { feat_lips: 0.6, feat_nose_wide: 0.8, feat_nose_bridge: 0.5, feat_cheeks: 0.3, face_jawwidth: 0.2 } },
+  { id: "thabo", stubble: 0.55, label: "Thabo", body: "male", skin: "Espresso", hair: "fade", hairColor: "Natural black", iris: "Dark brown", cloth: "Ink", shape: { feat_lips: 0.6, feat_nose_wide: 0.8, feat_nose_bridge: 0.5, feat_cheeks: 0.3, shape_jaw_width: 0.35, shape_jaw_angle: 0.6 } },
   { id: "naledi", label: "Naledi", body: "female", skin: "Ebony", hair: "braids", hairColor: "Natural black", iris: "Dark brown", cloth: "Bone", shape: { feat_lips: 0.9, feat_nose_wide: 0.7, feat_nose_bridge: 0.55, feat_cheeks: 0.8 } },
-  { id: "kofi", label: "Kofi", body: "male", skin: "Mahogany", hair: "locs", hairColor: "Soft black", iris: "Hazel", cloth: "Moss", shape: { feat_lips: 0.5, feat_nose_wide: 0.6, feat_nose_bridge: 0.3, feat_cheeks: 0.5 } },
+  { id: "kofi", stubble: 0.7, label: "Kofi", body: "male", skin: "Mahogany", hair: "locs", hairColor: "Soft black", iris: "Hazel", cloth: "Moss", shape: { feat_lips: 0.5, feat_nose_wide: 0.6, feat_nose_bridge: 0.3, feat_cheeks: 0.5 } },
   { id: "zola", label: "Zola", body: "female", skin: "Chestnut", hair: "cornrows", hairColor: "Natural black", iris: "Dark brown", cloth: "Slate", shape: { feat_lips: 0.55, feat_nose_wide: 0.35, feat_nose_bridge: 0.15, feat_cheeks: 0.7 } },
-  { id: "malik", label: "Malik", body: "male", skin: "Umber", hair: "waves", hairColor: "Natural black", iris: "Dark brown", cloth: "Clay", shape: { feat_lips: 0.45, feat_nose_wide: 0.5, feat_nose_bridge: 0.2, feat_cheeks: 0.35, face_jawwidth: 0.15 } },
+  { id: "malik", stubble: 0.35, label: "Malik", body: "male", skin: "Umber", hair: "waves", hairColor: "Natural black", iris: "Dark brown", cloth: "Clay", shape: { feat_lips: 0.45, feat_nose_wide: 0.5, feat_nose_bridge: 0.2, feat_cheeks: 0.35, shape_jaw_width: 0.15, shape_jaw_angle: 0.3 } },
   { id: "imani", label: "Imani", body: "female", skin: "Caramel", hair: "puff", hairColor: "Espresso", iris: "Amber", cloth: "Ink", shape: { feat_lips: 0.5, feat_nose_wide: 0.3, feat_nose_bridge: 0.1, feat_cheeks: 0.5 } },
-  { id: "tariq", label: "Tariq", body: "male", skin: "Bronze", hair: "crop", hairColor: "Espresso", iris: "Green", cloth: "Slate", shape: { feat_lips: 0.1, feat_nose_wide: 0.1, face_jawwidth: 0.1 } },
+  { id: "tariq", stubble: 0.45, label: "Tariq", body: "male", skin: "Bronze", hair: "crop", hairColor: "Espresso", iris: "Green", cloth: "Slate", shape: { feat_lips: 0.1, feat_nose_wide: 0.1, shape_jaw_width: 0.25, shape_jaw_angle: 0.7 } },
 ];
 
 const IRIS_COLORS = [
@@ -197,10 +216,10 @@ type LightPreset = {
 const LIGHT_PRESETS: Record<string, LightPreset> = {
   softbox: {
     key: 0xfff5ee,
-    keyIntensity: 3.0,
-    keyPosition: [1.5, 1.35, 2.5],
-    fill: 0xd8e4f8,
-    fillIntensity: 0.34,
+    keyIntensity: 2.7,
+    keyPosition: [1.35, 1.05, 2.7],
+    fill: 0xe4e8f4,
+    fillIntensity: 0.55,
     fillPosition: [-2.6, 1.6, 1.2],
     rim: 0xffd0b4,
     rimIntensity: 1.7,
@@ -277,7 +296,7 @@ scene.environment = environment;
 scene.environmentIntensity = 0.34;
 pmrem.dispose();
 
-scene.add(new THREE.HemisphereLight(0xfff3e4, 0x5c4a3d, 0.42));
+scene.add(new THREE.HemisphereLight(0xfff3e4, 0x9c7a62, 0.62));
 
 const key = new THREE.DirectionalLight(0xffe3c8, 2.8);
 key.target.position.copy(HEAD_CENTER);
@@ -294,7 +313,8 @@ key.shadow.camera.near = 1.5;
 key.shadow.camera.far = 6;
 key.shadow.bias = -0.0002;
 key.shadow.normalBias = 0.0016;
-key.shadow.radius = 5;
+key.shadow.radius = 6;
+key.shadow.intensity = 0.72;
 scene.add(key, key.target);
 
 const fill = new THREE.DirectionalLight(0xcddcff, 0.8);
@@ -336,6 +356,7 @@ const skinUniforms = {
   uLipLower: { value: new THREE.Color(SKIN_TONES[2].lipLower) },
   uPalm: { value: new THREE.Color(SKIN_TONES[2].palm) },
   uShine: { value: SKIN_TONES[2].shine },
+  uStubble: { value: 0 },
   uSkinMask: { value: null as THREE.Texture | null },
 };
 
@@ -395,7 +416,7 @@ const STRAND_WIDTH = /* glsl */ `
   uniform float uTaper;
   float strandWidth(float t, float scale) {
     float fine = smoothstep(0.0, 0.2, t + 0.012) * (pow(max(0.0, 1.0 - t), 0.55) * 0.92 + 0.08);
-    float rope = smoothstep(0.0, 0.015, t + 0.006) * (1.0 - smoothstep(0.93, 1.0, t) * 0.82);
+    float rope = (1.0 - smoothstep(0.93, 1.0, t) * 0.82);
     return uStrandWidth * scale * mix(rope, fine, uTaper);
   }
 `;
@@ -409,6 +430,8 @@ const hairMaterial = new THREE.ShaderMaterial({
     ${STRAND_ATTRIBUTES}
     uniform float uViewportHeight;
     uniform float uStrandWidth;
+    uniform float uMode;
+    uniform vec3 uHeadCenter;
     uniform mat4 uFollow;
     varying vec3 vTangentW;
     varying vec3 vWorld;
@@ -416,6 +439,7 @@ const hairMaterial = new THREE.ShaderMaterial({
     varying float vCoverage;
     varying float vAcross;
     varying float vArc;
+    varying float vDetail;
     ${STRAND_WIDTH}
 
     void main() {
@@ -426,9 +450,24 @@ const hairMaterial = new THREE.ShaderMaterial({
       vec4 clip = projectionMatrix * viewMatrix * world;
       float pixelsPerMetre = projectionMatrix[1][1] * uViewportHeight * 0.5 / clip.w;
       float width = strandWidth(aData.x, aData.z);
+      if (uMode > 0.5) width *= mix(0.42, 1.0, smoothstep(0.0, 2.4, aArc));
+      float baseWidth = uStrandWidth * aData.z;
+      // Detail is how many pixels a typical strand spans: 1 up close, 0 far away.
+      vDetail = smoothstep(0.55, 3.2, baseWidth * pixelsPerMetre);
+      if (uMode < 0.5 && aData.z < 0.3) {
+        // Decide per strand, from the head's distance: if this varied along a
+        // strand, part of it would stretch off to the discard point.
+        float headPixels = projectionMatrix[1][1] * uViewportHeight * 0.5 / length(cameraPosition - uHeadCenter);
+        float keep = mix(0.5, 1.0, smoothstep(0.55, 3.2, baseWidth * headPixels));
+        if (aData.w > keep) {
+          gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+          return;
+        }
+        width *= mix(1.0 / sqrt(keep) * 1.3, 1.0, vDetail);
+      }
       // Below a pixel the ribbon holds its size and fades, or it would flicker.
-      float minimum = 0.9 / pixelsPerMetre;
-      vCoverage = clamp(width / minimum, 0.08, 1.0);
+      float minimum = 1.0 / pixelsPerMetre;
+      vCoverage = clamp(width / minimum, 0.2, 1.0);
       world.xyz += across * aSide * max(width, minimum) * 0.5;
       vTangentW = tangent;
       vWorld = world.xyz;
@@ -454,6 +493,7 @@ const hairMaterial = new THREE.ShaderMaterial({
     varying float vCoverage;
     varying float vAcross;
     varying float vArc;
+    varying float vDetail;
 
     float strandSpec(vec3 tangent, vec3 halfVector, float power) {
       float dotTH = dot(tangent, halfVector);
@@ -467,8 +507,9 @@ const hairMaterial = new THREE.ShaderMaterial({
       vec3 L = normalize(uLightDirection);
       vec3 H = normalize(L + V);
       float t = vData.x;
-      float shade = vData.y;
-      float seed = vData.w;
+      // Far away, per-strand contrast fades toward the mass's average tone.
+      float shade = mix(0.42 + 0.36 * vData.y, vData.y, vDetail);
+      float seed = mix(0.5, vData.w, vDetail);
       float facing = dot(form, L);
       float lit = smoothstep(-0.55, 0.65, facing);
       vec3 tint = (uColor + vec3(0.012, 0.0095, 0.0085)) * (0.78 + 0.5 * seed);
@@ -509,7 +550,7 @@ const hairMaterial = new THREE.ShaderMaterial({
         // Fine and coiled hair: a round cross section with a strand tangent.
         float round = sqrt(max(0.0, 1.0 - vAcross * vAcross * 0.85));
         float sinTL = sqrt(max(0.0, 1.0 - pow(dot(T, L), 2.0)));
-        vec3 hue = tint * mix(vec3(0.62, 0.66, 0.70), vec3(0.98, 1.06, 1.14), t);
+        vec3 hue = (tint + vec3(0.020, 0.017, 0.016) * max(0.0, uShine - 1.0)) * mix(vec3(0.62, 0.66, 0.70), vec3(0.98, 1.06, 1.14), t);
         diffuse = hue * shade * round
           * (uLightColor * lit * (0.34 + 0.66 * sinTL) * 0.42 + uFillColor * 1.1 + vec3(0.30, 0.27, 0.25));
         vec3 shifted = normalize(T + form * (0.14 + 0.10 * seed));
@@ -518,10 +559,10 @@ const hairMaterial = new THREE.ShaderMaterial({
         float secondary = strandSpec(shiftedB, H, 26.0);
         // Black hair has no diffuse to speak of; its shape is all in the sheen.
         specular = uLightColor * lit * shade * round * uShine
-          * (primary * (vec3(0.022) + hue * 0.20) + secondary * (vec3(0.012) + hue * 0.30));
+          * (primary * (vec3(0.022) + hue * 0.20) * vDetail + secondary * (vec3(0.012) + hue * 0.30));
         vec3 HR = normalize(normalize(uRimDirection) + V);
         float rim = strandSpec(T, HR, 44.0) * smoothstep(-0.2, 0.5, dot(form, normalize(uRimDirection)));
-        specular += uRimColor * rim * shade * (0.022 + hue * 0.4) * mix(0.5, 1.0, uShine);
+        specular += uRimColor * rim * shade * (0.022 + hue * 0.4) * mix(0.5, 1.0, min(uShine, 1.0)) * mix(0.35, 1.0, vDetail);
       }
 
       gl_FragColor = vec4(diffuse + specular, vCoverage);
@@ -713,6 +754,7 @@ function buildSkin(mesh: THREE.Mesh): void {
     shader.uniforms.uLipLower = skinUniforms.uLipLower;
     shader.uniforms.uPalm = skinUniforms.uPalm;
     shader.uniforms.uShine = skinUniforms.uShine;
+    shader.uniforms.uStubble = skinUniforms.uStubble;
     shader.uniforms.uSkinMask = skinUniforms.uSkinMask;
     shader.fragmentShader = shader.fragmentShader
       .replace(
@@ -727,6 +769,7 @@ function buildSkin(mesh: THREE.Mesh): void {
         uniform vec3 uLipLower;
         uniform vec3 uPalm;
         uniform float uShine;
+        uniform float uStubble;
         uniform sampler2D uSkinMask;`,
       )
       .replace(
@@ -741,8 +784,12 @@ function buildSkin(mesh: THREE.Mesh): void {
         vec3 probeVariation = mix( probeRatio, vec3( probeLuma ), probeDepth * 0.62 );
         vec4 probeMask = texture2D( uSkinMask, vMapUv );
         vec3 probeTone = uSkinTone * probeVariation;
-        probeTone = mix( probeTone, uPalm * probeVariation, probeMask.b );
-        vec3 probeLip = mix( uLipLower, uLipUpper, probeMask.g ) * ( 0.65 + 0.5 * probeLuma );
+        float probePalm = smoothstep( 0.5, 1.0, probeMask.b );
+        float probeBeard = clamp( probeMask.b * 2.0, 0.0, 1.0 ) * ( 1.0 - step( 0.5, probeMask.b ) );
+        probeTone = mix( probeTone, uPalm * probeVariation, probePalm );
+        // Stubble cools and darkens the skin, relative to the tone it sits on.
+        probeTone = mix( probeTone, probeTone * vec3( 0.50, 0.52, 0.56 ), probeBeard * uStubble );
+        vec3 probeLip = mix( uLipLower, uLipUpper, probeMask.g ) * ( 0.62 + 0.30 * probeLuma );
         probeTone = mix( probeTone, probeLip, probeMask.r * 0.92 );
         diffuseColor.rgb = probeTone;`,
       )
@@ -1261,6 +1308,7 @@ function resetShape(): void {
 }
 
 buildSliders(must<HTMLElement>("#probe-body"), BODY_SLIDERS);
+buildSliders(must<HTMLElement>("#probe-shape"), SHAPE_SLIDERS);
 buildSliders(must<HTMLElement>("#probe-face"), FACE_SLIDERS);
 function applySkin(tone: SkinTone): void {
   skinUniforms.uSkinTone.value.setHex(tone.value);
@@ -1298,6 +1346,8 @@ function pickSwatch(host: string, label: string): void {
 function setBody(type: BodyType): void {
   applyMorph("build_female", type === "female" ? 1 : 0);
   applyMorph("build_male", type === "male" ? 1 : 0);
+  applyMorph("brow_fine", type === "female" ? 1 : 0);
+  applyMorph("lash_long", type === "female" ? 1 : 0);
   for (const button of document.querySelectorAll<HTMLButtonElement>("#probe-build button")) {
     button.classList.toggle("is-active", button.dataset.build === type);
   }
@@ -1315,6 +1365,29 @@ function buildChips<T>(host: string, items: T[], label: (item: T) => string, dat
   }
 }
 
+function setStubble(value: number): void {
+  skinUniforms.uStubble.value = value;
+  const input = must<HTMLInputElement>("#probe-stubble");
+  input.value = String(value);
+  must<HTMLOutputElement>("#probe-stubble-value").textContent = value.toFixed(2);
+}
+
+must<HTMLInputElement>("#probe-stubble").addEventListener("input", (event) => {
+  setStubble(Number((event.currentTarget as HTMLInputElement).value));
+});
+
+function setFaceShape(name: string): void {
+  const shape = FACE_SHAPES[name] ?? {};
+  for (const def of SHAPE_SLIDERS) {
+    const input = must<HTMLInputElement>(`#morph-${def.name}`);
+    input.value = String(shape[def.name] ?? 0);
+    input.dispatchEvent(new Event("input"));
+  }
+  for (const button of document.querySelectorAll<HTMLButtonElement>("#probe-face-shapes button")) {
+    button.classList.toggle("is-active", button.textContent === name);
+  }
+}
+
 function applyLook(look: Look): void {
   for (const input of sliderInputs) {
     const name = input.id.replace("morph-", "");
@@ -1322,6 +1395,7 @@ function applyLook(look: Look): void {
     input.dispatchEvent(new Event("input"));
   }
   setBody(look.body);
+  setStubble(look.stubble ?? 0);
   pickSwatch("#probe-skin", look.skin);
   pickSwatch("#probe-hair", look.hairColor);
   pickSwatch("#probe-iris", look.iris);
@@ -1332,6 +1406,7 @@ function applyLook(look: Look): void {
   }
 }
 
+buildChips("#probe-face-shapes", Object.keys(FACE_SHAPES), (name) => name, () => undefined, setFaceShape);
 buildChips("#probe-looks", LOOKS, (look) => look.label, (look, button) => { button.dataset.look = look.id; }, applyLook);
 buildChips("#probe-styles", HAIR_STYLES, (style) => style.label, (style, button) => { button.dataset.style = style.id; }, (style) => void setHairStyle(style.id));
 for (const button of document.querySelectorAll<HTMLButtonElement>("#probe-build button")) {
