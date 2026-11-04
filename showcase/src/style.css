@@ -1805,6 +1805,23 @@ body.is-theatre .play-launch {
   color: var(--ink);
 }
 
+.play-help .play-phone {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 13.4px;
+  line-height: 1.55;
+}
+
+.play-phone .mono {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
 /* demo */
 
 .demo {

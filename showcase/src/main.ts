@@ -390,6 +390,7 @@ function playPage(project: Project): string {
         <ul class="play-controls">
           ${play.controls.map((item) => `<li><span class="mono">${esc(item.label)}</span>${esc(item.body)}</li>`).join("")}
         </ul>
+        <p class="play-phone"><span class="mono">On a phone</span>${esc(play.phone)}</p>
       </div>
       <div><p class="eyebrow">The loop</p><p>${esc(play.loop)}</p></div>
       <div><p class="eyebrow">Credits</p><p>${esc(play.credits)}</p></div>

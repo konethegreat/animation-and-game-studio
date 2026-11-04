@@ -27,7 +27,13 @@ Every district has its own music, ambience, lighting mood and loading card. The 
 
 ## Controls
 
-WASD or left stick to move, Shift or L3 to run, Space or A to jump then double jump, Ctrl or B to dash, Q or Y for the cleanse pulse, hold left mouse or RT to vacuum, E or X to talk, lift, sort and enter doors, right drag or right stick to look. Touch pads appear on phones. F3 toggles a frame time readout, F7 toggles the colour grade.
+WASD or left stick to move, Shift or L3 to run, Space or A to jump then double jump, Ctrl or B to dash, Q or Y for the cleanse pulse, hold left mouse or RT to vacuum, E or X to talk, lift, sort and enter doors, right drag or right stick to look. Esc, Start or the PAUSE button pauses. F3 toggles a frame time readout, F7 toggles the colour grade.
+
+## Phones and touch
+
+Open the play page on a phone and tap the screen. BIN CITY switches to touch mode on its own: a stick under the left thumb to move, a drag on the right side to look, and VAC, JUMP, USE, DASH and PULSE pads under the right thumb. Push the stick to its rim to run. Dash appears at rank 3 and Pulse at rank 5.
+
+Turn the phone sideways. The game shows a rotate card in portrait, the play page locks landscape after Fullscreen when the browser allows it, and a keyboard or gamepad press hands control back to the keys at any time. The first touch shift opens a short coach card and GOT IT closes it. The title card lists the pad names instead of the keys.
 
 ## How it is built
 
@@ -38,7 +44,7 @@ WASD or left stick to move, Shift or L3 to run, Space or A to jump then double j
 - `scripts/boss.gd` is the Gulper fight; `scripts/cutscene.gd` runs the cold open, intro and ending.
 - `scripts/sound.gd` synthesises every track and effect as PCM16 at 22050 Hz: five music loops, five ambience beds and crossfades between districts, built on demand so a first load stays short.
 - `scripts/postfx.gd` grades each mood; `shaders/toon.gdshader` and `shaders/outline.gdshader` give the inked look.
-- `tests/_logic.gd`, `tests/_smoke.gd` and `tests/_flow.gd` are headless checks; the flow check covers staged district loading, interior round trips and the boss room. `tests/_shots.gd` captures stills of every district.
+- `tests/_logic.gd`, `tests/_smoke.gd` and `tests/_flow.gd` are headless checks; the flow check covers staged district loading, interior round trips and the boss room. `tests/_shots.gd` captures stills of every district. `tests/_touch.gd` drives the real touch pads and the phone boot path.
 - The showcase play page has a fullscreen control with an iOS-safe theatre fallback. On phones the frame grows into a portrait stage and a tap opens fullscreen before play.
 
 There are no imported models, textures or audio files. Everything is primitives, generated images and synthesis. The poster is a still captured from the game's own `?poster=1` mode.
@@ -52,6 +58,7 @@ There are no imported models, textures or audio files. Everything is primitives,
 godot --headless --path projects/011-bin-city -s res://tests/_logic.gd
 godot --headless --path projects/011-bin-city -s res://tests/_smoke.gd
 godot --headless --path projects/011-bin-city -s res://tests/_flow.gd
+godot --headless --path projects/011-bin-city -s res://tests/_touch.gd
 ```
 
 The web build is playable from `build/web` through any static server.

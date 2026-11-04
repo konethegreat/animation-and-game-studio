@@ -75,6 +75,7 @@ export const NOTES: Record<string, ProjectNotes> = {
 export type PlayInfo = {
   hook: string;
   controls: { label: string; body: string }[];
+  phone: string;
   loop: string;
   credits: string;
 };
@@ -83,12 +84,17 @@ export const PLAY: Record<string, PlayInfo> = {
   "011-bin-city": {
     hook: "One collector. One cart. One very messy morning.",
     controls: [
-      { label: "Move", body: "WASD or arrow keys, the left stick on a gamepad, or the on screen stick on touch." },
+      { label: "Move", body: "WASD or arrow keys, the left stick on a gamepad, or the stick under your left thumb on touch." },
+      { label: "Look", body: "Right drag, the right stick, or drag the right side of the screen on touch." },
       { label: "Vacuum", body: "Hold the left mouse button, RT, or the VAC pad. Short bursts clear a cone of litter." },
-      { label: "Interact", body: "E, X, or USE to lift a heavy load, bag a pile, or sort at a depot." },
-      { label: "Look", body: "Right drag or the right stick. Scroll to pull the camera in and out." },
-      { label: "Run", body: "Shift, LB, or the RUN pad. Rank 2 unlocks a third carry slot." },
+      { label: "Interact", body: "E, X, or the USE pad to lift a heavy load, bag a pile, or sort at a depot." },
+      { label: "Jump", body: "Space or A, or the JUMP pad. Rank 4 adds a double jump." },
+      { label: "Dash", body: "Ctrl or B, or the DASH pad. Unlocks at rank 3." },
+      { label: "Pulse", body: "Q or Y, or the PULSE pad. Unlocks at rank 5." },
+      { label: "Run", body: "Hold Shift or L3, or push the thumb stick to its rim." },
+      { label: "Pause", body: "Esc, Start, or the PAUSE button on the HUD." },
     ],
+    phone: "On a phone, tap the screen once and Bin City boots in touch mode. A stick sits under your left thumb, a drag on the right side looks around, and the VAC, JUMP, USE, DASH and PULSE pads sit under your right thumb. Turn the phone sideways first: the game asks for landscape, the page locks it after Fullscreen when the browser allows it, and the title card lists the pads instead of the keys.",
     loop: "Vacuum litter, sort it into four depot bins, and carry the heavy things to the skip. Clean 90 percent of Dawn Market before the shutters open.",
     credits: "Designed, built, written and scored by Kone Tshivhinda. Original work, all rights reserved. No imported models, textures or audio.",
   },
