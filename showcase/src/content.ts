@@ -94,7 +94,7 @@ export const PLAY: Record<string, PlayInfo> = {
       { label: "Run", body: "Hold Shift or L3, or push the thumb stick to its rim." },
       { label: "Pause", body: "Esc, Start, or the PAUSE button on the HUD." },
     ],
-    phone: "On a phone, tap the screen once and Bin City boots in touch mode. A stick sits under your left thumb, a drag on the right side looks around, and the VAC, JUMP, USE, DASH and PULSE pads sit under your right thumb. Turn the phone sideways first: the game asks for landscape, the page locks it after Fullscreen when the browser allows it, and the title card lists the pads instead of the keys.",
+    phone: "Tap the screen once and Bin City boots in touch mode. A stick sits under your left thumb, a drag on the right side looks around, and the VAC, JUMP, USE, DASH and PULSE pads sit under your right thumb. Turn the phone sideways first: the game asks for landscape, the page locks it after Fullscreen when the browser allows it, and the title card lists the pads instead of the keys.",
     loop: "Vacuum litter, sort it into four depot bins, and carry the heavy things to the skip. Clean 90 percent of Dawn Market before the shutters open.",
     credits: "Designed, built, written and scored by Kone Tshivhinda. Original work, all rights reserved. No imported models, textures or audio.",
   },
