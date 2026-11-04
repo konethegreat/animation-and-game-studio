@@ -172,6 +172,7 @@ func _run() -> void:
 	await _test_sort()
 	await _test_dialogue()
 	await _test_title()
+	await _test_instructions()
 	await _test_hud()
 
 	ui.queue_free()
@@ -626,6 +627,58 @@ func _test_title() -> void:
 	await process_frame
 
 
+# ----------------------------------------------------------- instructions
+
+func _test_instructions() -> void:
+	ui.set_touch_mode(false)
+	ui.set_phase("title")
+	await process_frame
+	await process_frame
+	var keys: String = ui.title_controls_copy()
+	_check("the desktop title card names the keys", keys.contains("left mouse") and keys.contains("WASD"), keys)
+	ui.set_touch_mode(true)
+	await process_frame
+	await process_frame
+	var pads: String = ui.title_controls_copy()
+	_check("the touch title card names the pads", pads.contains("VAC") and pads.contains("JUMP") and not pads.contains("left mouse"), pads)
+	ui.reset_coach()
+	ui.set_phase("play")
+	await process_frame
+	await process_frame
+	_check("a touch shift opens the coach", ui.coach_open())
+	if ui.coach_open():
+		var coach_rect: Rect2 = ui.coach_panel.get_global_rect()
+		var screen := Rect2(Vector2.ZERO, Vector2(root.size))
+		_check("the coach stays on screen", screen.encloses(coach_rect), str(coach_rect))
+		var top_right := ui.hud.find_child("TopRight", true, false) as Control
+		_check("the coach clears the HUD clock", top_right != null and not _overlap(coach_rect, top_right.get_global_rect()))
+		var pads_clear := true
+		for pad_name in ["Vacuum", "Jump", "Use", "Dash", "Pulse"]:
+			var pad := _pad(pad_name)
+			if pad != null and pad.is_visible_in_tree() and _overlap(coach_rect, pad.get_global_rect()):
+				pads_clear = false
+		_check("the coach clears the pads", pads_clear)
+		if ui.coach_button != null:
+			await _tap(0, _center(ui.coach_button))
+			_check("a tap on GOT IT closes the coach", not ui.coach_open())
+	ui.set_phase("pause")
+	await process_frame
+	ui.set_phase("play")
+	await process_frame
+	_check("the coach stays closed after a pause", not ui.coach_open())
+	ui.set_touch_mode(false)
+	ui.reset_coach()
+	ui.set_phase("play")
+	await process_frame
+	_check("a desktop shift has no coach", not ui.coach_open())
+	ui.set_phase("title")
+	await process_frame
+	ui.set_touch_mode(true)
+	ui.reset_coach()
+	ui.set_phase("play")
+	await process_frame
+
+
 # --------------------------------------------------------------------- hud
 
 func _test_hud() -> void:
@@ -696,6 +749,10 @@ func _test_end_to_end() -> void:
 	await _tap(0, Vector2(800, 60))
 	_check("the real game turns touch on after a tap", game.ui.touch_available())
 	_check("touch rank copy names the pad", game._rank_line(3).contains("DASH") and not game._rank_line(3).contains("Ctrl"), game._rank_line(3))
+	_check("the coach opens in the real game", game.ui.coach_open())
+	if game.ui.coach_open() and game.ui.coach_button != null:
+		await _tap(3, _center(game.ui.coach_button))
+		_check("a tap closes the real coach", not game.ui.coach_open())
 	var dash: Control = game.ui.touch_root.find_child("Dash", true, false) as Control
 	var pulse: Control = game.ui.touch_root.find_child("Pulse", true, false) as Control
 	_check("rank 3 shows dash in the real game", dash != null and dash.visible)

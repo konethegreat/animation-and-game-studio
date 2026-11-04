@@ -69,6 +69,7 @@ var rank_panel: PanelContainer
 var title_play: Button
 var title_shifts: VBoxContainer
 var title_note: Label
+var title_controls: GridContainer
 var objective_label: Label
 var results_next: Button
 var results_line: Label
@@ -88,6 +89,11 @@ var pad_jump: TouchPad
 var pad_use: TouchPad
 var pad_dash: TouchPad
 var pad_pulse: TouchPad
+var coach_layer: Control
+var coach_panel: PanelContainer
+var coach_button: Button
+var _coach_seen := false
+var _title_controls_text := ""
 var touch_mode := false
 var touch_rank := 1
 var display_font: FontVariation
@@ -120,6 +126,7 @@ func _ready() -> void:
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
+	root.resized.connect(_refresh_touch)
 
 	_build_hud()
 	_build_prompt()
@@ -131,6 +138,7 @@ func _ready() -> void:
 	_build_results()
 	_build_rank()
 	_build_touch()
+	_build_coach()
 	set_touch_mode(wants_touch(
 		OS.has_feature("mobile"),
 		OS.has_feature("web_android"),
@@ -674,26 +682,12 @@ func _build_title() -> void:
 	box.add_child(title_shifts)
 
 	box.add_child(_spacer(2))
-	var controls := GridContainer.new()
-	controls.columns = 2
-	controls.add_theme_constant_override("h_separation", 18)
-	controls.add_theme_constant_override("v_separation", 4)
-	var rows := [
-		["WASD / left stick", "Move"],
-		["Hold left mouse / RT", "Vacuum"],
-		["E / X", "Talk, lift, sort"],
-		["Space / A", "Jump, then double jump"],
-		["Ctrl / B", "Dash"],
-		["Q / Y", "Cleanse pulse"],
-		["Shift / L3", "Run"],
-		["Right drag / right stick", "Look"],
-	]
-	for row in rows:
-		var key := _label(row[0], 12, Color(0.13, 0.12, 0.1, 0.62), true)
-		key.custom_minimum_size = Vector2(205, 0)
-		controls.add_child(key)
-		controls.add_child(_label(row[1], 13, K.INK, false))
-	box.add_child(controls)
+	title_controls = GridContainer.new()
+	title_controls.columns = 2
+	title_controls.add_theme_constant_override("h_separation", 18)
+	title_controls.add_theme_constant_override("v_separation", 4)
+	box.add_child(title_controls)
+	_fill_title_controls()
 	box.add_child(_spacer(2))
 	var ranks := _label("FIVE RANKS   /   SWEEPER TO COSMIC CUSTODIAN. XP COMES FROM A CLEAN STREET.", 10, Color(0.13, 0.12, 0.1, 0.55), true)
 	ranks.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -716,6 +710,50 @@ func _build_title() -> void:
 	credit_wrap.add_child(credit_text)
 	credit.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, 24)
 	title_layer.add_child(credit)
+
+
+func _title_rows() -> Array:
+	if touch_mode:
+		return [
+			["Left thumb stick", "Move"],
+			["VAC pad", "Vacuum"],
+			["USE pad", "Talk, lift, sort"],
+			["JUMP pad", "Jump, then double jump"],
+			["DASH pad", "Dash"],
+			["PULSE pad", "Cleanse pulse"],
+			["Push the stick to the rim", "Run"],
+			["Right side drag", "Look"],
+		]
+	return [
+		["WASD / left stick", "Move"],
+		["Hold left mouse / RT", "Vacuum"],
+		["E / X", "Talk, lift, sort"],
+		["Space / A", "Jump, then double jump"],
+		["Ctrl / B", "Dash"],
+		["Q / Y", "Cleanse pulse"],
+		["Shift / L3", "Run"],
+		["Right drag / right stick", "Look"],
+	]
+
+
+func _fill_title_controls() -> void:
+	if title_controls == null:
+		return
+	for child in title_controls.get_children():
+		title_controls.remove_child(child)
+		child.queue_free()
+	var parts := PackedStringArray()
+	for row in _title_rows():
+		parts.append(str(row[0]))
+		var key := _label(str(row[0]), 12, Color(0.13, 0.12, 0.1, 0.62), true)
+		key.custom_minimum_size = Vector2(205, 0)
+		title_controls.add_child(key)
+		title_controls.add_child(_label(str(row[1]), 13, K.INK, false))
+	_title_controls_text = " / ".join(parts)
+
+
+func title_controls_copy() -> String:
+	return _title_controls_text
 
 
 # ---------------------------------------------------------------- sort
@@ -946,6 +984,58 @@ func _build_touch() -> void:
 	set_touch_rank(touch_rank)
 
 
+func _build_coach() -> void:
+	coach_layer = Control.new()
+	coach_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	coach_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	coach_layer.visible = false
+	root.add_child(coach_layer)
+
+	coach_panel = PanelContainer.new()
+	coach_panel.anchor_left = 0.5
+	coach_panel.anchor_right = 0.5
+	coach_panel.offset_left = -300
+	coach_panel.offset_right = 300
+	coach_panel.offset_top = 84
+	coach_panel.offset_bottom = 206
+	coach_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	coach_panel.add_theme_stylebox_override("panel", _flat(Color(0.13, 0.12, 0.1, 0.9), 18, 2, K.OCHRE))
+	coach_layer.add_child(coach_panel)
+
+	var wrap := _margin(14)
+	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	coach_panel.add_child(wrap)
+	var box := VBoxContainer.new()
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_theme_constant_override("separation", 4)
+	wrap.add_child(box)
+	box.add_child(_label("YOUR FIRST SWEEP", 11, K.OCHRE, true))
+	var line := _label("Left thumb walks and runs. Drag the right side to look.", 13, K.CREAM, false)
+	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(line)
+	var line2 := _label("Hold VAC to clean. JUMP hops the mess. USE talks and sorts.", 13, K.CREAM, false)
+	line2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(line2)
+	coach_button = _button("GOT IT", K.OCHRE, K.INK, 14, true, 170, 38)
+	coach_button.name = "CoachGotIt"
+	coach_button.pressed.connect(_dismiss_coach)
+	box.add_child(coach_button)
+
+
+func _dismiss_coach() -> void:
+	_coach_seen = true
+	if coach_layer:
+		coach_layer.visible = false
+
+
+func reset_coach() -> void:
+	_coach_seen = false
+
+
+func coach_open() -> bool:
+	return coach_layer != null and coach_layer.is_visible_in_tree()
+
+
 func _touch_pad(pad_name: String, text: String, center: Vector2, radius: float, fill: Color, ink: Color) -> TouchPad:
 	var pad := TouchPad.new()
 	pad.name = pad_name
@@ -972,6 +1062,7 @@ func set_touch_mode(on: bool) -> void:
 	if not on:
 		_reset_touch()
 	_apply_copy_width()
+	_fill_title_controls()
 	if prompt_label:
 		prompt_label.text = _prompt_copy(_prompt_text)
 	if dialogue_panel and dialogue_panel.visible:
@@ -1010,6 +1101,8 @@ func _refresh_touch() -> void:
 	if touch_root.visible and not show:
 		_reset_touch()
 	touch_root.visible = show
+	if coach_layer:
+		coach_layer.visible = show and not _coach_seen and root.size.x >= 900.0
 
 
 func _reset_touch() -> void:
