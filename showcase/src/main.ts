@@ -623,6 +623,14 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
+async function lockLandscape() {
+  try {
+    await screen.orientation?.lock?.("landscape");
+  } catch {
+    // Some browsers refuse the lock; the game shows its own rotate card.
+  }
+}
+
 function bindFullscreen() {
   const button = document.getElementById("fullscreen");
   const frame = document.querySelector<HTMLElement>(".play-frame");
@@ -654,6 +662,7 @@ function bindFullscreen() {
     }
     try {
       await frame.requestFullscreen();
+      void lockLandscape();
     } catch {
       document.body.classList.add("is-theatre");
     }

@@ -173,6 +173,7 @@ func _run() -> void:
 	await _test_dialogue()
 	await _test_title()
 	await _test_instructions()
+	await _test_portrait()
 	await _test_hud()
 
 	ui.queue_free()
@@ -679,6 +680,31 @@ func _test_instructions() -> void:
 	await process_frame
 
 
+# ------------------------------------------------------------------ portrait
+
+func _test_portrait() -> void:
+	if not _touch_on():
+		return
+	await _size(Vector2i(720, 1280))
+	ui.reset_coach()
+	ui.set_phase("play")
+	await process_frame
+	await process_frame
+	_check("a portrait phone asks for landscape", ui.rotate_open())
+	_check("the coach waits for landscape", not ui.coach_open())
+	var rect: Rect2 = ui.rotate_panel.get_global_rect()
+	var screen := Rect2(Vector2.ZERO, ui.root.size)
+	_check("the rotate card stays on screen", screen.encloses(rect), str(rect))
+	await _size(Vector2i(1600, 720))
+	await process_frame
+	await process_frame
+	_check("landscape hides the rotate card", not ui.rotate_open())
+	_check("landscape brings the coach back", ui.coach_open())
+	if ui.coach_open() and ui.coach_button != null:
+		await _tap(0, _center(ui.coach_button))
+		_check("the coach closes after rotating", not ui.coach_open())
+
+
 # --------------------------------------------------------------------- hud
 
 func _test_hud() -> void:
@@ -691,6 +717,9 @@ func _test_hud() -> void:
 	_check("the pause button is reachable", pause != null)
 	if pause == null:
 		return
+	_check("the pause button is finger sized", pause.get_theme_font_size("font_size") >= 16 and pause.size.y >= 40, "%spx, %s high" % [pause.get_theme_font_size("font_size"), pause.size.y])
+	var sound := _button_with_text(ui.hud, "SOUND ON")
+	_check("the sound button is finger sized", sound != null and sound.get_theme_font_size("font_size") >= 16)
 	var sc := _center(ui.stick)
 	await _touch(0, sc, true)
 	await _tap(1, _center(pause))
@@ -702,9 +731,15 @@ func _test_hud() -> void:
 	var skip := _button_with_text(ui.hud, "SKIP  >>")
 	_check("the skip button is reachable", skip != null)
 	if skip != null:
+		_check("the skip button is finger sized", skip.get_theme_font_size("font_size") >= 16)
 		await _tap(0, _center(skip))
 		_check("a tap skips the cutscene", skip_hits == 1, str(skip_hits))
 	ui.show_skip(false)
+	await process_frame
+	ui.set_touch_mode(false)
+	await process_frame
+	_check("a desktop keeps the compact HUD", pause.get_theme_font_size("font_size") == 12, str(pause.get_theme_font_size("font_size")))
+	ui.set_touch_mode(true)
 	await process_frame
 
 

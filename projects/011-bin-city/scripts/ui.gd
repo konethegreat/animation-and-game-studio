@@ -81,6 +81,8 @@ var boss_strip: Label
 var boss_flash: ColorRect
 var _boss_flash_tween: Tween
 var skip_button: Button
+var pause_button: Button
+var top_right_panel: PanelContainer
 var touch_root: Control
 var stick: TouchStick
 var look_pad: LookPad
@@ -92,6 +94,8 @@ var pad_pulse: TouchPad
 var coach_layer: Control
 var coach_panel: PanelContainer
 var coach_button: Button
+var rotate_layer: Control
+var rotate_panel: PanelContainer
 var _coach_seen := false
 var _title_controls_text := ""
 var touch_mode := false
@@ -139,6 +143,7 @@ func _ready() -> void:
 	_build_rank()
 	_build_touch()
 	_build_coach()
+	_build_rotate()
 	set_touch_mode(wants_touch(
 		OS.has_feature("mobile"),
 		OS.has_feature("web_android"),
@@ -369,6 +374,7 @@ func _build_hud() -> void:
 
 	var top_right := PanelContainer.new()
 	top_right.name = "TopRight"
+	top_right_panel = top_right
 	top_right.anchor_left = 1.0
 	top_right.anchor_right = 1.0
 	top_right.offset_left = -248
@@ -385,7 +391,7 @@ func _build_hud() -> void:
 	sound_button = _text_button("SOUND", K.INK, 12)
 	sound_button.pressed.connect(func() -> void: mute_pressed.emit())
 	row.add_child(sound_button)
-	var pause_button := _text_button("PAUSE", K.INK, 12)
+	pause_button = _text_button("PAUSE", K.INK, 12)
 	pause_button.pressed.connect(func() -> void: pause_pressed.emit())
 	row.add_child(pause_button)
 
@@ -1036,6 +1042,56 @@ func coach_open() -> bool:
 	return coach_layer != null and coach_layer.is_visible_in_tree()
 
 
+func _build_rotate() -> void:
+	rotate_layer = Control.new()
+	rotate_layer.name = "Rotate"
+	rotate_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rotate_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rotate_layer.visible = false
+	root.add_child(rotate_layer)
+
+	var dim := ColorRect.new()
+	dim.color = Color(0.13, 0.12, 0.1, 0.82)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rotate_layer.add_child(dim)
+
+	rotate_panel = PanelContainer.new()
+	rotate_panel.anchor_left = 0.5
+	rotate_panel.anchor_right = 0.5
+	rotate_panel.anchor_top = 0.5
+	rotate_panel.anchor_bottom = 0.5
+	rotate_panel.offset_left = -290
+	rotate_panel.offset_right = 290
+	rotate_panel.offset_top = -118
+	rotate_panel.offset_bottom = 118
+	rotate_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rotate_panel.add_theme_stylebox_override("panel", _flat(Color(0.973, 0.945, 0.898, 0.98), 24, 3, K.INK))
+	rotate_layer.add_child(rotate_panel)
+
+	var wrap := _margin(22)
+	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rotate_panel.add_child(wrap)
+	var box := VBoxContainer.new()
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_theme_constant_override("separation", 8)
+	wrap.add_child(box)
+	var kicker := _label("BIN CITY", 12, K.CORAL, true)
+	kicker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(kicker)
+	var heading := _label("TURN THE PHONE", 40, K.INK, true)
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(heading)
+	var line := _label("The street plays wide. Turn your phone sideways and the pads appear under your thumbs.", 15, Color(0.13, 0.12, 0.1, 0.7), false)
+	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(line)
+
+
+func rotate_open() -> bool:
+	return rotate_layer != null and rotate_layer.is_visible_in_tree()
+
+
 func _touch_pad(pad_name: String, text: String, center: Vector2, radius: float, fill: Color, ink: Color) -> TouchPad:
 	var pad := TouchPad.new()
 	pad.name = pad_name
@@ -1062,6 +1118,7 @@ func set_touch_mode(on: bool) -> void:
 	if not on:
 		_reset_touch()
 	_apply_copy_width()
+	_apply_hud_scale()
 	_fill_title_controls()
 	if prompt_label:
 		prompt_label.text = _prompt_copy(_prompt_text)
@@ -1101,8 +1158,11 @@ func _refresh_touch() -> void:
 	if touch_root.visible and not show:
 		_reset_touch()
 	touch_root.visible = show
+	var portrait := touch_mode and root.size.y > root.size.x
 	if coach_layer:
-		coach_layer.visible = show and not _coach_seen and root.size.x >= 900.0
+		coach_layer.visible = show and not _coach_seen and not portrait and root.size.x >= 900.0
+	if rotate_layer:
+		rotate_layer.visible = portrait
 
 
 func _reset_touch() -> void:
@@ -1118,6 +1178,22 @@ func _apply_copy_width() -> void:
 	if subtitle_panel:
 		subtitle_panel.offset_left = -240.0 if touch_mode else -390.0
 		subtitle_panel.offset_right = 240.0 if touch_mode else 390.0
+
+
+func _apply_hud_scale() -> void:
+	var small := 17 if touch_mode else 12
+	var tall := 44.0 if touch_mode else 0.0
+	for button in [sound_button, pause_button]:
+		if button:
+			button.add_theme_font_size_override("font_size", small)
+			button.custom_minimum_size = Vector2(0, tall)
+	if top_right_panel:
+		top_right_panel.offset_left = -320.0 if touch_mode else -248.0
+	if skip_button:
+		skip_button.add_theme_font_size_override("font_size", 18 if touch_mode else 13)
+		skip_button.custom_minimum_size = Vector2(0, 52.0 if touch_mode else 0.0)
+		skip_button.offset_left = -166.0 if touch_mode else -120.0
+		skip_button.offset_top = 128.0 if touch_mode else 64.0
 
 
 func _input(event: InputEvent) -> void:
