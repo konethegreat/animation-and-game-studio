@@ -643,6 +643,7 @@ func _show_title() -> void:
 	rank = _saved_rank()
 	hopper_capacity = _hopper_for_rank(rank)
 	player.set_rank(rank)
+	ui.set_touch_rank(rank)
 	cam_yaw.rotation.y = 0.0
 	cam_pitch.rotation.x = -0.3
 	cam_yaw.global_position = SPAWN + Vector3(0, 1.55, 0)
@@ -756,6 +757,7 @@ func _start_shift() -> void:
 	player.reset_player(world.spawn)
 	player.rotation.y = 0.0
 	player.set_rank(rank)
+	ui.set_touch_rank(rank)
 	player.visible = true
 	player.locked = false
 	player.vacuuming = false
@@ -2244,6 +2246,7 @@ func _on_rank_changed(value: int) -> void:
 		crowd.cheer()
 	if ui == null:
 		return
+	ui.set_touch_rank(rank)
 	Sound.play("rank", 1.0, -2.0)
 	ui.show_rank(rank, _rank_line(rank))
 	if phase == "play":

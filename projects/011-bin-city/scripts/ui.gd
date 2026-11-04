@@ -17,6 +17,8 @@ signal skip_pressed
 const K = preload("res://scripts/kit.gd")
 const TouchStick = preload("res://scripts/touch_stick.gd")
 const LookPad = preload("res://scripts/look_pad.gd")
+const TouchButton = preload("res://scripts/touch_button.gd")
+const TouchPad = preload("res://scripts/touch_pad.gd")
 
 const KIND_COLORS := {
 	"glass": Color(0.3, 0.58, 0.54),
@@ -79,13 +81,15 @@ var boss_flash: ColorRect
 var _boss_flash_tween: Tween
 var skip_button: Button
 var touch_root: Control
-var stick: Control
-var look_pad: Control
-var touch_vacuum := false
-var touch_sprint := false
-var touch_jump := false
-var touch_dash := false
-var touch_pulse := false
+var stick: TouchStick
+var look_pad: LookPad
+var pad_vacuum: TouchPad
+var pad_jump: TouchPad
+var pad_use: TouchPad
+var pad_dash: TouchPad
+var pad_pulse: TouchPad
+var touch_mode := false
+var touch_rank := 1
 var display_font: FontVariation
 var dialogue_layer: Control
 var dialogue_panel: PanelContainer
@@ -96,6 +100,7 @@ var dialogue_hint: Label
 var _typing_tween: Tween
 var _dialogue_typing := false
 var _dialogue_full := ""
+var _pending_choices: Array = []
 var _subtitle_tween: Tween
 var _rank_tween: Tween
 var _prompt_text := ""
@@ -156,7 +161,7 @@ func _label(text: String, size: int, color := K.INK, bold := false) -> Label:
 
 
 func _button(text: String, fill: Color, text_color: Color, size := 20, glow := false, width := 0.0, height := 0.0) -> Button:
-	var button := Button.new()
+	var button := TouchButton.new()
 	button.text = text
 	button.focus_mode = Control.FOCUS_NONE
 	button.add_theme_font_size_override("font_size", size)
@@ -192,7 +197,7 @@ func _button(text: String, fill: Color, text_color: Color, size := 20, glow := f
 
 
 func _text_button(text: String, color := K.INK, size := 14) -> Button:
-	var button := Button.new()
+	var button := TouchButton.new()
 	button.text = text
 	button.focus_mode = Control.FOCUS_NONE
 	button.add_theme_font_size_override("font_size", size)
@@ -349,6 +354,7 @@ func _build_hud() -> void:
 	box.add_child(objective_label)
 
 	var top_right := PanelContainer.new()
+	top_right.name = "TopRight"
 	top_right.anchor_left = 1.0
 	top_right.anchor_right = 1.0
 	top_right.offset_left = -248
@@ -422,6 +428,7 @@ func _build_hud() -> void:
 
 func show_skip(on: bool) -> void:
 	skip_button.visible = on
+	_refresh_touch()
 
 
 func show_boss(name_text: String) -> void:
@@ -508,6 +515,8 @@ func _build_dialogue() -> void:
 	dialogue_panel.offset_top = -304
 	dialogue_panel.offset_bottom = -36
 	dialogue_panel.add_theme_stylebox_override("panel", _flat(Color(0.973, 0.945, 0.898, 0.97), 18, 2, K.INK))
+	dialogue_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	dialogue_panel.gui_input.connect(_on_dialogue_input)
 	dialogue_layer.add_child(dialogue_panel)
 
 	var wrap := _margin(16)
@@ -542,6 +551,8 @@ func _build_dialogue() -> void:
 func open_dialogue(speaker: String, text: String, choices: Array) -> void:
 	dialogue_panel.visible = true
 	subtitle_panel.visible = false
+	_pending_choices = choices.duplicate()
+	_refresh_touch()
 	var extra := 0.0 if choices.is_empty() else choices.size() * 52.0
 	dialogue_panel.offset_top = -40.0 - 132.0 - extra
 	dialogue_speaker.text = speaker
@@ -590,19 +601,27 @@ func finish_typing() -> void:
 		_typing_tween.kill()
 	dialogue_text.visible_characters = -1
 	_dialogue_typing = false
+	_reveal_choices(_pending_choices)
 
 
 func close_dialogue() -> void:
 	if _typing_tween:
 		_typing_tween.kill()
 	_dialogue_typing = false
+	_pending_choices = []
 	for child in dialogue_choices_box.get_children():
 		child.queue_free()
 	dialogue_panel.visible = false
+	_refresh_touch()
 
 
 func dialogue_open() -> bool:
 	return dialogue_panel != null and dialogue_panel.visible
+
+
+func _on_dialogue_input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed:
+		dialogue_next.emit()
 
 
 # ---------------------------------------------------------------- title
@@ -885,115 +904,106 @@ func _build_touch() -> void:
 	touch_root = Control.new()
 	touch_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	touch_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	touch_root.visible = false
 	root.add_child(touch_root)
 
-	look_pad = LookPad.new()
-	look_pad.anchor_left = 1.0
-	look_pad.anchor_right = 1.0
-	look_pad.anchor_top = 0.2
-	look_pad.anchor_bottom = 1.0
-	look_pad.offset_left = -560
-	look_pad.offset_top = 0
-	look_pad.offset_right = 0
-	look_pad.offset_bottom = -200
-	touch_root.add_child(look_pad)
-
 	stick = TouchStick.new()
-	stick.anchor_top = 1.0
+	stick.name = "Stick"
+	stick.anchor_left = 0.0
+	stick.anchor_right = 0.42
+	stick.anchor_top = 0.0
 	stick.anchor_bottom = 1.0
-	stick.offset_left = 20
-	stick.offset_right = 210
-	stick.offset_top = -220
-	stick.offset_bottom = -30
+	stick.offset_left = 0
+	stick.offset_right = 0
+	stick.offset_top = 260
+	stick.offset_bottom = 0
 	touch_root.add_child(stick)
 
-	var vacuum := _button("VAC", K.CORAL, K.CREAM, 20, true, 132, 132)
-	vacuum.anchor_left = 1.0
-	vacuum.anchor_right = 1.0
-	vacuum.anchor_top = 1.0
-	vacuum.anchor_bottom = 1.0
-	vacuum.offset_left = -164
-	vacuum.offset_right = -32
-	vacuum.offset_top = -164
-	vacuum.offset_bottom = -32
-	vacuum.button_down.connect(func() -> void: touch_vacuum = true)
-	vacuum.button_up.connect(func() -> void: touch_vacuum = false)
-	touch_root.add_child(vacuum)
+	look_pad = LookPad.new()
+	look_pad.name = "LookPad"
+	look_pad.anchor_left = 0.42
+	look_pad.anchor_right = 1.0
+	look_pad.anchor_top = 0.0
+	look_pad.anchor_bottom = 1.0
+	look_pad.offset_left = 0
+	look_pad.offset_right = 0
+	look_pad.offset_top = 130
+	look_pad.offset_bottom = 0
+	touch_root.add_child(look_pad)
 
-	var jump := _button("JUMP", K.TEAL_DARK, K.CREAM, 16, false, 104, 96)
-	jump.anchor_left = 1.0
-	jump.anchor_right = 1.0
-	jump.anchor_top = 1.0
-	jump.anchor_bottom = 1.0
-	jump.offset_left = -152
-	jump.offset_right = -48
-	jump.offset_top = -278
-	jump.offset_bottom = -182
-	jump.button_down.connect(func() -> void: touch_jump = true)
-	jump.button_up.connect(func() -> void: touch_jump = false)
-	touch_root.add_child(jump)
+	pad_vacuum = _touch_pad("Vacuum", "VAC", Vector2(-116, -116), 88, K.CORAL, K.CREAM)
+	pad_jump = _touch_pad("Jump", "JUMP", Vector2(-318, -94), 66, K.TEAL_DARK, K.CREAM)
+	pad_dash = _touch_pad("Dash", "DASH", Vector2(-292, -292), 56, K.INK, K.CREAM)
+	pad_pulse = _touch_pad("Pulse", "PULSE", Vector2(-94, -490), 56, K.TEAL, K.CREAM)
+	pad_use = _touch_pad("Use", "USE", Vector2(-94, -318), 66, K.INK, K.CREAM)
+	pad_use.held_started.connect(func() -> void: interact_pressed.emit())
+	set_touch_rank(touch_rank)
 
-	var dash := _button("DASH", K.INK, K.CREAM, 14, false, 96, 82)
-	dash.anchor_left = 1.0
-	dash.anchor_right = 1.0
-	dash.anchor_top = 1.0
-	dash.anchor_bottom = 1.0
-	dash.offset_left = -278
-	dash.offset_right = -182
-	dash.offset_top = -284
-	dash.offset_bottom = -202
-	dash.button_down.connect(func() -> void: touch_dash = true)
-	dash.button_up.connect(func() -> void: touch_dash = false)
-	touch_root.add_child(dash)
 
-	var pulse := _button("PULSE", K.TEAL, K.CREAM, 13, false, 96, 76)
-	pulse.anchor_left = 1.0
-	pulse.anchor_right = 1.0
-	pulse.anchor_top = 1.0
-	pulse.anchor_bottom = 1.0
-	pulse.offset_left = -278
-	pulse.offset_right = -182
-	pulse.offset_top = -380
-	pulse.offset_bottom = -304
-	pulse.button_down.connect(func() -> void: touch_pulse = true)
-	pulse.button_up.connect(func() -> void: touch_pulse = false)
-	touch_root.add_child(pulse)
+func _touch_pad(pad_name: String, text: String, center: Vector2, radius: float, fill: Color, ink: Color) -> TouchPad:
+	var pad := TouchPad.new()
+	pad.name = pad_name
+	pad.label_text = text
+	pad.fill = fill
+	pad.ink = ink
+	pad.radius = radius
+	pad.anchor_left = 1.0
+	pad.anchor_right = 1.0
+	pad.anchor_top = 1.0
+	pad.anchor_bottom = 1.0
+	pad.offset_left = center.x - radius
+	pad.offset_right = center.x + radius
+	pad.offset_top = center.y - radius
+	pad.offset_bottom = center.y + radius
+	touch_root.add_child(pad)
+	return pad
 
-	var use := _button("USE", K.INK, K.CREAM, 16, false, 96, 96)
-	use.anchor_left = 1.0
-	use.anchor_right = 1.0
-	use.anchor_top = 1.0
-	use.anchor_bottom = 1.0
-	use.offset_left = -282
-	use.offset_right = -186
-	use.offset_top = -138
-	use.offset_bottom = -42
-	use.pressed.connect(func() -> void: interact_pressed.emit())
-	touch_root.add_child(use)
 
-	var run := _button("RUN", K.INK, K.CREAM, 14, false, 86, 70)
-	run.anchor_left = 1.0
-	run.anchor_right = 1.0
-	run.anchor_top = 1.0
-	run.anchor_bottom = 1.0
-	run.offset_left = -184
-	run.offset_right = -98
-	run.offset_top = -248
-	run.offset_bottom = -178
-	run.button_down.connect(func() -> void: touch_sprint = true)
-	run.button_up.connect(func() -> void: touch_sprint = false)
-	touch_root.add_child(run)
+func set_touch_mode(on: bool) -> void:
+	if touch_mode == on:
+		return
+	touch_mode = on
+	if not on:
+		_reset_touch()
+	_apply_copy_width()
+	_refresh_touch()
 
-	# Touch hardware is common on laptops, so the pads stay hidden until the
-	# browser actually reports a touch. Phones show them straight away.
-	touch_root.visible = OS.has_feature("mobile")
+
+func set_touch_rank(value: int) -> void:
+	touch_rank = value
+	if pad_dash:
+		pad_dash.visible = value >= 3
+	if pad_pulse:
+		pad_pulse.visible = value >= 5
+
+
+func _refresh_touch() -> void:
+	if touch_root == null:
+		return
+	var show := touch_mode and _phase == "play" and not dialogue_open() and (skip_button == null or not skip_button.visible)
+	if touch_root.visible and not show:
+		_reset_touch()
+	touch_root.visible = show
+
+
+func _reset_touch() -> void:
+	for node in touch_root.get_children():
+		if node.has_method("release"):
+			node.release()
+
+
+func _apply_copy_width() -> void:
+	if prompt_panel:
+		prompt_panel.offset_left = -240.0 if touch_mode else -330.0
+		prompt_panel.offset_right = 240.0 if touch_mode else 330.0
+	if subtitle_panel:
+		subtitle_panel.offset_left = -240.0 if touch_mode else -390.0
+		subtitle_panel.offset_right = 240.0 if touch_mode else 390.0
 
 
 func _input(event: InputEvent) -> void:
-	if touch_root.visible:
-		return
-	if event is InputEventScreenTouch or event is InputEventScreenDrag:
-		touch_root.visible = true
+	if not touch_mode and (event is InputEventScreenTouch or event is InputEventScreenDrag):
+		set_touch_mode(true)
 
 
 # ---------------------------------------------------------------- public API
@@ -1013,8 +1023,7 @@ func set_phase(phase: String) -> void:
 	prompt_panel.visible = false
 	if phase != "sort":
 		sort_layer.visible = false
-	if phase == "play":
-		pass
+	_refresh_touch()
 
 
 func prompt(text: String) -> void:
@@ -1023,8 +1032,6 @@ func prompt(text: String) -> void:
 	_prompt_text = text
 	prompt_label.text = text
 	prompt_panel.visible = text != "" and (_phase == "play")
-	if touch_root.visible and text != "":
-		prompt_label.text = text + "   (or use USE)"
 
 
 func subtitle(text: String, seconds := 5.0) -> void:
@@ -1220,24 +1227,24 @@ func touch_move() -> Vector2:
 
 
 func touch_wants_sprint() -> bool:
-	return touch_root.visible and touch_sprint
+	return touch_root.visible and stick != null and stick.wants_sprint()
 
 
 func touch_wants_vacuum() -> bool:
-	return touch_root.visible and touch_vacuum
+	return touch_root.visible and pad_vacuum != null and pad_vacuum.held
 
 
 func touch_wants_jump() -> bool:
-	return touch_root.visible and touch_jump
+	return touch_root.visible and pad_jump != null and pad_jump.held
 
 
 func touch_wants_dash() -> bool:
-	return touch_root.visible and touch_dash
+	return touch_root.visible and pad_dash != null and pad_dash.held
 
 
 func touch_wants_pulse() -> bool:
-	return touch_root.visible and touch_pulse
+	return touch_root.visible and pad_pulse != null and pad_pulse.held
 
 
 func touch_available() -> bool:
-	return touch_root.visible
+	return touch_mode
