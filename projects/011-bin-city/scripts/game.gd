@@ -2225,14 +2225,21 @@ func _hopper_for_rank(value: int) -> int:
 
 
 func _rank_line(value: int) -> String:
+	var touch: bool = ui != null and ui.touch_available()
 	match value:
 		2:
 			return "Bigger hopper, quicker boots, and a coat that means business."
 		3:
+			if touch:
+				return "Sign plate armour, a magnet gauntlet, and a dash on the DASH pad."
 			return "Sign plate armour, a magnet gauntlet, and a dash on Ctrl or B."
 		4:
+			if touch:
+				return "Twin turbines, a tarpaulin cape, and a double jump on the JUMP pad."
 			return "Twin turbines, a tarpaulin cape, and a double jump on Space or A."
 		5:
+			if touch:
+				return "Orbit bins, a comet broom, and the cleanse pulse on the PULSE pad."
 			return "Orbit bins, a comet broom, and the cleanse pulse on Q or Y."
 	return "Straw cap, a broom, and a quiet kind of pride."
 

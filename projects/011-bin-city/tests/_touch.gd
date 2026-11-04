@@ -158,6 +158,9 @@ func _run() -> void:
 	ui.look_pad.looked.connect(func(relative: Vector2) -> void: looked_total += relative)
 
 	await _test_activation()
+	_test_boot()
+	await _test_handoff()
+	await _test_wording()
 	await _test_visibility()
 	await _test_layout()
 	await _test_rank_gates()
@@ -196,6 +199,89 @@ func _test_activation() -> void:
 	_check("a tap turns touch mode on", mode, "touch_mode=%s" % ui.get("touch_mode"))
 	_check("touch_available follows the mode", ui.touch_available() == true)
 	_check("the pads show in play", ui.touch_root.is_visible_in_tree())
+
+
+# -------------------------------------------------------------------- boot
+
+func _test_boot() -> void:
+	_check("phones boot in touch mode", ui.wants_touch(true, false, false, false))
+	_check("web android boots in touch mode", ui.wants_touch(false, true, false, false))
+	_check("web ios boots in touch mode", ui.wants_touch(false, false, true, false))
+	_check("a touch laptop boots in touch mode", ui.wants_touch(false, false, false, true))
+	_check("a desktop boots with keys", not ui.wants_touch(false, false, false, false))
+
+
+# ----------------------------------------------------------------- handoff
+
+func _key(code: Key, pressed: bool) -> void:
+	var event := InputEventKey.new()
+	event.keycode = code
+	event.physical_keycode = code
+	event.pressed = pressed
+	Input.parse_input_event(event)
+	Input.flush_buffered_events()
+	await process_frame
+	await process_frame
+
+
+func _test_handoff() -> void:
+	if not _touch_on():
+		return
+	await _click(Vector2(800, 60))
+	_check("a mouse click keeps touch mode", _touch_on())
+	await _key(KEY_A, true)
+	await _key(KEY_A, false)
+	_check("a key press returns to the keyboard", not _touch_on())
+	_check("the pads hide for the keyboard", not ui.touch_root.is_visible_in_tree())
+	await _tap(0, Vector2(800, 60))
+	_check("a tap returns to touch mode", _touch_on())
+	var button := InputEventJoypadButton.new()
+	button.button_index = JOY_BUTTON_A
+	button.pressed = true
+	Input.parse_input_event(button)
+	Input.flush_buffered_events()
+	await process_frame
+	await process_frame
+	_check("a pad press returns to the pad", not _touch_on())
+	await _tap(0, Vector2(800, 60))
+	_check("a tap returns after the pad", _touch_on())
+
+
+# ----------------------------------------------------------------- wording
+
+func _test_wording() -> void:
+	if not _touch_on():
+		return
+	ui.set_phase("play")
+	await process_frame
+	ui.prompt("E  ENTER THE DEPOT")
+	await process_frame
+	_check("touch prompts say USE", ui.prompt_label.text == "USE  ENTER THE DEPOT", ui.prompt_label.text)
+	ui.prompt("")
+	await process_frame
+	ui.open_dialogue("NELL QUILL", "Morning.", [])
+	await process_frame
+	_check("touch dialogue says tap to continue", ui.dialogue_hint.text == "TAP TO CONTINUE", ui.dialogue_hint.text)
+	ui.finish_typing()
+	await process_frame
+	_check("touch dialogue stays tap to continue", ui.dialogue_hint.text == "TAP TO CONTINUE", ui.dialogue_hint.text)
+	ui.open_dialogue("NELL QUILL", "Pick one.", [{"label": "Yes"}])
+	await process_frame
+	ui.finish_typing()
+	await process_frame
+	_check("touch choices say tap a choice", ui.dialogue_hint.text == "TAP A CHOICE", ui.dialogue_hint.text)
+	ui.close_dialogue()
+	ui.set_phase("play")
+	await process_frame
+	ui.set_touch_mode(false)
+	await process_frame
+	ui.prompt("E  ENTER THE DEPOT")
+	await process_frame
+	_check("desktop prompts keep the key", ui.prompt_label.text == "E  ENTER THE DEPOT", ui.prompt_label.text)
+	ui.prompt("")
+	await process_frame
+	ui.set_touch_mode(true)
+	await process_frame
 
 
 # --------------------------------------------------------------- visibility
@@ -606,8 +692,10 @@ func _test_end_to_end() -> void:
 		game.queue_free()
 		state.delete_save()
 		return
+	_check("desktop rank copy names the keys", game._rank_line(3).contains("Ctrl"), game._rank_line(3))
 	await _tap(0, Vector2(800, 60))
 	_check("the real game turns touch on after a tap", game.ui.touch_available())
+	_check("touch rank copy names the pad", game._rank_line(3).contains("DASH") and not game._rank_line(3).contains("Ctrl"), game._rank_line(3))
 	var dash: Control = game.ui.touch_root.find_child("Dash", true, false) as Control
 	var pulse: Control = game.ui.touch_root.find_child("Pulse", true, false) as Control
 	_check("rank 3 shows dash in the real game", dash != null and dash.visible)

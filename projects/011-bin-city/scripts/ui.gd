@@ -131,6 +131,12 @@ func _ready() -> void:
 	_build_results()
 	_build_rank()
 	_build_touch()
+	set_touch_mode(wants_touch(
+		OS.has_feature("mobile"),
+		OS.has_feature("web_android"),
+		OS.has_feature("web_ios"),
+		DisplayServer.is_touchscreen_available()
+	))
 	set_phase("title")
 	set_muted(Sound.muted)
 
@@ -571,16 +577,16 @@ func open_dialogue(speaker: String, text: String, choices: Array) -> void:
 		_dialogue_typing = false
 		_reveal_choices(choices)
 	)
-	dialogue_hint.text = "E  NEXT" if choices.is_empty() else "CHOOSE"
+	dialogue_hint.text = _hint_copy(not choices.is_empty())
 
 
 func _reveal_choices(choices: Array) -> void:
 	for child in dialogue_choices_box.get_children():
 		child.queue_free()
 	if choices.is_empty():
-		dialogue_hint.text = "E  NEXT"
+		dialogue_hint.text = _hint_copy(false)
 		return
-	dialogue_hint.text = "CHOOSE"
+	dialogue_hint.text = _hint_copy(true)
 	for i in choices.size():
 		var choice: Dictionary = choices[i]
 		var button := _button(str(choice.get("label", "...")).to_upper(), K.PAPER, K.INK, 15, false)
@@ -966,7 +972,27 @@ func set_touch_mode(on: bool) -> void:
 	if not on:
 		_reset_touch()
 	_apply_copy_width()
+	if prompt_label:
+		prompt_label.text = _prompt_copy(_prompt_text)
+	if dialogue_panel and dialogue_panel.visible:
+		dialogue_hint.text = _hint_copy(not _pending_choices.is_empty())
 	_refresh_touch()
+
+
+static func wants_touch(mobile: bool, web_android: bool, web_ios: bool, touchscreen: bool) -> bool:
+	return mobile or web_android or web_ios or touchscreen
+
+
+func _prompt_copy(text: String) -> String:
+	if touch_mode and text.begins_with("E  "):
+		return "USE  " + text.substr(3)
+	return text
+
+
+func _hint_copy(choosing: bool) -> String:
+	if touch_mode:
+		return "TAP A CHOICE" if choosing else "TAP TO CONTINUE"
+	return "CHOOSE" if choosing else "E  NEXT"
 
 
 func set_touch_rank(value: int) -> void:
@@ -1002,8 +1028,16 @@ func _apply_copy_width() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if not touch_mode and (event is InputEventScreenTouch or event is InputEventScreenDrag):
-		set_touch_mode(true)
+	if not touch_mode:
+		if event is InputEventScreenTouch or event is InputEventScreenDrag:
+			set_touch_mode(true)
+		return
+	if event is InputEventKey and event.pressed and not event.echo:
+		set_touch_mode(false)
+	elif event is InputEventJoypadButton and event.pressed:
+		set_touch_mode(false)
+	elif event is InputEventJoypadMotion and absf((event as InputEventJoypadMotion).axis_value) > 0.5:
+		set_touch_mode(false)
 
 
 # ---------------------------------------------------------------- public API
@@ -1030,7 +1064,7 @@ func prompt(text: String) -> void:
 	if text == _prompt_text:
 		return
 	_prompt_text = text
-	prompt_label.text = text
+	prompt_label.text = _prompt_copy(text)
 	prompt_panel.visible = text != "" and (_phase == "play")
 
 
