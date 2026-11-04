@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f6f1e6" />
+    <meta
+      name="description"
+      content="A live character probe: one rigged head and body, editable shape, expressions, skin and eyes, rendered in the browser."
+    />
+    <title>Creator probe / Kone Studio</title>
+  </head>
+  <body>
+    <main class="probe">
+      <header class="probe-head">
+        <div class="probe-brand">
+          <span class="probe-mark" aria-hidden="true"></span>
+          <span>Kone Studio</span>
+        </div>
+        <div class="probe-head-meta">
+          <span class="probe-pill">Probe 01</span>
+          <span class="probe-state" id="probe-state">Loading rig</span>
+        </div>
+      </header>
+
+      <section class="probe-layout">
+        <div class="probe-view" id="probe-view" role="group" aria-label="Interactive 3D character lit in a studio">
+          <div class="probe-splash" id="probe-splash">
+            <p class="probe-splash-label">Character probe</p>
+            <div class="probe-track"><span id="probe-progress"></span></div>
+            <p class="probe-splash-note" id="probe-progress-label">Preparing the stage</p>
+          </div>
+          <div class="probe-hud">
+            <div class="probe-hint">Drag to orbit. Scroll to zoom.</div>
+            <div class="probe-stats" aria-live="off">
+              <span><b id="stat-fps">--</b> fps</span>
+              <span><b id="stat-tris">--</b> tris</span>
+              <span><b id="stat-calls">--</b> calls</span>
+              <span><b id="stat-size">--</b> MB</span>
+              <span><b id="stat-load">--</b> ms</span>
+            </div>
+          </div>
+          <div class="probe-views" id="probe-views" aria-label="Camera">
+            <button type="button" data-view="face">Face</button>
+            <button type="button" data-view="three">Three quarter</button>
+            <button type="button" data-view="bust" class="is-active">Bust</button>
+            <button type="button" data-view="full">Full</button>
+          </div>
+        </div>
+
+        <aside class="probe-panel" aria-label="Character controls">
+          <div class="probe-intro">
+            <p class="probe-eyebrow">Stylized real</p>
+            <h1>One rig,<br />endless faces.</h1>
+            <p>
+              A working probe of the creator pipeline. Start from a look, then change the hair,
+              skin, features and body until the character is yours.
+            </p>
+          </div>
+
+          <section class="probe-block">
+            <h2>Looks</h2>
+            <div class="probe-chips" id="probe-looks"></div>
+          </section>
+
+          <section class="probe-block">
+            <h2>Body type</h2>
+            <div class="probe-chips" id="probe-build">
+              <button type="button" data-build="female">Female</button>
+              <button type="button" data-build="male">Male</button>
+            </div>
+          </section>
+
+          <section class="probe-block">
+            <h2>Hairstyle</h2>
+            <div class="probe-chips" id="probe-styles"></div>
+          </section>
+
+          <section class="probe-block">
+            <div class="probe-block-head">
+              <h2>Expressions</h2>
+              <button type="button" class="probe-text-button" id="probe-reset">Reset shape</button>
+            </div>
+            <div class="probe-chips" id="probe-expressions">
+              <button type="button" data-expression="neutral" class="is-active">Neutral</button>
+              <button type="button" data-expression="smile">Smile</button>
+              <button type="button" data-expression="curious">Curious</button>
+              <button type="button" data-expression="surprised">Surprised</button>
+              <button type="button" data-expression="frown">Frown</button>
+              <button type="button" data-expression="blink">Blink</button>
+            </div>
+          </section>
+
+          <section class="probe-block">
+            <h2>Body</h2>
+            <div class="probe-sliders" id="probe-body"></div>
+          </section>
+
+          <section class="probe-block">
+            <h2>Face</h2>
+            <div class="probe-sliders" id="probe-face"></div>
+          </section>
+
+          <section class="probe-block">
+            <h2>Skin</h2>
+            <div class="probe-swatches" id="probe-skin"></div>
+            <label class="probe-range" for="probe-sss">
+              <span class="probe-range-label"><span>Light scatter</span><output id="probe-sss-value">0.24</output></span>
+              <input id="probe-sss" type="range" min="0" max="1" step="0.05" value="0.24" />
+            </label>
+          </section>
+
+          <section class="probe-block">
+            <h2>Cloth</h2>
+            <div class="probe-swatches" id="probe-cloth" aria-label="Cloth colour"></div>
+          </section>
+
+          <section class="probe-block">
+            <h2>Hair and eyes</h2>
+            <div class="probe-swatches" id="probe-hair" aria-label="Hair colour"></div>
+            <div class="probe-swatches" id="probe-iris" aria-label="Iris colour"></div>
+          </section>
+
+          <section class="probe-block">
+            <h2>Light</h2>
+            <div class="probe-chips" id="probe-light">
+              <button type="button" data-light="softbox" class="is-active">Softbox</button>
+              <button type="button" data-light="golden">Golden</button>
+              <button type="button" data-light="editorial">Editorial</button>
+            </div>
+          </section>
+
+          <footer class="probe-foot">
+            <p>
+              Base mesh and morph targets: Meta MHR, Apache 2.0. Hair, eyes, cloth and skin
+              generated in Blender for this probe. Asset is not final.
+            </p>
+          </footer>
+        </aside>
+      </section>
+    </main>
+    <script type="module" src="/src/creator-probe.ts"></script>
+  </body>
+</html>
