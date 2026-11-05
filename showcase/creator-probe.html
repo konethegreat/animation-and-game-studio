@@ -43,7 +43,7 @@
           <div class="probe-views" id="probe-views" aria-label="Camera">
             <button type="button" data-view="face">Face</button>
             <button type="button" data-view="three">Three quarter</button>
-            <button type="button" data-view="bust" class="is-active">Bust</button>
+            <button type="button" data-view="bust">Bust</button>
             <button type="button" data-view="full">Full</button>
           </div>
         </div>
@@ -59,85 +59,133 @@
           </div>
 
           <section class="probe-block">
-            <h2>Looks</h2>
-            <div class="probe-chips" id="probe-looks"></div>
-          </section>
-
-          <section class="probe-block">
-            <h2>Body type</h2>
-            <div class="probe-chips" id="probe-build">
-              <button type="button" data-build="female">Female</button>
-              <button type="button" data-build="male">Male</button>
+            <div class="probe-actions">
+              <button type="button" id="probe-randomize">Randomize</button>
+              <button type="button" id="probe-export">Export JSON</button>
+              <button type="button" id="probe-import">Import JSON</button>
+              <input type="file" id="probe-import-file" accept="application/json,.json" hidden />
             </div>
+            <p class="probe-file-note" id="probe-file-note" role="status"></p>
           </section>
 
-          <section class="probe-block">
-            <h2>Hairstyle</h2>
-            <div class="probe-chips" id="probe-styles"></div>
-          </section>
+          <div class="probe-tabs" id="probe-tabs" role="tablist" aria-label="Character sections">
+            <button type="button" role="tab" data-tab="identity">Body</button>
+            <button type="button" role="tab" data-tab="face">Face</button>
+            <button type="button" role="tab" data-tab="skin">Skin</button>
+            <button type="button" role="tab" data-tab="art">Art</button>
+            <button type="button" role="tab" data-tab="hair">Hair and eyes</button>
+          </div>
 
-          <section class="probe-block">
-            <div class="probe-block-head">
-              <h2>Expressions</h2>
-              <button type="button" class="probe-text-button" id="probe-reset">Reset shape</button>
-            </div>
-            <div class="probe-chips" id="probe-expressions">
-              <button type="button" data-expression="neutral" class="is-active">Neutral</button>
-              <button type="button" data-expression="smile">Smile</button>
-              <button type="button" data-expression="curious">Curious</button>
-              <button type="button" data-expression="surprised">Surprised</button>
-              <button type="button" data-expression="frown">Frown</button>
-              <button type="button" data-expression="blink">Blink</button>
-            </div>
-          </section>
+          <div class="probe-tab-panel" data-panel="identity" role="tabpanel">
+            <section class="probe-block">
+              <h2>Looks</h2>
+              <div class="probe-chips" id="probe-looks"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Body type</h2>
+              <div class="probe-chips" id="probe-build"></div>
+              <div class="probe-sliders probe-after" id="probe-height"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Body shape</h2>
+              <div class="probe-sliders" id="probe-body"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Cloth</h2>
+              <div class="probe-swatches" id="probe-cloth" aria-label="Cloth colour"></div>
+            </section>
+          </div>
 
-          <section class="probe-block">
-            <h2>Body</h2>
-            <div class="probe-sliders" id="probe-body"></div>
-          </section>
+          <div class="probe-tab-panel" data-panel="face" role="tabpanel" hidden>
+            <section class="probe-block">
+              <h2>Face shape</h2>
+              <div class="probe-chips" id="probe-face-shapes"></div>
+              <div class="probe-sliders probe-after" id="probe-shape"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Features</h2>
+              <div class="probe-sliders" id="probe-face"></div>
+            </section>
+            <section class="probe-block">
+              <div class="probe-block-head">
+                <h2>Expressions</h2>
+                <button type="button" class="probe-text-button" id="probe-reset">Reset shape</button>
+              </div>
+              <div class="probe-chips" id="probe-expressions"></div>
+            </section>
+          </div>
 
-          <section class="probe-block">
-            <h2>Face shape</h2>
-            <div class="probe-chips" id="probe-face-shapes"></div>
-            <div class="probe-sliders" id="probe-shape"></div>
-          </section>
+          <div class="probe-tab-panel" data-panel="skin" role="tabpanel" hidden>
+            <section class="probe-block">
+              <h2>Skin tone</h2>
+              <div class="probe-swatches" id="probe-skin"></div>
+              <div class="probe-sliders probe-after" id="probe-skin-base"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Skin details</h2>
+              <div class="probe-sliders" id="probe-skin-conditions"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Scars</h2>
+              <div class="probe-chips" id="probe-scars"></div>
+              <div class="probe-sliders probe-after" id="probe-scar-range"></div>
+            </section>
+          </div>
 
-          <section class="probe-block">
-            <h2>Features</h2>
-            <div class="probe-sliders" id="probe-face"></div>
-          </section>
+          <div class="probe-tab-panel" data-panel="art" role="tabpanel" hidden>
+            <section class="probe-block">
+              <h2>Tattoo</h2>
+              <div class="probe-chips" id="probe-tattoos"></div>
+              <div class="probe-swatches probe-after" id="probe-tattoo-color" aria-label="Ink colour"></div>
+              <div class="probe-sliders probe-after" id="probe-tattoo-range"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Lips</h2>
+              <div class="probe-swatches" id="probe-lip-color" aria-label="Lip colour"></div>
+              <div class="probe-sliders probe-after" id="probe-lip-range"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Eyes</h2>
+              <div class="probe-swatches" id="probe-eye-color" aria-label="Eyeshadow colour"></div>
+              <div class="probe-sliders probe-after" id="probe-eye-range"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Blush</h2>
+              <div class="probe-swatches" id="probe-blush-color" aria-label="Blush colour"></div>
+              <div class="probe-sliders probe-after" id="probe-blush-range"></div>
+            </section>
+          </div>
 
-          <section class="probe-block">
-            <h2>Skin</h2>
-            <div class="probe-swatches" id="probe-skin"></div>
-            <label class="probe-range" for="probe-sss">
-              <span class="probe-range-label"><span>Light scatter</span><output id="probe-sss-value">0.24</output></span>
-              <input id="probe-sss" type="range" min="0" max="1" step="0.05" value="0.24" />
-            </label>
-            <label class="probe-range" for="probe-stubble">
-              <span class="probe-range-label"><span>Stubble</span><output id="probe-stubble-value">0.00</output></span>
-              <input id="probe-stubble" type="range" min="0" max="1" step="0.05" value="0" />
-            </label>
-          </section>
-
-          <section class="probe-block">
-            <h2>Cloth</h2>
-            <div class="probe-swatches" id="probe-cloth" aria-label="Cloth colour"></div>
-          </section>
-
-          <section class="probe-block">
-            <h2>Hair and eyes</h2>
-            <div class="probe-swatches" id="probe-hair" aria-label="Hair colour"></div>
-            <div class="probe-swatches" id="probe-iris" aria-label="Iris colour"></div>
-          </section>
+          <div class="probe-tab-panel" data-panel="hair" role="tabpanel" hidden>
+            <section class="probe-block">
+              <h2>Hairstyle</h2>
+              <div class="probe-chips" id="probe-styles"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Beard</h2>
+              <div class="probe-chips" id="probe-beards"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Hair colour</h2>
+              <div class="probe-swatches" id="probe-hair" aria-label="Hair colour"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Highlights and gray</h2>
+              <div class="probe-swatches" id="probe-highlights" aria-label="Highlight colour"></div>
+              <div class="probe-sliders probe-after" id="probe-hair-range"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Eye colour</h2>
+              <div class="probe-swatches" id="probe-iris" aria-label="Both eyes"></div>
+              <p class="probe-sublabel">Right eye only</p>
+              <div class="probe-swatches" id="probe-iris-right" aria-label="Right eye"></div>
+              <div class="probe-sliders probe-after" id="probe-eye-state"></div>
+            </section>
+          </div>
 
           <section class="probe-block">
             <h2>Light</h2>
-            <div class="probe-chips" id="probe-light">
-              <button type="button" data-light="softbox" class="is-active">Softbox</button>
-              <button type="button" data-light="golden">Golden</button>
-              <button type="button" data-light="editorial">Editorial</button>
-            </div>
+            <div class="probe-chips" id="probe-light"></div>
           </section>
 
           <footer class="probe-foot">

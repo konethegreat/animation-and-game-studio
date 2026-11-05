@@ -4,13 +4,22 @@ import "@fontsource-variable/manrope";
 import "@fontsource/ibm-plex-mono/400.css";
 
 import * as THREE from "three";
+import {
+  createStore,
+  defaultState,
+  sanitizeState,
+  SCAR_COUNT,
+  TATTOO_COUNT,
+  type BodyType,
+  type CharacterState,
+} from "./creator-state";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 
 type MorphMesh = { mesh: THREE.Mesh; targets: Map<string, number> };
 type SliderDef = { name: string; label: string };
-type ViewName = "face" | "three" | "bust" | "full";
+type ViewName = "macro" | "face" | "three" | "bust" | "full";
 
 const SHAPE_SLIDERS: SliderDef[] = [
   { name: "shape_jaw_width", label: "Jaw width" },
@@ -85,6 +94,11 @@ const EXPRESSION_TARGETS = new Set(
 );
 
 const VIEWS: Record<ViewName, { position: THREE.Vector3; target: THREE.Vector3; fov: number }> = {
+  macro: {
+    position: new THREE.Vector3(0.34, 1.625, 1.02),
+    target: new THREE.Vector3(0, 1.605, 0.08),
+    fov: 11,
+  },
   face: {
     position: new THREE.Vector3(0.05, 1.655, 1.62),
     target: new THREE.Vector3(0, 1.64, 0.06),
@@ -124,11 +138,11 @@ const SKIN_TONES: SkinTone[] = [
   { label: "Umber", value: 0x62402b, lipUpper: 0x5e3730, lipLower: 0x70433a, palm: 0xad7f66, shine: 0.88 },
   { label: "Mahogany", value: 0x74492f, lipUpper: 0x733f33, lipLower: 0x8a5040, palm: 0xb88a6e, shine: 0.8 },
   { label: "Chestnut", value: 0x8c5c3d, lipUpper: 0x84503f, lipLower: 0x9a5f4e, palm: 0xc69a7c, shine: 0.7 },
-  { label: "Caramel", value: 0x97694a, lipUpper: 0x7e4a3d, lipLower: 0xa86a58, palm: 0xd2ab8d, shine: 0.6 },
-  { label: "Bronze", value: 0xac8059, lipUpper: 0x905748, lipLower: 0xb47a66, palm: 0xdcb99c, shine: 0.54 },
-  { label: "Honey", value: 0xc89e77, lipUpper: 0xa06650, lipLower: 0xbf8470, palm: 0xe4c4a8, shine: 0.48 },
-  { label: "Sand", value: 0xdcbb98, lipUpper: 0xae7260, lipLower: 0xc98e7c, palm: 0xecd0b6, shine: 0.46 },
-  { label: "Porcelain", value: 0xf3dcc8, lipUpper: 0xb87a6c, lipLower: 0xd0988a, palm: 0xf3dcc8, shine: 0.44 },
+  { label: "Caramel", value: 0x8c6244, lipUpper: 0x7e4a3d, lipLower: 0xa86a58, palm: 0xd2ab8d, shine: 0.6 },
+  { label: "Bronze", value: 0x9c7450, lipUpper: 0x905748, lipLower: 0xb47a66, palm: 0xdcb99c, shine: 0.54 },
+  { label: "Honey", value: 0xb28a64, lipUpper: 0xa06650, lipLower: 0xbf8470, palm: 0xe4c4a8, shine: 0.48 },
+  { label: "Sand", value: 0xba9272, lipUpper: 0xae7260, lipLower: 0xc98e7c, palm: 0xecd0b6, shine: 0.46 },
+  { label: "Porcelain", value: 0xc99f86, lipUpper: 0xb87a6c, lipLower: 0xd0988a, palm: 0xf3dcc8, shine: 0.44 },
 ];
 
 const HAIR_COLORS = [
@@ -136,10 +150,17 @@ const HAIR_COLORS = [
   { label: "Soft black", value: 0x2c211c },
   { label: "Espresso", value: 0x402819 },
   { label: "Chestnut", value: 0x5b3522 },
-  { label: "Auburn", value: 0x7d341b },
+  { label: "Auburn", value: 0x642a16 },
   { label: "Burgundy", value: 0x5a1a22 },
   { label: "Honey blonde", value: 0xab7d50 },
   { label: "Silver", value: 0xb4b0a8 },
+];
+
+const BEARD_STYLES = [
+  { id: "none", label: "None" },
+  { id: "beard_goatee", label: "Goatee" },
+  { id: "beard_short", label: "Short beard" },
+  { id: "beard_full", label: "Full beard" },
 ];
 
 const HAIR_STYLES = [
@@ -157,10 +178,9 @@ const HAIR_STYLES = [
   { id: "shaved", label: "Shaved" },
 ];
 
-type BodyType = "female" | "male";
-
 type Look = {
   stubble?: number;
+  beard?: string;
   id: string;
   label: string;
   body: BodyType;
@@ -174,11 +194,11 @@ type Look = {
 
 const LOOKS: Look[] = [
   { id: "amara", label: "Amara", body: "female", skin: "Umber", hair: "afro", hairColor: "Natural black", iris: "Dark brown", cloth: "Moss", shape: { feat_lips: 0.75, feat_nose_wide: 0.55, feat_nose_bridge: 0.35, feat_cheeks: 0.6 } },
-  { id: "thabo", stubble: 0.55, label: "Thabo", body: "male", skin: "Espresso", hair: "fade", hairColor: "Natural black", iris: "Dark brown", cloth: "Ink", shape: { feat_lips: 0.6, feat_nose_wide: 0.8, feat_nose_bridge: 0.5, feat_cheeks: 0.3, shape_jaw_width: 0.35, shape_jaw_angle: 0.6 } },
+  { id: "thabo", beard: "beard_short", stubble: 0.55, label: "Thabo", body: "male", skin: "Espresso", hair: "fade", hairColor: "Natural black", iris: "Dark brown", cloth: "Ink", shape: { feat_lips: 0.6, feat_nose_wide: 0.8, feat_nose_bridge: 0.5, feat_cheeks: 0.3, shape_jaw_width: 0.35, shape_jaw_angle: 0.6 } },
   { id: "naledi", label: "Naledi", body: "female", skin: "Ebony", hair: "braids", hairColor: "Natural black", iris: "Dark brown", cloth: "Bone", shape: { feat_lips: 0.9, feat_nose_wide: 0.7, feat_nose_bridge: 0.55, feat_cheeks: 0.8 } },
-  { id: "kofi", stubble: 0.7, label: "Kofi", body: "male", skin: "Mahogany", hair: "locs", hairColor: "Soft black", iris: "Hazel", cloth: "Moss", shape: { feat_lips: 0.5, feat_nose_wide: 0.6, feat_nose_bridge: 0.3, feat_cheeks: 0.5 } },
+  { id: "kofi", beard: "beard_full", stubble: 0.7, label: "Kofi", body: "male", skin: "Mahogany", hair: "locs", hairColor: "Soft black", iris: "Hazel", cloth: "Moss", shape: { feat_lips: 0.5, feat_nose_wide: 0.6, feat_nose_bridge: 0.3, feat_cheeks: 0.5 } },
   { id: "zola", label: "Zola", body: "female", skin: "Chestnut", hair: "cornrows", hairColor: "Natural black", iris: "Dark brown", cloth: "Slate", shape: { feat_lips: 0.55, feat_nose_wide: 0.35, feat_nose_bridge: 0.15, feat_cheeks: 0.7 } },
-  { id: "malik", stubble: 0.35, label: "Malik", body: "male", skin: "Umber", hair: "waves", hairColor: "Natural black", iris: "Dark brown", cloth: "Clay", shape: { feat_lips: 0.45, feat_nose_wide: 0.5, feat_nose_bridge: 0.2, feat_cheeks: 0.35, shape_jaw_width: 0.15, shape_jaw_angle: 0.3 } },
+  { id: "malik", beard: "beard_goatee", stubble: 0.35, label: "Malik", body: "male", skin: "Umber", hair: "waves", hairColor: "Natural black", iris: "Dark brown", cloth: "Clay", shape: { feat_lips: 0.45, feat_nose_wide: 0.5, feat_nose_bridge: 0.2, feat_cheeks: 0.35, shape_jaw_width: 0.15, shape_jaw_angle: 0.3 } },
   { id: "imani", label: "Imani", body: "female", skin: "Caramel", hair: "puff", hairColor: "Espresso", iris: "Amber", cloth: "Ink", shape: { feat_lips: 0.5, feat_nose_wide: 0.3, feat_nose_bridge: 0.1, feat_cheeks: 0.5 } },
   { id: "tariq", stubble: 0.45, label: "Tariq", body: "male", skin: "Bronze", hair: "crop", hairColor: "Espresso", iris: "Green", cloth: "Slate", shape: { feat_lips: 0.1, feat_nose_wide: 0.1, shape_jaw_width: 0.25, shape_jaw_angle: 0.7 } },
 ];
@@ -201,6 +221,10 @@ const CLOTH_COLORS = [
 ];
 
 type LightPreset = {
+  sky?: number;
+  ground?: number;
+  ambient?: number;
+  environment?: number;
   key: number;
   keyIntensity: number;
   keyPosition: [number, number, number];
@@ -214,6 +238,54 @@ type LightPreset = {
 };
 
 const LIGHT_PRESETS: Record<string, LightPreset> = {
+  daylight: {
+    sky: 0xdfeaff,
+    ground: 0xa89a84,
+    ambient: 0.95,
+    environment: 0.5,
+    key: 0xfff4e6,
+    keyIntensity: 2.6,
+    keyPosition: [0.9, 2.2, 2.4],
+    fill: 0xdce8ff,
+    fillIntensity: 0.6,
+    fillPosition: [-2.6, 1.2, 1.2],
+    rim: 0xffffff,
+    rimIntensity: 0.9,
+    rimPosition: [-1.2, 2.4, -2.6],
+    exposure: 1.0,
+  },
+  campfire: {
+    sky: 0x2a3148,
+    ground: 0x7a4a2c,
+    ambient: 0.5,
+    environment: 0.12,
+    key: 0xffb278,
+    keyIntensity: 2.5,
+    keyPosition: [1.7, -0.5, 2.2],
+    fill: 0x4a5a94,
+    fillIntensity: 0.28,
+    fillPosition: [-2.4, 1.0, 0.6],
+    rim: 0x6f88d8,
+    rimIntensity: 0.9,
+    rimPosition: [-1.5, 2.0, -2.6],
+    exposure: 1.0,
+  },
+  dungeon: {
+    sky: 0x38506a,
+    ground: 0x262c30,
+    ambient: 0.55,
+    environment: 0.1,
+    key: 0xbcd4ff,
+    keyIntensity: 2.3,
+    keyPosition: [-1.4, 2.6, 1.3],
+    fill: 0x4a6a58,
+    fillIntensity: 0.2,
+    fillPosition: [2.2, 0.4, 1.0],
+    rim: 0xa8d8e8,
+    rimIntensity: 0.9,
+    rimPosition: [1.5, 1.6, -2.6],
+    exposure: 1.0,
+  },
   softbox: {
     key: 0xfff5ee,
     keyIntensity: 2.7,
@@ -296,7 +368,8 @@ scene.environment = environment;
 scene.environmentIntensity = 0.34;
 pmrem.dispose();
 
-scene.add(new THREE.HemisphereLight(0xfff3e4, 0x9c7a62, 0.62));
+const hemisphere = new THREE.HemisphereLight(0xfff3e4, 0x9c7a62, 0.62);
+scene.add(hemisphere);
 
 const key = new THREE.DirectionalLight(0xffe3c8, 2.8);
 key.target.position.copy(HEAD_CENTER);
@@ -341,7 +414,6 @@ const character = new THREE.Group();
 scene.add(character);
 
 const morphMeshes: MorphMesh[] = [];
-const sliderInputs: HTMLInputElement[] = [];
 const eyeParts: THREE.Object3D[] = [];
 
 const sssUniforms = {
@@ -357,10 +429,38 @@ const skinUniforms = {
   uPalm: { value: new THREE.Color(SKIN_TONES[2].palm) },
   uShine: { value: SKIN_TONES[2].shine },
   uStubble: { value: 0 },
+  uUndertone: { value: 0 },
+  uContrast: { value: 0.5 },
+  uAge: { value: 0 },
+  uFreckles: { value: 0 },
+  uVitiligo: { value: 0 },
+  uScarPick: { value: new THREE.Vector3() },
+  uScarIntensity: { value: 0.7 },
+  uTattooPick: { value: new THREE.Vector3() },
+  uTattooColor: { value: new THREE.Color(0x14202a) },
+  uTattooOpacity: { value: 0.85 },
+  uLipColor: { value: new THREE.Color(0x6b2d2b) },
+  uLipOpacity: { value: 0 },
+  uLipGloss: { value: 0.3 },
+  uEyeColor: { value: new THREE.Color(0x2b1a14) },
+  uEyeOpacity: { value: 0 },
+  uLiner: { value: 0 },
+  uBlushColor: { value: new THREE.Color(0xa8483c) },
+  uBlushOpacity: { value: 0 },
+  uLayers: { value: null as THREE.Texture | null },
+  uMarks: { value: null as THREE.Texture | null },
+  uArt: { value: null as THREE.Texture | null },
+  uMakeup: { value: null as THREE.Texture | null },
   uSkinMask: { value: null as THREE.Texture | null },
 };
 
-const irisUniforms = { tint: { value: new THREE.Color(0x9a7448) } };
+const irisUniforms = {
+  left: { value: new THREE.Color(0x4e2f1c) },
+  right: { value: new THREE.Color(0x4e2f1c) },
+  pupil: { value: 0.5 },
+  glow: { value: 0 },
+};
+const scleraMaterials: THREE.MeshPhysicalMaterial[] = [];
 
 const hairUniforms = {
   uColor: { value: new THREE.Color(HAIR_COLORS[0].value) },
@@ -376,6 +476,11 @@ const hairUniforms = {
   uMode: { value: 0 },
   uShine: { value: 1 },
   uFollow: { value: new THREE.Matrix4() },
+  uRipple: { value: 0 },
+  uHighlight: { value: new THREE.Color(0x8c5230) },
+  uHighlightAmount: { value: 0 },
+  uGraying: { value: 0 },
+  uCharacterScale: { value: 1 },
 };
 
 const capUniforms = {
@@ -389,19 +494,27 @@ const capUniforms = {
 const hairFollowKeys = new Map<string, number[]>();
 const morphWeights = new Map<string, number>();
 
-function updateHairFollow(): void {
+const beardFollowKeys = new Map<string, number[]>();
+const beardFollow = new THREE.Matrix4();
+
+function sumFollow(keys: Map<string, number[]>, target: THREE.Matrix4): void {
   const sum = new Array<number>(12).fill(0);
   for (const [name, weight] of morphWeights) {
-    const affine = hairFollowKeys.get(name);
+    const affine = keys.get(name);
     if (!affine || weight === 0) continue;
     for (let index = 0; index < 12; index += 1) sum[index] += affine[index] * weight;
   }
-  hairUniforms.uFollow.value.set(
+  target.set(
     1 + sum[0], sum[1], sum[2], sum[3],
     sum[4], 1 + sum[5], sum[6], sum[7],
     sum[8], sum[9], 1 + sum[10], sum[11],
     0, 0, 0, 1,
   );
+}
+
+function updateHairFollow(): void {
+  sumFollow(hairFollowKeys, hairUniforms.uFollow.value);
+  sumFollow(beardFollowKeys, beardFollow);
 }
 
 const STRAND_ATTRIBUTES = /* glsl */ `
@@ -433,6 +546,7 @@ const hairMaterial = new THREE.ShaderMaterial({
     uniform float uMode;
     uniform vec3 uHeadCenter;
     uniform mat4 uFollow;
+    uniform float uCharacterScale;
     varying vec3 vTangentW;
     varying vec3 vWorld;
     varying vec4 vData;
@@ -443,7 +557,10 @@ const hairMaterial = new THREE.ShaderMaterial({
     ${STRAND_WIDTH}
 
     void main() {
-      vec4 world = uFollow * modelMatrix * vec4(position, 1.0);
+      vec4 world = modelMatrix * vec4(position, 1.0);
+      world.xyz /= uCharacterScale;
+      world = uFollow * world;
+      world.xyz *= uCharacterScale;
       vec3 tangent = normalize(mat3(modelMatrix) * aTangent.xyz);
       vec3 toCamera = normalize(cameraPosition - world.xyz);
       vec3 across = normalize(cross(tangent, toCamera));
@@ -451,6 +568,7 @@ const hairMaterial = new THREE.ShaderMaterial({
       float pixelsPerMetre = projectionMatrix[1][1] * uViewportHeight * 0.5 / clip.w;
       float width = strandWidth(aData.x, aData.z);
       if (uMode > 0.5) width *= mix(0.42, 1.0, smoothstep(0.0, 2.4, aArc));
+      if (uMode > 2.5) width *= 0.86 + 0.26 * abs(sin(aArc * 2.6 * 3.14159));
       float baseWidth = uStrandWidth * aData.z;
       // Detail is how many pixels a typical strand spans: 1 up close, 0 far away.
       vDetail = smoothstep(0.55, 3.2, baseWidth * pixelsPerMetre);
@@ -487,6 +605,10 @@ const hairMaterial = new THREE.ShaderMaterial({
     uniform vec3 uHeadCenter;
     uniform float uMode;
     uniform float uShine;
+    uniform vec3 uHighlight;
+    uniform float uHighlightAmount;
+    uniform float uGraying;
+    uniform float uRipple;
     varying vec3 vTangentW;
     varying vec3 vWorld;
     varying vec4 vData;
@@ -512,7 +634,17 @@ const hairMaterial = new THREE.ShaderMaterial({
       float seed = mix(0.5, vData.w, vDetail);
       float facing = dot(form, L);
       float lit = smoothstep(-0.55, 0.65, facing);
-      vec3 tint = (uColor + vec3(0.012, 0.0095, 0.0085)) * (0.78 + 0.5 * seed);
+      vec3 primaryColor = uColor + vec3(0.012, 0.0095, 0.0085);
+      // Streaks and gray are decided per strand from its seed. Far away, the mix of
+      // strands has to resolve to its average, or distance would change the colour.
+      float raw = vData.w;
+      float fine = uMode > 0.5 || vData.z < 0.3 ? 1.0 : 0.0;
+      float streak = step(1.0 - uHighlightAmount * 0.5, fract(raw * 11.71)) * smoothstep(0.05, 0.45, t) * fine;
+      float salt = step(1.0 - uGraying, fract(raw * 37.13)) * fine;
+      vec3 grayHair = vec3(0.30, 0.295, 0.285);
+      vec3 near = mix(mix(primaryColor, uHighlight, streak * 0.8), grayHair, salt);
+      vec3 mean = mix(mix(primaryColor, uHighlight, uHighlightAmount * 0.4 * smoothstep(0.05, 0.45, t) * fine), grayHair, uGraying * fine);
+      vec3 tint = mix(mean, near, vDetail) * (0.78 + 0.5 * seed);
       vec3 diffuse;
       vec3 specular;
 
@@ -534,9 +666,9 @@ const hairMaterial = new THREE.ShaderMaterial({
           groove = 0.30 + 0.70 * pow(abs(ply), 0.55);
         } else {
           // Braids: three strands, read as overlapping chevrons.
-          float left = sin((s * 6.4 + a * 1.1 + seed * 6.0) * 3.14159);
-          float right = sin((s * 6.4 - a * 1.1 + seed * 6.0) * 3.14159);
-          groove = 0.24 + 0.76 * pow(max(abs(left), abs(right) * 0.9), 2.2);
+          float left = sin((s * 2.6 + a * 0.95 + seed * 6.0) * 3.14159);
+          float right = sin((s * 2.6 - a * 0.95 + seed * 6.0) * 3.14159);
+          groove = 0.20 + 0.80 * pow(max(abs(left), abs(right) * 0.92), 2.6);
         }
         float fine = 0.92 + 0.08 * sin(a * 42.0 + s * 21.0);
         float wrap = clamp(dot(N, L) * 0.5 + 0.5, 0.0, 1.0);
@@ -563,6 +695,18 @@ const hairMaterial = new THREE.ShaderMaterial({
         vec3 HR = normalize(normalize(uRimDirection) + V);
         float rim = strandSpec(T, HR, 44.0) * smoothstep(-0.2, 0.5, dot(form, normalize(uRimDirection)));
         specular += uRimColor * rim * shade * (0.022 + hue * 0.4) * mix(0.5, 1.0, min(uShine, 1.0)) * mix(0.35, 1.0, vDetail);
+        if (uRipple > 0.5) {
+          // 360 waves: rings of relief around the crown. Each ridge catches the key
+          // as a soft band, which is the whole look, and it must survive on black.
+          vec3 fromCrown = vWorld - (uHeadCenter + vec3(-0.016, 0.061, -0.046));
+          vec3 outward = normalize(fromCrown - form * dot(fromCrown, form));
+          float phase = length(fromCrown) * 100.0 * 3.3;
+          vec3 ridge = normalize(form + outward * cos(phase) * 0.8);
+          float band = pow(max(dot(ridge, H), 0.0), 14.0);
+          float valley = 0.55 + 0.45 * sin(phase);
+          diffuse *= 0.55 + 0.9 * valley;
+          specular = specular * 0.35 + uLightColor * lit * band * (vec3(0.15, 0.14, 0.13) + hue * 0.6);
+        }
       }
 
       gl_FragColor = vec4(diffuse + specular, vCoverage);
@@ -604,6 +748,7 @@ const hairCapMaterial = new THREE.ShaderMaterial({
     uLightDirection: hairUniforms.uLightDirection,
     uHeadCenter: hairUniforms.uHeadCenter,
     uFollow: hairUniforms.uFollow,
+    uCharacterScale: hairUniforms.uCharacterScale,
     uCapAlpha: capUniforms.uCapAlpha,
     uCapLow: capUniforms.uCapLow,
     uCapHigh: capUniforms.uCapHigh,
@@ -613,11 +758,15 @@ const hairCapMaterial = new THREE.ShaderMaterial({
   vertexShader: /* glsl */ `
     attribute vec4 color;
     uniform mat4 uFollow;
+    uniform float uCharacterScale;
     varying float vDensity;
     varying vec3 vWorld;
     void main() {
       vDensity = color.r;
-      vec4 world = uFollow * modelMatrix * vec4(position, 1.0);
+      vec4 world = modelMatrix * vec4(position, 1.0);
+      world.xyz /= uCharacterScale;
+      world = uFollow * world;
+      world.xyz *= uCharacterScale;
       vWorld = world.xyz;
       gl_Position = projectionMatrix * viewMatrix * world;
     }
@@ -649,7 +798,6 @@ const hairCapMaterial = new THREE.ShaderMaterial({
 });
 
 let skinMaterial: THREE.MeshPhysicalMaterial | null = null;
-let irisMaterial: THREE.MeshPhysicalMaterial | null = null;
 let browsMaterial: THREE.MeshStandardMaterial | null = null;
 let garmentMaterial: THREE.MeshPhysicalMaterial | null = null;
 
@@ -658,15 +806,39 @@ function sourceMaterial(mesh: THREE.Mesh): THREE.MeshStandardMaterial | null {
   return material instanceof THREE.MeshStandardMaterial ? material : null;
 }
 
-function applyMorph(name: string, value: number): void {
-  renderer.shadowMap.needsUpdate = true;
+const morphTargets = new Map<string, number>();
+let morphsSettled = false;
+
+function setMorphTarget(name: string, value: number, instant: boolean): void {
+  morphTargets.set(name, value);
+  morphsSettled = false;
+  if (instant) writeMorph(name, value);
+}
+
+function writeMorph(name: string, value: number): void {
   morphWeights.set(name, value);
-  updateHairFollow();
   for (const entry of morphMeshes) {
     const index = entry.targets.get(name);
     const influences = entry.mesh.morphTargetInfluences;
     if (index !== undefined && influences) influences[index] = value;
   }
+}
+
+function easeMorphs(deltaSeconds: number): void {
+  if (morphsSettled) return;
+  // Exponential approach, so the feel is the same at 30 fps and at 144.
+  const blend = reducedMotion ? 1 : 1 - Math.exp(-deltaSeconds * 13);
+  let moving = false;
+  for (const [name, target] of morphTargets) {
+    const current = morphWeights.get(name) ?? 0;
+    if (current === target) continue;
+    const next = Math.abs(target - current) < 0.0015 ? target : current + (target - current) * blend;
+    writeMorph(name, next);
+    moving = true;
+  }
+  updateHairFollow();
+  renderer.shadowMap.needsUpdate = true;
+  morphsSettled = !moving;
 }
 
 // Tiling pore detail, generated here so it adds nothing to the download. The
@@ -721,12 +893,16 @@ function createPoreTexture(): THREE.DataTexture {
 function buildSkin(mesh: THREE.Mesh): void {
   const source = sourceMaterial(mesh);
   const poreTexture = createPoreTexture();
-  const maskUrl = `${import.meta.env.BASE_URL}models/probe/skin_mask.png`;
-  skinUniforms.uSkinMask.value = new THREE.TextureLoader().load(maskUrl, (texture) => {
+  const loadMask = (name: string): THREE.Texture => {
+    const texture = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}models/probe/${name}.png`);
     texture.flipY = false;
-    texture.needsUpdate = true;
-  });
-  skinUniforms.uSkinMask.value.flipY = false;
+    return texture;
+  };
+  skinUniforms.uSkinMask.value = loadMask("skin_mask");
+  skinUniforms.uLayers.value = loadMask("skin_layers");
+  skinUniforms.uMarks.value = loadMask("skin_marks");
+  skinUniforms.uArt.value = loadMask("skin_art");
+  skinUniforms.uMakeup.value = loadMask("skin_makeup");
   const material = new THREE.MeshPhysicalMaterial({
     map: source?.map ?? null,
     normalMap: source?.normalMap ?? null,
@@ -756,6 +932,13 @@ function buildSkin(mesh: THREE.Mesh): void {
     shader.uniforms.uShine = skinUniforms.uShine;
     shader.uniforms.uStubble = skinUniforms.uStubble;
     shader.uniforms.uSkinMask = skinUniforms.uSkinMask;
+    for (const name of [
+      "uUndertone", "uContrast", "uAge", "uFreckles", "uVitiligo", "uScarPick", "uScarIntensity",
+      "uTattooPick", "uTattooColor", "uTattooOpacity", "uLipColor", "uLipOpacity", "uLipGloss",
+      "uEyeColor", "uEyeOpacity", "uLiner", "uBlushColor", "uBlushOpacity", "uLayers", "uMarks", "uArt", "uMakeup",
+    ] as const) {
+      shader.uniforms[name] = skinUniforms[name];
+    }
     shader.fragmentShader = shader.fragmentShader
       .replace(
         "#include <common>",
@@ -770,7 +953,34 @@ function buildSkin(mesh: THREE.Mesh): void {
         uniform vec3 uPalm;
         uniform float uShine;
         uniform float uStubble;
-        uniform sampler2D uSkinMask;`,
+        uniform sampler2D uSkinMask;
+        uniform float uUndertone;
+        uniform float uContrast;
+        uniform float uAge;
+        uniform float uFreckles;
+        uniform float uVitiligo;
+        uniform vec3 uScarPick;
+        uniform float uScarIntensity;
+        uniform vec3 uTattooPick;
+        uniform vec3 uTattooColor;
+        uniform float uTattooOpacity;
+        uniform vec3 uLipColor;
+        uniform float uLipOpacity;
+        uniform float uLipGloss;
+        uniform vec3 uEyeColor;
+        uniform float uEyeOpacity;
+        uniform float uLiner;
+        uniform vec3 uBlushColor;
+        uniform float uBlushOpacity;
+        uniform sampler2D uLayers;
+        uniform sampler2D uMarks;
+        uniform sampler2D uArt;
+        uniform sampler2D uMakeup;
+
+        // Age creases and scars share one height, used for both colour and normal.
+        float probeRelief( vec2 uv ) {
+          return texture2D( uLayers, uv ).b * uAge * 0.8 + dot( texture2D( uMarks, uv ).rgb, uScarPick ) * uScarIntensity;
+        }`,
       )
       .replace(
         "#include <map_fragment>",
@@ -783,23 +993,67 @@ function buildSkin(mesh: THREE.Mesh): void {
         // Deep skin hides blood colour, so hue variation fades while shading stays.
         vec3 probeVariation = mix( probeRatio, vec3( probeLuma ), probeDepth * 0.62 );
         vec4 probeMask = texture2D( uSkinMask, vMapUv );
-        vec3 probeTone = uSkinTone * probeVariation;
+        // Layer 1, base: tone, undertone, and how much structure shows through.
+        probeVariation = pow( max( probeVariation, vec3( 0.001 ) ), vec3( 0.65 + uContrast * 0.7 ) );
+        vec3 probeTone = uSkinTone * probeVariation * mix( vec3( 1.0 ), uUndertone > 0.0 ? vec3( 1.09, 1.0, 0.88 ) : vec3( 0.93, 0.99, 1.12 ), abs( uUndertone ) );
         float probePalm = smoothstep( 0.5, 1.0, probeMask.b );
         float probeBeard = clamp( probeMask.b * 2.0, 0.0, 1.0 ) * ( 1.0 - step( 0.5, probeMask.b ) );
         probeTone = mix( probeTone, uPalm * probeVariation, probePalm );
-        // Stubble cools and darkens the skin, relative to the tone it sits on.
         probeTone = mix( probeTone, probeTone * vec3( 0.50, 0.52, 0.56 ), probeBeard * uStubble );
+
+        // Layer 2, skin conditions. Vitiligo is depigmented skin, so it keeps every
+        // bit of the surface and only loses its melanin.
+        vec3 probeLayer = texture2D( uLayers, vMapUv ).rgb;
+        if ( uVitiligo > 0.001 ) {
+          float probeCut = 1.0 - uVitiligo * 0.42;
+          float probePatch = smoothstep( probeCut - 0.03, probeCut + 0.03, probeLayer.g );
+          probeTone = mix( probeTone, vec3( 0.60, 0.42, 0.34 ) * probeVariation, probePatch );
+        }
+        float probeFreckle = smoothstep( 1.0 - uFreckles, 1.0 - uFreckles + 0.28, probeLayer.r ) * step( 0.001, uFreckles );
+        probeTone = mix( probeTone, probeTone * vec3( 0.36, 0.26, 0.22 ), probeFreckle * 0.95 );
+
+        // Layer 3, age and scars. Scars heal lighter, and paler still on deep skin.
+        probeTone *= 1.0 - probeLayer.b * uAge * 0.34;
+        probeTone = mix( probeTone, probeTone * vec3( 0.93, 0.95, 0.97 ), uAge * 0.3 );
+        vec3 probeMark = texture2D( uMarks, vMapUv ).rgb;
+        float probeScar = dot( probeMark, uScarPick ) * uScarIntensity;
+        vec3 probeHealed = mix( probeTone * vec3( 1.32, 1.16, 1.12 ) + vec3( 0.018, 0.010, 0.009 ), vec3( 0.46, 0.30, 0.27 ), 0.12 );
+        probeTone = mix( probeTone, probeHealed, clamp( probeScar, 0.0, 1.0 ) * 0.85 );
+
+        // Layer 4, tattoos. Ink sits in the skin, so it is tinted by the skin's own
+        // shading and the pores and normals stay on top of it.
+        float probeInk = dot( texture2D( uArt, vMapUv ).rgb, uTattooPick ) * uTattooOpacity;
+        probeTone = mix( probeTone, uTattooColor * ( 0.45 + 0.55 * probeLuma ), clamp( probeInk, 0.0, 1.0 ) );
+
+        // Layer 5, the natural lip, then cosmetics over everything.
         vec3 probeLip = mix( uLipLower, uLipUpper, probeMask.g ) * ( 0.62 + 0.30 * probeLuma );
         probeTone = mix( probeTone, probeLip, probeMask.r * 0.92 );
+        vec3 probeZones = texture2D( uMakeup, vMapUv ).rgb;
+        probeTone = mix( probeTone, uBlushColor * ( 0.5 + 0.5 * probeLuma ), probeZones.b * uBlushOpacity * 0.22 );
+        probeTone = mix( probeTone, uEyeColor * ( 0.5 + 0.5 * probeLuma ), probeZones.r * uEyeOpacity * 0.85 );
+        probeTone = mix( probeTone, vec3( 0.012, 0.009, 0.009 ), probeZones.g * uLiner );
+        probeTone = mix( probeTone, uLipColor * ( 0.55 + 0.45 * probeLuma ), probeMask.r * uLipOpacity );
         diffuseColor.rgb = probeTone;`,
       )
       .replace(
         "#include <normal_fragment_maps>",
         `#include <normal_fragment_maps>
+        // Height differences for creases and scars, in UV space.
+        float probeHere = probeRelief( vMapUv );
+        if ( probeHere > 0.001 || uAge + uScarIntensity * dot( uScarPick, vec3( 1.0 ) ) > 0.001 ) {
+          float probeStep = 1.0 / 1024.0;
+          float probeU = probeRelief( vMapUv + vec2( probeStep, 0.0 ) ) - probeHere;
+          float probeV = probeRelief( vMapUv + vec2( 0.0, probeStep ) ) - probeHere;
+          normal = normalize( normal + ( tbn[ 0 ] * probeU + tbn[ 1 ] * probeV ) * 1.1 );
+        }
         vec4 probePore = texture2D( uPores, vNormalMapUv * 26.0 );
         normal = normalize( normal + ( tbn[ 0 ] * ( probePore.x * 2.0 - 1.0 ) + tbn[ 1 ] * ( probePore.y * 2.0 - 1.0 ) ) * 0.28 );
         roughnessFactor = clamp( roughnessFactor * mix( 1.0, 0.76, uShine ) + ( 1.0 - probePore.a ) * 0.16, 0.0, 1.0 );
-        diffuseColor.rgb *= mix( 0.95, 1.0, probePore.a );`,
+        diffuseColor.rgb *= mix( 0.95, 1.0, probePore.a );
+        // Glossy or matte lips, satin eyeshadow, skin that dries a little with age.
+        roughnessFactor = mix( roughnessFactor, mix( 0.62, 0.14, uLipGloss ), probeMask.r * uLipOpacity );
+        roughnessFactor = mix( roughnessFactor, 0.42, probeZones.r * uEyeOpacity * 0.6 );
+        roughnessFactor = clamp( roughnessFactor + uAge * 0.06, 0.0, 1.0 );`,
       )
       .replace(
         "#include <emissivemap_fragment>",
@@ -829,29 +1083,48 @@ function buildIris(mesh: THREE.Mesh): void {
     side: THREE.DoubleSide,
   });
   material.onBeforeCompile = (shader) => {
-    shader.uniforms.uIrisTint = irisUniforms.tint;
+    shader.uniforms.uIrisTint = mesh.name === "iris_L" ? irisUniforms.left : irisUniforms.right;
+    shader.uniforms.uPupil = irisUniforms.pupil;
+    shader.uniforms.uGlow = irisUniforms.glow;
     shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", "#include <common>\nuniform vec3 uIrisTint;")
+      .replace(
+        "#include <common>",
+        "#include <common>\nuniform vec3 uIrisTint;\nuniform float uPupil;\nuniform float uGlow;",
+      )
       .replace(
         "#include <map_fragment>",
         `#ifdef USE_MAP
-          vec4 probeIris = texture2D( map, vMapUv );
+          // Parallax: the iris sits behind the cornea, so it slides against the view.
+          vec3 probeEye = transpose( mat3( viewMatrix ) ) * normalize( vViewPosition );
+          vec2 probeDisc = ( vMapUv - 0.5 ) * 2.0 - vec2( probeEye.x, -probeEye.y ) * 0.09;
+          float probeR = length( probeDisc );
+          // Pupil dilation pulls the iris fibres inward instead of drawing over them.
+          float probeWant = mix( 0.13, 0.46, uPupil );
+          float probeSource = probeR < probeWant
+            ? probeR * ( 0.27 / probeWant )
+            : 0.27 + ( probeR - probeWant ) * ( 0.73 / ( 1.0 - probeWant ) );
+          vec2 probeSampleUv = 0.5 + 0.5 * probeDisc * ( probeSource / max( probeR, 0.0001 ) );
+          vec4 probeIris = texture2D( map, probeSampleUv );
           float probeLum = dot( probeIris.rgb, vec3( 0.2126, 0.7152, 0.0722 ) );
           float probeBody = smoothstep( 0.015, 0.1, probeLum );
           diffuseColor.rgb = mix( uIrisTint * 0.04, uIrisTint * ( 0.26 + probeLum * 0.95 ), probeBody );
           diffuseColor.rgb *= mix( 0.42, 1.0, smoothstep( 0.10, 0.46, vMapUv.y ) );
         #endif`,
+      )
+      .replace(
+        "#include <emissivemap_fragment>",
+        `#include <emissivemap_fragment>
+        totalEmissiveRadiance += uIrisTint * uGlow * 1.1 * smoothstep( 0.015, 0.1, probeLum );`,
       );
   };
   material.customProgramCacheKey = () => "probe-iris";
-  irisMaterial = material;
   mesh.material = material;
   mesh.renderOrder = 1;
 }
 
 function buildSclera(mesh: THREE.Mesh): void {
   const source = sourceMaterial(mesh);
-  mesh.material = new THREE.MeshPhysicalMaterial({
+  const material = new THREE.MeshPhysicalMaterial({
     map: source?.map ?? null,
     color: 0xc9c2ba,
     roughness: 0.34,
@@ -860,6 +1133,8 @@ function buildSclera(mesh: THREE.Mesh): void {
     clearcoatRoughness: 0.24,
     envMapIntensity: 0.28,
   });
+  scleraMaterials.push(material);
+  mesh.material = material;
 }
 
 // Reflection only, added over the eye. The mesh is shallow so it stays behind the
@@ -975,6 +1250,7 @@ function buildHairCap(mesh: THREE.Mesh): void {
 }
 
 type HairParams = {
+  ripple?: number;
   mode: number;
   width: number;
   taper: number;
@@ -984,7 +1260,11 @@ type HairParams = {
   capHigh: number;
 };
 
-function buildHairStrands(buffer: ArrayBuffer): { mesh: THREE.Mesh; params: HairParams } {
+function buildHairStrands(
+  buffer: ArrayBuffer,
+  followKeys: Map<string, number[]> = hairFollowKeys,
+  material: THREE.ShaderMaterial = hairMaterial,
+): { mesh: THREE.Mesh; params: HairParams } {
   const [strands, points] = new Uint32Array(buffer, 0, 2);
   const counts = new Uint8Array(buffer, 8, strands);
   let offset = 8 + strands + ((4 - (strands % 4)) % 4);
@@ -1000,7 +1280,7 @@ function buildHairStrands(buffer: ArrayBuffer): { mesh: THREE.Mesh; params: Hair
   const meta = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, offset + 4, metaLength))) as HairParams & {
     follow: Record<string, number[]>;
   };
-  for (const [name, affine] of Object.entries(meta.follow)) hairFollowKeys.set(name, affine);
+  for (const [name, affine] of Object.entries(meta.follow)) followKeys.set(name, affine);
   updateHairFollow();
 
   // Each point becomes a left and right vertex; the shader spreads them apart.
@@ -1042,7 +1322,7 @@ function buildHairStrands(buffer: ArrayBuffer): { mesh: THREE.Mesh; params: Hair
   if (meta.mode === 0 && window.innerWidth < 800) {
     geometry.setDrawRange(0, Math.floor((indices.length * 0.6) / 6) * 6);
   }
-  const mesh = new THREE.Mesh(geometry, hairMaterial);
+  const mesh = new THREE.Mesh(geometry, material);
   mesh.name = "hair";
   mesh.frustumCulled = false;
   mesh.castShadow = true;
@@ -1096,8 +1376,56 @@ async function setHairStyle(id: string): Promise<void> {
   hairUniforms.uTaper.value = params.taper;
   hairUniforms.uMode.value = params.mode;
   hairUniforms.uShine.value = params.shine;
+  hairUniforms.uRipple.value = params.ripple ?? 0;
   applyCap(params);
   renderer.shadowMap.needsUpdate = true;
+}
+
+const beardMaterial = hairMaterial.clone();
+// Shares colour, light and gray with the hair; only the fit and strand set differ.
+beardMaterial.uniforms = {
+  ...hairUniforms,
+  uFollow: { value: beardFollow },
+  uStrandWidth: { value: 0.012 },
+  uTaper: { value: 0.5 },
+  uMode: { value: 0 },
+  uShine: { value: 0.3 },
+  uRipple: { value: 0 },
+  uHighlightAmount: { value: 0 },
+};
+
+const beardCache = new Map<string, Promise<THREE.Mesh>>();
+let activeBeard: THREE.Mesh | null = null;
+let beardRequest = 0;
+
+async function setBeard(id: string): Promise<void> {
+  const request = (beardRequest += 1);
+  if (id === "none") {
+    if (activeBeard) character.remove(activeBeard);
+    activeBeard = null;
+    return;
+  }
+  let pending = beardCache.get(id);
+  if (!pending) {
+    pending = fetch(`${import.meta.env.BASE_URL}models/probe/hair/${id}.bin`)
+      .then((response) => {
+        if (!response.ok) throw new Error(`beard ${id} ${response.status}`);
+        return response.arrayBuffer();
+      })
+      .then((buffer) => {
+        const { mesh } = buildHairStrands(buffer, beardFollowKeys, beardMaterial);
+        mesh.name = "beard";
+        mesh.castShadow = false;
+        mesh.customDepthMaterial = undefined;
+        return mesh;
+      });
+    beardCache.set(id, pending);
+  }
+  const mesh = await pending;
+  if (request !== beardRequest) return;
+  if (activeBeard) character.remove(activeBeard);
+  activeBeard = mesh;
+  character.add(mesh);
 }
 
 function buildCharacter(root: THREE.Object3D): void {
@@ -1163,76 +1491,9 @@ function buildCharacter(root: THREE.Object3D): void {
   character.add(root);
 }
 
-function setExpression(name: string): void {
-  for (const target of EXPRESSION_TARGETS) applyMorph(target, 0);
-  const morphs = EXPRESSIONS[name] ?? {};
-  for (const [target, value] of Object.entries(morphs)) applyMorph(target, value);
-  for (const button of document.querySelectorAll<HTMLButtonElement>("#probe-expressions button")) {
-    button.classList.toggle("is-active", button.dataset.expression === name);
-  }
-  setGaze(name === "curious" ? 0.0016 : 0);
-}
-
 function setGaze(lift: number): void {
   // The eye is a shell behind the lids, so gaze slides the iris across it.
   for (const part of eyeParts) part.position.y = lift;
-}
-
-function buildSliders(hostElement: HTMLElement, defs: SliderDef[]): void {
-  for (const def of defs) {
-    const label = document.createElement("label");
-    label.className = "probe-range";
-    label.htmlFor = `morph-${def.name}`;
-
-    const head = document.createElement("span");
-    head.className = "probe-range-label";
-    const name = document.createElement("span");
-    name.textContent = def.label;
-    const output = document.createElement("output");
-    output.textContent = "0.00";
-    head.append(name, output);
-
-    const input = document.createElement("input");
-    input.id = `morph-${def.name}`;
-    input.type = "range";
-    input.min = "-1";
-    input.max = "1";
-    input.step = "0.01";
-    input.value = "0";
-    input.addEventListener("input", () => {
-      const value = Number(input.value);
-      output.textContent = value.toFixed(2);
-      applyMorph(def.name, value);
-    });
-
-    label.append(head, input);
-    hostElement.append(label);
-    sliderInputs.push(input);
-  }
-}
-
-function buildSwatches(
-  hostElement: HTMLElement,
-  options: Array<{ label: string; value: number }>,
-  onPick: (value: number) => void,
-): void {
-  options.forEach((option, index) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "probe-swatch";
-    button.title = option.label;
-    button.setAttribute("aria-label", option.label);
-    button.style.background = `#${option.value.toString(16).padStart(6, "0")}`;
-    if (index === 0) button.classList.add("is-active");
-    button.addEventListener("click", () => {
-      for (const sibling of hostElement.querySelectorAll(".probe-swatch")) {
-        sibling.classList.remove("is-active");
-      }
-      button.classList.add("is-active");
-      onPick(option.value);
-    });
-    hostElement.append(button);
-  });
 }
 
 function applyLight(name: string): void {
@@ -1242,21 +1503,23 @@ function applyLight(name: string): void {
   key.color.set(preset.key);
   key.intensity = preset.keyIntensity;
   key.position.copy(HEAD_CENTER).add(new THREE.Vector3(...preset.keyPosition));
+  key.target.position.copy(HEAD_CENTER);
   fill.color.set(preset.fill);
   fill.intensity = preset.fillIntensity;
   fill.position.set(...preset.fillPosition);
   rim.color.set(preset.rim);
   rim.intensity = preset.rimIntensity;
   rim.position.set(...preset.rimPosition);
+  hemisphere.color.set(preset.sky ?? 0xfff3e4);
+  hemisphere.groundColor.set(preset.ground ?? 0x9c7a62);
+  hemisphere.intensity = preset.ambient ?? 0.62;
+  scene.environmentIntensity = preset.environment ?? 0.34;
   renderer.toneMappingExposure = preset.exposure;
   hairUniforms.uLightColor.value.set(preset.key).multiplyScalar(preset.keyIntensity);
   hairUniforms.uLightDirection.value.set(...preset.keyPosition).normalize();
   hairUniforms.uRimColor.value.set(preset.rim).multiplyScalar(preset.rimIntensity);
   hairUniforms.uRimDirection.value.set(...preset.rimPosition).normalize();
   hairUniforms.uFillColor.value.set(preset.fill).multiplyScalar(preset.fillIntensity);
-  for (const button of document.querySelectorAll<HTMLButtonElement>("#probe-light button")) {
-    button.classList.toggle("is-active", button.dataset.light === name);
-  }
 }
 
 type Tween = {
@@ -1273,8 +1536,15 @@ type Tween = {
 let tween: Tween | null = null;
 
 function applyView(name: ViewName, instant = reducedMotion): void {
-  const view = VIEWS[name];
-  if (!view) return;
+  const base = VIEWS[name];
+  if (!base) return;
+  // Framing follows the character's height.
+  const scale = character.scale.y;
+  const view = {
+    position: base.position.clone().setY(base.position.y * scale),
+    target: base.target.clone().setY(base.target.y * scale),
+    fov: base.fov,
+  };
   if (instant) {
     camera.position.copy(view.position);
     controls.target.copy(view.target);
@@ -1299,18 +1569,67 @@ function applyView(name: ViewName, instant = reducedMotion): void {
   }
 }
 
-function resetShape(): void {
-  for (const input of sliderInputs) {
-    input.value = "0";
-    input.dispatchEvent(new Event("input"));
-  }
-  setExpression("neutral");
+// ---- State to scene. Every control writes the store; only this reads it.
+const store = createStore(defaultState());
+const LIGHT_NAMES = Object.keys(LIGHT_PRESETS);
+const ALL_SLIDERS = [...BODY_SLIDERS, ...SHAPE_SLIDERS, ...FACE_SLIDERS];
+const stateOptions = {
+  tones: SKIN_TONES.map((tone) => tone.label),
+  styles: HAIR_STYLES.map((style) => style.id),
+  beards: BEARD_STYLES.map((style) => style.id),
+  lights: LIGHT_NAMES,
+  expressions: Object.keys(EXPRESSIONS),
+  morphs: ALL_SLIDERS.map((def) => def.name),
+};
+
+function colorHex(value: number): string {
+  return `#${value.toString(16).padStart(6, "0")}`;
 }
 
-buildSliders(must<HTMLElement>("#probe-body"), BODY_SLIDERS);
-buildSliders(must<HTMLElement>("#probe-shape"), SHAPE_SLIDERS);
-buildSliders(must<HTMLElement>("#probe-face"), FACE_SLIDERS);
-function applySkin(tone: SkinTone): void {
+function pick(vector: THREE.Vector3, index: number): void {
+  vector.set(index === 1 ? 1 : 0, index === 2 ? 1 : 0, index === 3 ? 1 : 0);
+}
+
+let appliedHair = "";
+let appliedBeard = "";
+let appliedLight = "";
+let appliedBody: BodyType | "" = "";
+let appliedScale = 0;
+let firstSync = true;
+
+function syncScene(state: CharacterState): void {
+  const instant = firstSync;
+  firstSync = false;
+
+  // Morphs: sliders, body type, expression.
+  for (const def of ALL_SLIDERS) setMorphTarget(def.name, state.morphs[def.name] ?? 0, instant);
+  const female = state.body.type === "female";
+  setMorphTarget("build_female", female ? 1 : 0, instant);
+  setMorphTarget("build_male", female ? 0 : 1, instant);
+  setMorphTarget("brow_fine", female ? 1 : 0, instant);
+  setMorphTarget("lash_long", female ? 1 : 0, instant);
+  const expression = EXPRESSIONS[state.expression] ?? {};
+  for (const target of EXPRESSION_TARGETS) setMorphTarget(target, expression[target] ?? 0, instant);
+  setGaze(state.expression === "curious" ? 0.0016 : 0);
+
+  // Women are a little shorter on average; the slider works from there.
+  const scale = state.body.height * (female ? 0.96 : 1);
+  if (scale !== appliedScale || state.body.type !== appliedBody) {
+    appliedScale = scale;
+    appliedBody = state.body.type;
+    character.scale.setScalar(scale);
+    hairUniforms.uCharacterScale.value = scale;
+    HEAD_CENTER.y = 1.655 * scale;
+    appliedLight = "";
+  }
+  if (state.light !== appliedLight) {
+    appliedLight = state.light;
+    applyLight(state.light);
+  }
+
+  // Skin.
+  const skin = state.skin;
+  const tone = SKIN_TONES.find((item) => item.label === skin.tone) ?? SKIN_TONES[2];
   skinUniforms.uSkinTone.value.setHex(tone.value);
   skinUniforms.uLipUpper.value.setHex(tone.lipUpper);
   skinUniforms.uLipLower.value.setHex(tone.lipLower);
@@ -1320,113 +1639,486 @@ function applySkin(tone: SkinTone): void {
   // Terminator colour follows the skin: warm brown in deep tones, red in pale ones.
   const depth = 1 - Math.min(1, new THREE.Color(tone.value).getHSL({ h: 0, s: 0, l: 0 }).l * 1.5);
   sssUniforms.color.value.set(0xff5a3a).lerp(new THREE.Color(0x9c5a38), depth);
-}
+  sssUniforms.strength.value = skin.scatter;
+  // A beard grows from shaded skin, whatever the stubble slider says.
+  skinUniforms.uStubble.value = state.hair.beard === "none" ? skin.stubble : Math.max(skin.stubble, 0.9);
+  skinUniforms.uUndertone.value = skin.undertone;
+  skinUniforms.uContrast.value = skin.contrast;
+  skinUniforms.uAge.value = skin.age;
+  skinUniforms.uFreckles.value = skin.freckles;
+  skinUniforms.uVitiligo.value = skin.vitiligo;
+  pick(skinUniforms.uScarPick.value, skin.scar);
+  skinUniforms.uScarIntensity.value = skin.scarIntensity;
+  pick(skinUniforms.uTattooPick.value, skin.tattoo);
+  skinUniforms.uTattooColor.value.setStyle(skin.tattooColor);
+  skinUniforms.uTattooOpacity.value = skin.tattooOpacity;
+  skinUniforms.uLipColor.value.setStyle(skin.lipColor);
+  skinUniforms.uLipOpacity.value = skin.lipOpacity;
+  skinUniforms.uLipGloss.value = skin.lipGloss;
+  skinUniforms.uEyeColor.value.setStyle(skin.eyeColor);
+  skinUniforms.uEyeOpacity.value = skin.eyeOpacity;
+  skinUniforms.uLiner.value = skin.liner;
+  skinUniforms.uBlushColor.value.setStyle(skin.blushColor);
+  skinUniforms.uBlushOpacity.value = skin.blushOpacity;
 
-buildSwatches(must<HTMLElement>("#probe-skin"), SKIN_TONES, (value) => {
-  const tone = SKIN_TONES.find((item) => item.value === value);
-  if (tone) applySkin(tone);
-});
-buildSwatches(must<HTMLElement>("#probe-cloth"), CLOTH_COLORS, (value) => {
-  garmentMaterial?.color.setHex(value);
-});
-buildSwatches(must<HTMLElement>("#probe-hair"), HAIR_COLORS, (value) => {
-  hairUniforms.uColor.value.setHex(value);
-  if (browsMaterial) {
-    browsMaterial.color.setHex(value).multiplyScalar(0.62);
+  // Eyes.
+  irisUniforms.left.value.setStyle(state.eyes.left);
+  irisUniforms.right.value.setStyle(state.eyes.right);
+  irisUniforms.pupil.value = state.eyes.pupil;
+  irisUniforms.glow.value = state.eyes.glow;
+  for (const material of scleraMaterials) material.color.setRGB(state.eyes.sclera, state.eyes.sclera * 0.965, state.eyes.sclera * 0.92);
+
+  // Hair.
+  hairUniforms.uColor.value.setStyle(state.hair.color);
+  hairUniforms.uHighlight.value.setStyle(state.hair.highlights);
+  hairUniforms.uHighlightAmount.value = state.hair.highlightAmount;
+  hairUniforms.uGraying.value = state.hair.graying;
+  browsMaterial?.color.setStyle(state.hair.color).multiplyScalar(0.62).lerp(new THREE.Color(0x7c7a76), state.hair.graying * 0.7);
+  if (state.hair.style !== appliedHair) {
+    appliedHair = state.hair.style;
+    void setHairStyle(state.hair.style);
   }
-});
-buildSwatches(must<HTMLElement>("#probe-iris"), IRIS_COLORS, (value) => {
-  irisUniforms.tint.value.setHex(value);
-});
+  if (state.hair.beard !== appliedBeard) {
+    appliedBeard = state.hair.beard;
+    void setBeard(state.hair.beard);
+  }
 
-function pickSwatch(host: string, label: string): void {
-  must<HTMLElement>(host).querySelector<HTMLButtonElement>(`.probe-swatch[title="${label}"]`)?.click();
+  garmentMaterial?.color.setStyle(state.cloth);
 }
 
-function setBody(type: BodyType): void {
-  applyMorph("build_female", type === "female" ? 1 : 0);
-  applyMorph("build_male", type === "male" ? 1 : 0);
-  applyMorph("brow_fine", type === "female" ? 1 : 0);
-  applyMorph("lash_long", type === "female" ? 1 : 0);
-  for (const button of document.querySelectorAll<HTMLButtonElement>("#probe-build button")) {
-    button.classList.toggle("is-active", button.dataset.build === type);
+store.subscribe(syncScene);
+
+// ---- Controls. Each registers how to reflect the state, so an imported character
+// or a look moves every slider and swatch without further code.
+const controlSyncs: Array<(state: CharacterState) => void> = [];
+store.subscribe((state) => {
+  for (const sync of controlSyncs) sync(state);
+});
+
+function buildRange(
+  hostElement: HTMLElement,
+  id: string,
+  label: string,
+  range: [number, number, number],
+  read: (state: CharacterState) => number,
+  write: (state: CharacterState, value: number) => void,
+): void {
+  const row = document.createElement("label");
+  row.className = "probe-range";
+  row.htmlFor = id;
+  const head = document.createElement("span");
+  head.className = "probe-range-label";
+  const name = document.createElement("span");
+  name.textContent = label;
+  const output = document.createElement("output");
+  head.append(name, output);
+  const input = document.createElement("input");
+  input.id = id;
+  input.type = "range";
+  [input.min, input.max, input.step] = range.map(String);
+  input.addEventListener("input", () => {
+    store.update((state) => {
+      write(state, Number(input.value));
+      state.look = null;
+    });
+  });
+  row.append(head, input);
+  hostElement.append(row);
+  controlSyncs.push((state) => {
+    const value = read(state);
+    if (document.activeElement !== input || Number(input.value) !== value) input.value = String(value);
+    output.textContent = value.toFixed(2);
+  });
+}
+
+function buildMorphRanges(hostSelector: string, defs: SliderDef[]): void {
+  const hostElement = must<HTMLElement>(hostSelector);
+  for (const def of defs) {
+    buildRange(
+      hostElement,
+      `morph-${def.name}`,
+      def.label,
+      [-1, 1, 0.01],
+      (state) => state.morphs[def.name] ?? 0,
+      (state, value) => {
+        state.morphs[def.name] = value;
+      },
+    );
   }
 }
 
-function buildChips<T>(host: string, items: T[], label: (item: T) => string, data: (item: T, button: HTMLButtonElement) => void, pick: (item: T) => void): void {
-  const element = must<HTMLElement>(host);
-  for (const item of items) {
+function buildSwatches(
+  hostSelector: string,
+  options: Array<{ label: string; value: number }>,
+  read: (state: CharacterState) => string,
+  write: (state: CharacterState, hex: string, label: string) => void,
+): void {
+  const hostElement = must<HTMLElement>(hostSelector);
+  const buttons = options.map((option) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = label(item);
-    data(item, button);
-    button.addEventListener("click", () => pick(item));
-    element.append(button);
-  }
+    button.className = "probe-swatch";
+    button.title = option.label;
+    button.setAttribute("aria-label", option.label);
+    const hex = colorHex(option.value);
+    button.dataset.hex = hex;
+    button.style.background = hex;
+    button.addEventListener("click", () => {
+      store.update((state) => {
+        write(state, hex, option.label);
+        state.look = null;
+      });
+    });
+    hostElement.append(button);
+    return button;
+  });
+  controlSyncs.push((state) => {
+    const current = read(state);
+    for (const button of buttons) {
+      const active = button.dataset.hex === current || button.title === current;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", String(active));
+    }
+  });
 }
 
-function setStubble(value: number): void {
-  skinUniforms.uStubble.value = value;
-  const input = must<HTMLInputElement>("#probe-stubble");
-  input.value = String(value);
-  must<HTMLOutputElement>("#probe-stubble-value").textContent = value.toFixed(2);
+function buildChips(
+  hostSelector: string,
+  options: Array<{ id: string; label: string }>,
+  read: (state: CharacterState) => string | null,
+  write: (id: string) => void,
+): void {
+  const hostElement = must<HTMLElement>(hostSelector);
+  const buttons = options.map((option) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = option.label;
+    button.dataset.id = option.id;
+    button.addEventListener("click", () => write(option.id));
+    hostElement.append(button);
+    return button;
+  });
+  controlSyncs.push((state) => {
+    const current = read(state);
+    for (const button of buttons) {
+      const active = button.dataset.id === current;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", String(active));
+    }
+  });
 }
 
-must<HTMLInputElement>("#probe-stubble").addEventListener("input", (event) => {
-  setStubble(Number((event.currentTarget as HTMLInputElement).value));
-});
+const titled = (items: string[]): Array<{ id: string; label: string }> =>
+  items.map((label) => ({ id: label.toLowerCase(), label }));
 
-function setFaceShape(name: string): void {
-  const shape = FACE_SHAPES[name] ?? {};
-  for (const def of SHAPE_SLIDERS) {
-    const input = must<HTMLInputElement>(`#morph-${def.name}`);
-    input.value = String(shape[def.name] ?? 0);
-    input.dispatchEvent(new Event("input"));
-  }
-  for (const button of document.querySelectorAll<HTMLButtonElement>("#probe-face-shapes button")) {
-    button.classList.toggle("is-active", button.textContent === name);
-  }
+function lookState(look: Look): CharacterState {
+  const state = defaultState();
+  const hexOf = (list: Array<{ label: string; value: number }>, label: string): string =>
+    colorHex((list.find((item) => item.label === label) ?? list[0]).value);
+  state.look = look.id;
+  state.body.type = look.body;
+  state.morphs = { ...look.shape };
+  state.skin.tone = look.skin;
+  state.skin.stubble = look.stubble ?? 0;
+  state.hair.style = look.hair;
+  state.hair.beard = look.beard ?? "none";
+  state.hair.color = hexOf(HAIR_COLORS, look.hairColor);
+  state.eyes.left = state.eyes.right = hexOf(IRIS_COLORS, look.iris);
+  state.cloth = hexOf(CLOTH_COLORS, look.cloth);
+  state.light = store.get().light;
+  return state;
 }
 
 function applyLook(look: Look): void {
-  for (const input of sliderInputs) {
-    const name = input.id.replace("morph-", "");
-    input.value = String(look.shape[name] ?? 0);
-    input.dispatchEvent(new Event("input"));
+  store.replace(lookState(look));
+}
+
+function randomize(): void {
+  const any = <T,>(items: readonly T[]): T => items[Math.floor(Math.random() * items.length)];
+  const spread = (amount: number): number => (Math.random() * 2 - 1) * amount;
+  const state = defaultState();
+  state.light = store.get().light;
+  state.body.type = Math.random() < 0.5 ? "female" : "male";
+  state.body.height = 0.97 + Math.random() * 0.06;
+  state.skin.tone = any(SKIN_TONES).label;
+  state.skin.undertone = spread(0.4);
+  state.hair.style = any(HAIR_STYLES).id;
+  state.hair.color = colorHex(any(HAIR_COLORS.slice(0, 5)).value);
+  // Dark eyes are the norm, and nearly universal on deep skin.
+  const toneIndex = SKIN_TONES.findIndex((tone) => tone.label === state.skin.tone);
+  const lightEyes = toneIndex < 5 ? 0.06 : 0.35;
+  const eye = colorHex(Math.random() < lightEyes ? any(IRIS_COLORS).value : IRIS_COLORS[0].value);
+  state.eyes.left = state.eyes.right = eye;
+  state.cloth = colorHex(any(CLOTH_COLORS).value);
+  // Stay inside the ranges that were tuned to look good, like a curated preset.
+  state.morphs = { ...FACE_SHAPES[any(Object.keys(FACE_SHAPES))] };
+  for (const def of FACE_SLIDERS) state.morphs[def.name] = spread(0.35);
+  state.morphs.feat_lips = Math.random() * 0.9;
+  state.morphs.feat_nose_wide = Math.random() * 0.8;
+  state.morphs.feat_nose_bridge = Math.random() * 0.5;
+  for (const def of BODY_SLIDERS) state.morphs[def.name] = spread(0.45);
+  state.skin.freckles = Math.random() < 0.3 ? Math.random() * 0.6 : 0;
+  state.skin.age = Math.random() < 0.3 ? Math.random() * 0.45 : 0;
+  if (state.body.type === "male") {
+    state.skin.stubble = Math.random() * 0.8;
+    state.hair.beard = any(BEARD_STYLES).id;
+  } else if (Math.random() < 0.5) {
+    state.skin.lipOpacity = 0.25 + Math.random() * 0.45;
+    state.skin.lipColor = colorHex(any(LIP_COLORS).value);
+    state.skin.eyeOpacity = Math.random() * 0.4;
   }
-  setBody(look.body);
-  setStubble(look.stubble ?? 0);
-  pickSwatch("#probe-skin", look.skin);
-  pickSwatch("#probe-hair", look.hairColor);
-  pickSwatch("#probe-iris", look.iris);
-  pickSwatch("#probe-cloth", look.cloth);
-  void setHairStyle(look.hair);
-  for (const button of document.querySelectorAll<HTMLButtonElement>("#probe-looks button")) {
-    button.classList.toggle("is-active", button.dataset.look === look.id);
+  state.expression = "neutral";
+  store.replace(state);
+}
+
+function exportState(): void {
+  const blob = new Blob([JSON.stringify(store.get(), null, 2)], { type: "application/json" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "character.json";
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+async function importState(file: File): Promise<void> {
+  const note = must<HTMLElement>("#probe-file-note");
+  try {
+    store.replace(sanitizeState(JSON.parse(await file.text()), stateOptions));
+    note.textContent = `Loaded ${file.name}`;
+  } catch {
+    note.textContent = "That file is not a character.";
   }
 }
 
-buildChips("#probe-face-shapes", Object.keys(FACE_SHAPES), (name) => name, () => undefined, setFaceShape);
-buildChips("#probe-looks", LOOKS, (look) => look.label, (look, button) => { button.dataset.look = look.id; }, applyLook);
-buildChips("#probe-styles", HAIR_STYLES, (style) => style.label, (style, button) => { button.dataset.style = style.id; }, (style) => void setHairStyle(style.id));
-for (const button of document.querySelectorAll<HTMLButtonElement>("#probe-build button")) {
-  button.addEventListener("click", () => setBody(button.dataset.build as BodyType));
+const TATTOO_COLORS = [
+  { label: "Ink", value: 0x14202a },
+  { label: "Indigo", value: 0x1f2a5c },
+  { label: "Rust", value: 0x6e2a18 },
+  { label: "Forest", value: 0x1e3a2a },
+  { label: "White", value: 0xd8d4cc },
+];
+const LIP_COLORS = [
+  { label: "Berry", value: 0x6b1f35 },
+  { label: "Brick", value: 0x8a3322 },
+  { label: "Nude", value: 0x9c6a58 },
+  { label: "Plum", value: 0x4a1f3a },
+  { label: "Red", value: 0xa11a22 },
+  { label: "Coral", value: 0xc4553f },
+];
+const EYE_COLORS = [
+  { label: "Bronze", value: 0x6b4426 },
+  { label: "Plum", value: 0x4a2440 },
+  { label: "Gold", value: 0xb08a3c },
+  { label: "Teal", value: 0x1c5a5e },
+  { label: "Smoke", value: 0x2b2a2c },
+];
+const BLUSH_COLORS = [
+  { label: "Terracotta", value: 0xa8483c },
+  { label: "Rose", value: 0xc05a68 },
+  { label: "Plum", value: 0x7a2c50 },
+];
+const HIGHLIGHT_COLORS = [
+  { label: "Copper", value: 0x8c5230 },
+  { label: "Honey", value: 0xb88a4a },
+  { label: "Burgundy", value: 0x6a1a2a },
+  { label: "Blonde", value: 0xd2b070 },
+  { label: "Blue", value: 0x2a4a8c },
+];
+
+buildChips("#probe-looks", LOOKS, (state) => state.look, (id) => {
+  const look = LOOKS.find((item) => item.id === id);
+  if (look) applyLook(look);
+});
+buildChips("#probe-build", titled(["Female", "Male"]), (state) => state.body.type, (id) => {
+  store.update((state) => {
+    state.body.type = id as BodyType;
+    state.look = null;
+  });
+});
+const rangeHost = (selector: string): HTMLElement => must<HTMLElement>(selector);
+buildRange(rangeHost("#probe-height"), "state-height", "Height", [0.92, 1.08, 0.005], (s) => s.body.height, (s, v) => {
+  s.body.height = v;
+});
+buildMorphRanges("#probe-body", BODY_SLIDERS);
+buildSwatches("#probe-cloth", CLOTH_COLORS, (s) => s.cloth, (s, hex) => {
+  s.cloth = hex;
+});
+
+buildChips("#probe-face-shapes", titled(Object.keys(FACE_SHAPES)), () => null, (id) => {
+  const name = Object.keys(FACE_SHAPES).find((item) => item.toLowerCase() === id) ?? "Oval";
+  store.update((state) => {
+    for (const def of SHAPE_SLIDERS) state.morphs[def.name] = FACE_SHAPES[name][def.name] ?? 0;
+    state.look = null;
+  });
+});
+buildMorphRanges("#probe-shape", SHAPE_SLIDERS);
+buildMorphRanges("#probe-face", FACE_SLIDERS);
+buildChips("#probe-expressions", titled(Object.keys(EXPRESSIONS)), (state) => state.expression, (id) => {
+  store.update((state) => {
+    state.expression = id;
+  });
+});
+
+const percent: [number, number, number] = [0, 1, 0.01];
+const skinRange = (host: string, id: keyof CharacterState["skin"], label: string, range = percent): void =>
+  buildRange(rangeHost(host), `skin-${id}`, label, range, (s) => s.skin[id] as number, (s, v) => {
+    (s.skin[id] as number) = v;
+  });
+
+buildSwatches("#probe-skin", SKIN_TONES, (s) => s.skin.tone, (s, _hex, label) => {
+  s.skin.tone = label;
+});
+skinRange("#probe-skin-base", "undertone", "Undertone, cool to warm", [-1, 1, 0.01]);
+skinRange("#probe-skin-base", "contrast", "Skin definition");
+skinRange("#probe-skin-base", "scatter", "Light scatter");
+skinRange("#probe-skin-conditions", "age", "Age");
+skinRange("#probe-skin-conditions", "freckles", "Freckles");
+skinRange("#probe-skin-conditions", "vitiligo", "Vitiligo");
+skinRange("#probe-skin-conditions", "stubble", "Stubble");
+const numbered = (name: string, count: number): Array<{ id: string; label: string }> => [
+  { id: "0", label: "None" },
+  ...Array.from({ length: count }, (_, index) => ({ id: String(index + 1), label: `${name} ${index + 1}` })),
+];
+buildChips("#probe-scars", numbered("Scar", SCAR_COUNT), (s) => String(s.skin.scar), (id) => {
+  store.update((s) => {
+    s.skin.scar = Number(id);
+    s.look = null;
+  });
+});
+skinRange("#probe-scar-range", "scarIntensity", "Scar strength");
+
+buildChips("#probe-tattoos", [
+  { id: "0", label: "None" },
+  { id: "1", label: "Forearm" },
+  { id: "2", label: "Upper arm" },
+  { id: "3", label: "Neck" },
+], (s) => String(s.skin.tattoo), (id) => {
+  store.update((s) => {
+    s.skin.tattoo = Number(id);
+    s.look = null;
+  });
+  if (id === "1" || id === "2") applyView("full");
+  if (id === "3") applyView("three");
+});
+buildSwatches("#probe-tattoo-color", TATTOO_COLORS, (s) => s.skin.tattooColor, (s, hex) => {
+  s.skin.tattooColor = hex;
+});
+skinRange("#probe-tattoo-range", "tattooOpacity", "Ink strength");
+buildSwatches("#probe-lip-color", LIP_COLORS, (s) => s.skin.lipColor, (s, hex) => {
+  s.skin.lipColor = hex;
+});
+skinRange("#probe-lip-range", "lipOpacity", "Lip colour");
+skinRange("#probe-lip-range", "lipGloss", "Matte to gloss");
+buildSwatches("#probe-eye-color", EYE_COLORS, (s) => s.skin.eyeColor, (s, hex) => {
+  s.skin.eyeColor = hex;
+});
+skinRange("#probe-eye-range", "eyeOpacity", "Eyeshadow");
+skinRange("#probe-eye-range", "liner", "Eyeliner");
+buildSwatches("#probe-blush-color", BLUSH_COLORS, (s) => s.skin.blushColor, (s, hex) => {
+  s.skin.blushColor = hex;
+});
+skinRange("#probe-blush-range", "blushOpacity", "Blush");
+
+buildChips("#probe-styles", HAIR_STYLES, (s) => s.hair.style, (id) => {
+  store.update((s) => {
+    s.hair.style = id;
+    s.look = null;
+  });
+});
+buildChips("#probe-beards", BEARD_STYLES, (s) => s.hair.beard, (id) => {
+  store.update((s) => {
+    s.hair.beard = id;
+    s.look = null;
+  });
+  if (id !== "none") applyView("three");
+});
+buildSwatches("#probe-hair", HAIR_COLORS, (s) => s.hair.color, (s, hex) => {
+  s.hair.color = hex;
+});
+buildSwatches("#probe-highlights", HIGHLIGHT_COLORS, (s) => s.hair.highlights, (s, hex) => {
+  s.hair.highlights = hex;
+});
+buildRange(rangeHost("#probe-hair-range"), "hair-highlight", "Highlights", percent, (s) => s.hair.highlightAmount, (s, v) => {
+  s.hair.highlightAmount = v;
+});
+buildRange(rangeHost("#probe-hair-range"), "hair-gray", "Gray", percent, (s) => s.hair.graying, (s, v) => {
+  s.hair.graying = v;
+});
+buildSwatches("#probe-iris", IRIS_COLORS, (s) => s.eyes.left, (s, hex) => {
+  s.eyes.left = hex;
+  s.eyes.right = hex;
+});
+buildSwatches("#probe-iris-right", IRIS_COLORS, (s) => s.eyes.right, (s, hex) => {
+  s.eyes.right = hex;
+});
+buildRange(rangeHost("#probe-eye-state"), "eye-pupil", "Pupil size", percent, (s) => s.eyes.pupil, (s, v) => {
+  s.eyes.pupil = v;
+});
+buildRange(rangeHost("#probe-eye-state"), "eye-sclera", "Eye whites", [0.3, 1, 0.01], (s) => s.eyes.sclera, (s, v) => {
+  s.eyes.sclera = v;
+});
+buildRange(rangeHost("#probe-eye-state"), "eye-glow", "Glow", percent, (s) => s.eyes.glow, (s, v) => {
+  s.eyes.glow = v;
+});
+
+buildChips("#probe-light", titled(LIGHT_NAMES.map((name) => name[0].toUpperCase() + name.slice(1))), (s) => s.light, (id) => {
+  store.update((s) => {
+    s.light = id;
+  });
+});
+
+// Each tab frames what it edits.
+const TAB_VIEWS: Record<string, ViewName> = {
+  identity: "full",
+  face: "three",
+  skin: "macro",
+  art: "face",
+  hair: "bust",
+};
+
+function openTab(id: string): void {
+  for (const button of document.querySelectorAll<HTMLButtonElement>("#probe-tabs button")) {
+    const active = button.dataset.tab === id;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-selected", String(active));
+    button.tabIndex = active ? 0 : -1;
+  }
+  for (const panel of document.querySelectorAll<HTMLElement>(".probe-tab-panel")) {
+    panel.hidden = panel.dataset.panel !== id;
+  }
+  must<HTMLElement>(".probe-panel").scrollTop = must<HTMLElement>("#probe-tabs").offsetTop - 12;
+  applyView(TAB_VIEWS[id] ?? "three");
 }
 
-for (const button of document.querySelectorAll<HTMLButtonElement>("#probe-expressions button")) {
-  button.addEventListener("click", () => setExpression(button.dataset.expression ?? "neutral"));
+const tabButtons = [...document.querySelectorAll<HTMLButtonElement>("#probe-tabs button")];
+for (const [index, button] of tabButtons.entries()) {
+  button.addEventListener("click", () => openTab(button.dataset.tab ?? "identity"));
+  button.addEventListener("keydown", (event) => {
+    const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+    if (!step) return;
+    const next = tabButtons[(index + step + tabButtons.length) % tabButtons.length];
+    next.focus();
+    openTab(next.dataset.tab ?? "identity");
+  });
 }
 for (const button of document.querySelectorAll<HTMLButtonElement>("#probe-views button")) {
   button.addEventListener("click", () => applyView((button.dataset.view as ViewName) ?? "bust"));
 }
-for (const button of document.querySelectorAll<HTMLButtonElement>("#probe-light button")) {
-  button.addEventListener("click", () => applyLight(button.dataset.light ?? "softbox"));
-}
-must<HTMLButtonElement>("#probe-reset").addEventListener("click", resetShape);
-must<HTMLInputElement>("#probe-sss").addEventListener("input", (event) => {
-  const value = Number((event.currentTarget as HTMLInputElement).value);
-  sssUniforms.strength.value = value;
-  must<HTMLOutputElement>("#probe-sss-value").textContent = value.toFixed(2);
+must<HTMLButtonElement>("#probe-reset").addEventListener("click", () => {
+  store.update((state) => {
+    state.morphs = {};
+    state.expression = "neutral";
+    state.look = null;
+  });
+});
+must<HTMLButtonElement>("#probe-randomize").addEventListener("click", randomize);
+must<HTMLButtonElement>("#probe-export").addEventListener("click", exportState);
+const importInput = must<HTMLInputElement>("#probe-import-file");
+must<HTMLButtonElement>("#probe-import").addEventListener("click", () => importInput.click());
+importInput.addEventListener("change", () => {
+  const file = importInput.files?.[0];
+  if (file) void importState(file);
+  importInput.value = "";
 });
 
 let width = host.clientWidth || 720;
@@ -1455,8 +2147,13 @@ function refreshStats(): void {
   callsEl.textContent = renderer.info.render.calls.toString();
 }
 
+let lastFrame = performance.now();
+
 function animate(): void {
   requestAnimationFrame(animate);
+  const frameStart = performance.now();
+  easeMorphs((frameStart - lastFrame) / 1000);
+  lastFrame = frameStart;
 
   if (tween) {
     const progress = Math.min(1, (performance.now() - tween.start) / tween.duration);
@@ -1496,10 +2193,9 @@ new GLTFLoader().load(
   (gltf) => {
     const loadTime = performance.now() - loadStart;
     buildCharacter(gltf.scene);
-    setExpression("neutral");
-    applyView("three", true);
-    applyLight("softbox");
     applyLook(LOOKS[0]);
+    openTab("identity");
+    applyView("three", true);
     stateLabel.textContent = "Live";
     stateLabel.classList.add("is-live");
     loadEl.textContent = loadTime.toFixed(0);
@@ -1517,6 +2213,8 @@ new GLTFLoader().load(
         loadTime,
         setHairStyle,
         applyLook,
+        store,
+        openTab,
         looks: LOOKS,
       };
     });
