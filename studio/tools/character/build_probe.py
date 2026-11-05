@@ -211,7 +211,7 @@ def read_arm_rig(body) -> None:
                 break
     pivots = {}
     for side in "lr":
-        for part, name in (("clavicle", "clavicle"), ("uparm", "uparm"), ("lowarm", "lowarm"), ("upleg", "upleg"), ("foot", "talocrural")):
+        for part, name in (("clavicle", "clavicle"), ("uparm", "uparm"), ("lowarm", "lowarm"), ("upleg", "upleg"), ("foot", "talocrural"), ("wrist", "wrist")):
             pivots[(side, part)] = np.array(bones[f"{side}_{name}"].head_local)
     count = len(body.data.vertices)
     weights = {key: np.zeros(count) for key in pivots}
@@ -354,7 +354,7 @@ def face_structure(body, co):
     delta = np.zeros_like(co)
     # Width belongs at the cheekbone, not low on the jaw.
     delta[:, 0] += r["sx"] * 0.30 * r["zygoma"]
-    delta[:, 2] += 0.10 * r["zygoma"]
+    delta[:, 2] += 0.04 * r["zygoma"]
     delta[:, 0] += -r["sx"] * 0.62 * r["jaw_side"]
     delta[:, 0] += r["sx"] * 0.14 * r["gonion"]
     # The hollow beneath the cheekbone is what turns a sack into a face.
@@ -455,9 +455,13 @@ def add_build_keys(body) -> None:
     head[:, 0] += -r["sx"] * 0.06 * r["gonion"]
     head[:, 0] += r["x"] * (-0.02 * (r["chin"] + r["chin_bottom"]))
     # Cheekbones high and clear, with the hollow beneath them.
-    head[:, 2] += 0.14 * r["zygoma"]
-    head[:, 0] += r["sx"] * 0.10 * r["zygoma"]
-    head += -normals * (0.14 * r["buccal"])[:, None]
+    head[:, 2] += 0.03 * r["zygoma"]
+    head[:, 0] += r["sx"] * 0.14 * r["zygoma"]
+    head += -normals * (0.26 * r["buccal"])[:, None]
+    # The lower cheek carries a soft fullness that reads as rounded; take it in.
+    lower_cheek = blob(5.2, 156.4, 7.8, 2.6, 1.9, 3.4)
+    head[:, 0] += -r["sx"] * 0.26 * lower_cheek
+    head[:, 2] += -0.12 * lower_cheek
     # A refined nose that is still an adult's.
     nose_region = ss(161.8, 160.4, y) * ss(156.8, 157.8, y) * ss(3.4, 2.2, ax) * (z > 10.5)
     head[:, 0] += x * (-0.055 * nose_region)
@@ -1014,7 +1018,7 @@ class SurfaceSampler:
         tris = []
         for poly in body.data.polygons:
             idx = poly.vertices[:]
-            if self.co[idx[0], 1] < 149.0:
+            if self.co[idx[0], 1] < 144.0:
                 continue
             for k in range(1, len(idx) - 1):
                 tris.append((idx[0], idx[k], idx[k + 1]))
@@ -1264,10 +1268,12 @@ def fall_path(field, root, normal, length, step, half_width, rng):
     away = away / max(1e-6, float(np.linalg.norm(away)))
     heading = away + normal * 0.12
     front = float(ss(2.0, 6.0, root[2]))
-    heading = heading * (1.0 - front) + np.array([side * 0.95, 0.10, -0.30]) * front
+    heading = heading * (1.0 - front) + np.array([side * 0.62, 0.34, -0.82]) * front
     heading /= np.linalg.norm(heading)
     wander = rng.normal(0.0, 0.05, 3)
     layer = rng.uniform(0.0, 0.7)
+    sway_phase = rng.uniform(0.0, math.tau)
+    sway_rate = rng.uniform(0.18, 0.34) * step
     path = [root + normal * 0.12]
     count = max(4, int(length / step))
     for index in range(count):
@@ -1276,14 +1282,16 @@ def fall_path(field, root, normal, length, step, half_width, rng):
         # Hair parts around the face, so nothing falls across the eyes.
         if at[2] > 1.5 and abs(at[0]) < 9.8 and at[1] > 146.0:
             pull = pull + np.array([side * 0.34, 0.0, -0.20 * float(ss(1.5, 8.0, at[2]))])
-        heading = heading + pull + wander * 0.25
+        # A slow sideways sway, so a head of ropes is never a row of parallel lines.
+        sway = math.sin(index * sway_rate + sway_phase) * 0.05 * min(1.0, index * step / 8.0)
+        heading = heading + pull + wander * 0.25 + np.array([sway, 0.0, sway * 0.6])
         heading /= np.linalg.norm(heading)
         at = at + heading * step
         if at[2] > 3.0 and at[1] < 170.5:
             # The opening around the face, widest at the eyes.
-            opening = 8.2 * float(ss(170.5, 166.0, at[1]))
+            opening = 8.2 * float(ss(169.5, 164.0, at[1]))
             if abs(at[0]) < opening:
-                at[0] = side * opening
+                at[0] = at[0] + (side * opening - at[0]) * 0.45
         # A little more clearance per rope stops them all sharing one surface.
         at = field.push_out(at, half_width + 0.10 + layer, field.head_tree if at[1] > 150.0 else field.body_tree)
         path.append(at)
@@ -1334,12 +1342,12 @@ def style_waves(field, rng):
         length = rng.uniform(1.0, 1.6) * (0.6 + 0.4 * float(density))
         s = np.linspace(0.0, 1.0, count)
         ridge_now = (0.5 + 0.5 * math.sin(float(np.linalg.norm(point - HAIR_WHORL)) * 2.6)) ** 1.3
-        path = point[None, :] + tangent[None, :] * (s * length)[:, None] + normal[None, :] * (0.05 + 0.20 * ridge_now + 0.05 * np.sin(s * math.pi))[:, None]
+        path = point[None, :] + tangent[None, :] * (s * length)[:, None] + normal[None, :] * (0.04 + 0.10 * ridge_now + 0.03 * np.sin(s * math.pi))[:, None]
         # Waves ripple away from the crown; the ridge shade is what reads as 360s.
         ring = float(np.linalg.norm(point - HAIR_WHORL))
         ridge = (0.5 + 0.5 * math.sin(ring * 2.6)) ** 1.3
         strands.append((path, rng.uniform(0.05, 0.07), (0.16 + 0.84 * ridge) * (0.75 + 0.25 * s) * rng.uniform(0.92, 1.08), rng.random()))
-    return strands, {"mode": 0, "width": 0.012, "taper": 0.8, "shine": 1.5, "capAlpha": 1.0, "capLow": 0.0, "capHigh": 0.0}
+    return strands, {"mode": 0, "width": 0.012, "taper": 0.8, "shine": 0.7, "ripple": 1, "capAlpha": 1.0, "capLow": 0.0, "capHigh": 0.0}
 
 
 def style_puff(field, rng):
@@ -1399,14 +1407,14 @@ def style_twists(field, rng):
 
 
 def style_braids(field, rng):
-    return rope_style(field, rng, 150, 1.38, 38.0, 0.56, 0.42, 3, 53, cap_alpha=0.70, shine=0.56, swing=0.1)
+    return rope_style(field, rng, 150, 1.38, 38.0, 0.60, 0.20, 3, 53, cap_alpha=0.70, shine=0.56, swing=0.1)
 
 
-def trace_row(field, start, drift, rng, step=0.40):
+def trace_row(field, start, drift, rng, step=0.20):
     """Walk over the scalp from a start point: back across the crown, then down."""
     co, normals = field.co, field.normals
     points = [start]
-    for _ in range(130):
+    for _ in range(230):
         at = points[-1]
         _, nearest, _ = field.head_tree.find(at)
         normal = normals[nearest]
@@ -1509,6 +1517,84 @@ def style_crop(field, rng):
     return strands, {"mode": 0, "width": 0.012, "taper": 1.0, "shine": 1.0, "capAlpha": 1.0, "capLow": 0.0, "capHigh": 0.0}
 
 
+def beard_density_fn(body, kind):
+    """Where a beard grows, from the measured mouth line and the jaw."""
+    xs, ys = mouth_curve(body)
+
+    def density(x, y, z):
+        x, y, z = np.asarray(x, float), np.asarray(y, float), np.asarray(z, float)
+        ax = np.abs(x)
+        line = np.interp(ax, xs, ys)
+        # Cheek line: sideburn down to the mouth corner, then across the upper lip.
+        upper = np.interp(ax, (0.0, 2.4, 3.6, 5.2, 7.0, 9.0), (158.0, 157.6, 155.9, 155.0, 157.2, 159.2))
+        lower = np.interp(np.clip(z, -2.0, 14.0), (-2.0, 3.0, 8.0, 12.0, 14.0), (150.8, 149.6, 148.2, 147.7, 148.6))
+        inside = ss(-0.25, 0.20, upper - y) * ss(-0.30, 0.15, y - lower) * ss(1.6, 2.8, z) * ss(8.6, 7.8, ax)
+        # Lips stay clear.
+        cap = np.clip(1.0 - (ax / 2.9) ** 2, 0.0, 1.0)
+        lip_top = line + 1.14 * cap ** 0.70
+        lip_bottom = line - 1.42 * cap ** 0.60
+        lips = ss(-0.10, 0.04, lip_top - y) * ss(-0.10, 0.04, y - lip_bottom) * (cap > 0.0)
+        inside = inside * (1.0 - lips)
+        if kind == "goatee":
+            inside = inside * ss(3.9, 3.0, ax)
+        return inside
+
+    return density
+
+
+def beard_strands(body, field, rng, kind, count, length, reach):
+    density = beard_density_fn(body, kind)
+    sampler = SurfaceSampler(body, density)
+    roots, normals, _, _, densities = sampler.sample(count, 71)
+    strands = []
+    # A dark mat first, lying with the growth. Without it the skin shows between
+    # coils and the beard reads as wire, not hair.
+    mat_roots, mat_normals, _, _, mat_values = sampler.sample(count // 4, 73)
+    for point, normal, value in zip(mat_roots, mat_normals, mat_values):
+        if value < 0.5:
+            continue
+        down = np.array([point[0] * 0.03, -1.0, 0.10])
+        tangent = down - normal * float(down @ normal)
+        tangent = tangent / max(1e-6, float(np.linalg.norm(tangent)))
+        lift = normal * (0.10 + reach * 0.45)
+        path = np.stack([point + lift * k + tangent * rng.uniform(0.5, 0.8) * k for k in (0.0, 0.5, 1.0)])
+        strands.append((path, 0.34, np.full(3, 0.14), rng.random()))
+    for point, normal, value in zip(roots, normals, densities):
+        down = np.array([point[0] * 0.03, -1.0, 0.10])
+        tangent = down - normal * float(down @ normal)
+        tangent = tangent / max(1e-6, float(np.linalg.norm(tangent)))
+        axis = normal * 0.45 + tangent * 0.8 + rng.normal(0.0, 0.20, 3)
+        depth = rng.random() ** 0.5
+        base = point + normal * (0.16 + reach * depth * float(value))
+        spiral = helix(base, axis, rng.uniform(*length) * (0.55 + 0.45 * float(value)), 0.055, rng.uniform(3.0, 4.0), rng, points=8)
+        gain = (0.30 + 0.70 * depth * depth) * rng.uniform(0.85, 1.12)
+        strands.append((spiral, rng.uniform(0.052, 0.078) * (0.6 + 0.4 * float(value)), np.full(len(spiral), gain), rng.random()))
+    return strands, density
+
+
+BEARD_STYLES = {
+    "beard_goatee": ("goatee", 5200, (0.45, 0.75), 0.30),
+    "beard_short": ("full", 11000, (0.32, 0.55), 0.14),
+    "beard_full": ("full", 15000, (0.7, 1.15), 0.72),
+}
+
+
+def build_beards(body, field, hair_dir: Path) -> None:
+    co = field.co
+    names = [block.name for block in body.data.shape_keys.key_blocks if block.name != "Basis"]
+    for index, (name, (kind, count, length, reach)) in enumerate(BEARD_STYLES.items()):
+        strands, density = beard_strands(body, field, np.random.default_rng(300 + index), kind, count, length, reach)
+        # A beard needs its own fit: it rides the jaw and the expressions, not the scalp.
+        region = np.where(density(co[:, 0], co[:, 1], co[:, 2]) > 0.2)[0]
+        basis = np.concatenate((co[region] * 0.01, np.ones((len(region), 1))), axis=1)
+        follow = {}
+        deltas = key_deltas(body, names)
+        for key, delta in deltas.items():
+            solved, *_ = np.linalg.lstsq(basis, delta[region] * 0.01, rcond=None)
+            follow[key] = [round(float(v), 6) for v in solved.T.ravel()]
+        write_hair(hair_dir / f"{name}.bin", strands, {"mode": 0, "width": 0.012, "taper": 0.5, "shine": 0.3, "capAlpha": 1.0, "capLow": 0.0, "capHigh": 0.0}, follow)
+
+
 HAIR_STYLES = {
     "afro": style_afro,
     "coils": style_coils,
@@ -1534,6 +1620,8 @@ def build_hair_styles(body, out_dir: Path, only: str | None = None) -> None:
             continue
         strands, params = style(field, np.random.default_rng(100 + index))
         write_hair(hair_dir / f"{name}.bin", strands, params, follow)
+    if not only or "beard" in only:
+        build_beards(body, field, hair_dir)
 
 
 def build_hair_cap(body, out_dir: Path) -> list:
@@ -1754,6 +1842,163 @@ def mouth_curve(body):
     return np.array(xs), np.array(ys)
 
 
+def segment_distance(px, py, ax, ay, bx, by):
+    """Distance from each point to a line segment, in the point arrays' units."""
+    dx, dy = bx - ax, by - ay
+    t = np.clip(((px - ax) * dx + (py - ay) * dy) / max(1e-9, dx * dx + dy * dy), 0.0, 1.0)
+    return np.sqrt((px - ax - t * dx) ** 2 + (py - ay - t * dy) ** 2)
+
+
+def spot_field(points, cell, seed):
+    """Round spots on a jittered 3D grid. Each spot peaks at its own random height.
+
+    A density slider then thresholds the peaks: more spots appear as it rises,
+    and the ones already there grow, the way real freckles behave.
+    """
+    rng = np.random.default_rng(seed)
+    jitter = rng.random((64, 64, 64, 3), dtype=np.float32)
+    rank = rng.random((64, 64, 64), dtype=np.float32)
+    scaled = points / cell
+    base = np.floor(scaled).astype(np.int64)
+    i, j, k = base[..., 0] & 63, base[..., 1] & 63, base[..., 2] & 63
+    centre = base + 0.25 + 0.5 * jitter[i, j, k]
+    d2 = ((scaled - centre) ** 2).sum(axis=-1)
+    return (0.34 + 0.66 * rank[i, j, k] ** 1.2) * np.exp(-d2 / 0.042)
+
+
+def bake_skin_layers(pos, line, rim_gap, above, out_dir: Path) -> None:
+    """Masks for the page's layered skin, all placed from the real body.
+
+    Noise on a canvas cannot put a scar through a brow or wrap a tattoo around a
+    forearm, so these are painted in object space and stored against the UVs.
+    """
+    x, y, z = pos[..., 0], pos[..., 1], pos[..., 2]
+    ax = np.abs(x)
+    face = z > 6.0
+
+    def blob(cx, cy, cz, rx, ry, rz):
+        return np.exp(-(((ax - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 + ((z - cz) / rz) ** 2))
+
+    def save(name, r, g, b, step=1):
+        rgba = np.ones((pos.shape[0], pos.shape[1], 4), dtype=np.float32)
+        rgba[..., 0] = np.clip(r, 0.0, 1.0)
+        rgba[..., 1] = np.clip(g, 0.0, 1.0)
+        rgba[..., 2] = np.clip(b, 0.0, 1.0)
+        rgba = rgba[::step, ::step]
+        image = bpy.data.images.new(name, rgba.shape[1], rgba.shape[0], alpha=False)
+        image.colorspace_settings.name = "Non-Color"
+        write_pixels(image, rgba)
+        save_image(image, out_dir / f"{name}.png")
+
+    # Layers: freckles, vitiligo field, age creases.
+    freckle_zone = np.maximum.reduce((
+        blob(0.0, 159.6, 14.0, 2.4, 2.2, 3.0),
+        blob(4.3, 159.2, 10.5, 2.8, 1.9, 3.0),
+        0.5 * blob(0.0, 166.0, 12.0, 6.0, 2.5, 3.0),
+        0.55 * blob(0.0, 140.0, 8.0, 14.0, 9.0, 8.0),
+        0.5 * np.exp(-(((y - 142.0) / 7.0) ** 2)) * ss(13.0, 18.0, ax) * ss(0.0, 2.0, y),
+    ))
+    freckles = np.maximum(spot_field(pos, 0.46, 91), spot_field(pos + 0.17, 0.74, 92) * 0.8) * freckle_zone
+
+    # A value field: patches appear where it passes a threshold, so they start at
+    # the places vitiligo tends to begin and spread with the slider.
+    vitiligo = (fractal(pos, 0.42, 95, 5) - 0.5) * 2.2 + 0.5
+    vitiligo = vitiligo + 0.22 * blob(0.0, 155.8, 12.5, 3.2, 2.2, 3.0) + 0.20 * blob(3.2, 162.2, 11.0, 2.2, 1.6, 2.0)
+    vitiligo = vitiligo + 0.22 * ss(46.0, 56.0, ax) + 0.08 * ss(150.0, 160.0, y)
+
+    def line_y(depth, y0, wave, xs, width=0.09):
+        ridge = y0 + wave * np.sin(x * 0.9)
+        return depth * np.exp(-(((y - ridge) / width) ** 2)) * ss(xs, xs - 1.2, ax) * face
+
+    age = np.zeros_like(x)
+    age += line_y(0.75, 165.7, 0.07, 4.8) + line_y(0.85, 166.5, 0.09, 5.2) + line_y(0.6, 167.2, 0.08, 4.6)
+    t = np.clip((158.0 - y) / 4.2, 0.0, 1.0)
+    fold = 2.0 + 1.75 * t ** 0.85
+    age += np.exp(-((ax - fold) / 0.13) ** 2) * ss(158.2, 157.4, y) * ss(153.6, 154.8, y) * face
+    corner_x = 2.75 + 0.30 * np.clip((155.2 - y) / 2.8, 0.0, 1.0)
+    age += 0.7 * np.exp(-((ax - corner_x) / 0.12) ** 2) * ss(155.4, 154.8, y) * ss(151.8, 152.9, y) * face
+    age += 0.7 * np.exp(-((y - (161.15 - 0.16 * (ax - 3.2))) / 0.09) ** 2) * ss(1.9, 2.5, ax) * ss(5.0, 4.2, ax) * face
+    for angle, size in ((0.34, 1.0), (0.0, 1.0), (-0.30, 0.9)):
+        tip_x = 4.95 + 1.0 * size
+        tip_y = 162.3 + math.sin(angle) * 1.0
+        age += 0.7 * np.exp(-(segment_distance(ax, y, 4.95, 162.3, tip_x, tip_y) / 0.07) ** 2) * (z > 4.0) * (y > 150.0)
+    for neck_y, depth in ((146.6, 0.7), (144.4, 0.55)):
+        age += depth * np.exp(-((y - neck_y - 0.03 * ax * ax) / 0.11) ** 2) * ss(7.2, 5.8, ax) * (z > -1.0)
+    save("skin_layers", freckles, vitiligo, age)
+
+    # Scars. Each is a slightly crooked line with a soft edge.
+    def scar(points, width):
+        result = np.zeros_like(x)
+        for (a, b), (c, d) in zip(points[:-1], points[1:]):
+            distance = segment_distance(x, y, a, b, c, d)
+            result = np.maximum(result, np.exp(-((distance / width) ** 2)))
+        return result * face
+
+    brow = scar([(3.5, 165.3), (3.75, 164.3), (3.95, 163.55), (4.3, 162.95)], 0.055)
+    brow = np.maximum(brow, scar([(4.55, 161.3), (4.95, 160.0), (5.1, 159.3)], 0.05))
+    lip = scar([(-0.95, 157.6), (-0.82, 156.8), (-0.72, 155.9), (-0.8, 154.9)], 0.05)
+    lip = np.maximum(lip, scar([(-5.1, 153.8), (-4.0, 152.6), (-2.6, 151.8)], 0.06))
+    cheek = scar([(5.9, 158.2), (4.9, 157.4), (3.9, 156.2)], 0.06)
+    cheek = np.maximum(cheek, scar([(-2.4, 168.0), (-1.3, 166.7), (-0.8, 165.6)], 0.055))
+    save("skin_marks", brow, lip, cheek)
+
+    # Tattoos: abstract geometric designs, on the left arm and the collar.
+    pivots = ARM_RIG["pivots"]
+    elbow, wrist, shoulder = pivots[("l", "lowarm")], pivots[("l", "wrist")], pivots[("l", "uparm")]
+
+    def around(start, end, radius):
+        axis = end - start
+        length = float(np.linalg.norm(axis))
+        axis = axis / length
+        helper = np.array([0.0, 0.0, 1.0])
+        u = np.cross(axis, helper)
+        u /= np.linalg.norm(u)
+        v = np.cross(axis, u)
+        moved = pos - start
+        along = moved @ axis
+        off = moved - along[..., None] * axis
+        angle = np.arctan2(off @ v, off @ u)
+        near = (np.linalg.norm(off, axis=-1) < radius) & (along > -0.5) & (along < length + 0.5) & (x > 10.0)
+        return along / length, angle, near
+
+    s, angle, near = around(elbow, wrist, 7.0)
+    bands = np.zeros_like(x)
+    for centre, half in ((0.22, 0.012), (0.27, 0.005), (0.78, 0.012), (0.73, 0.005)):
+        bands = np.maximum(bands, ss(half + 0.004, half, np.abs(s - centre)))
+    teeth = np.abs(np.mod(angle * 12.0 / math.tau, 1.0) - 0.5) * 2.0
+    between = ss(0.285, 0.30, s) * ss(0.715, 0.70, s)
+    chevrons = between * ss(0.05, 0.015, np.abs(np.mod((s - 0.285) * 9.0 - teeth * 0.5, 1.0) - 0.5) - 0.20)
+    sleeve = np.maximum(bands, chevrons) * near
+
+    s, angle, near = around(shoulder, elbow, 8.0)
+    wave = 0.5 + 0.09 * np.sin(angle * 8.0)
+    arm = np.zeros_like(x)
+    for offset in (-0.09, 0.0, 0.09):
+        arm = np.maximum(arm, ss(0.016, 0.009, np.abs(s - wave - offset)))
+    dots_u = np.mod(angle * 16.0 / math.tau, 1.0) - 0.5
+    dots_v = (s - 0.34) / 0.03
+    arm = np.maximum(arm, ss(0.26, 0.20, np.sqrt(dots_u ** 2 + dots_v ** 2)))
+    arm = arm * near
+
+    # A band around the neck, clear of the neckline at every body type.
+    collar_y = 149.1 + 0.012 * x * x
+    collar = np.maximum(ss(0.085, 0.055, np.abs(y - collar_y)), ss(0.085, 0.055, np.abs(y - collar_y + 1.0)))
+    spacing = np.mod(np.arctan2(x, z - 1.0) * 26.0 / math.tau + 0.5, 1.0) - 0.5
+    collar = np.maximum(collar, ss(0.30, 0.22, np.sqrt(spacing ** 2 + ((y - collar_y + 0.5) / 0.85) ** 2)))
+    collar = collar * ss(7.8, 7.0, ax) * ss(146.5, 147.5, y) * ss(151.5, 150.5, y)
+    save("skin_art", sleeve, arm, collar)
+
+    # Makeup zones, measured from the lid rim.
+    shadow = ss(0.85, 0.15, rim_gap) * above * ss(5.7, 4.6, ax) * ss(1.5, 2.2, ax)
+    shadow = shadow * (0.65 + 0.35 * ss(2.4, 4.4, ax))
+    liner = ss(0.11, 0.05, rim_gap) * above
+    wing = segment_distance(ax, y, 4.5, 162.25, 5.25, 162.62)
+    liner = np.maximum(liner, ss(0.08, 0.03, wing) * face)
+    blush = blob(5.0, 159.0, 9.6, 2.0, 1.4, 2.8)
+    save("skin_makeup", shadow, liner, blush, step=2)
+    print("baked skin layers")
+
+
 def paint_skin(body, rims, out_dir: Path) -> None:
     size = 2048
     positions, surface_normals = rasterise_positions(body, size)
@@ -1795,17 +2040,6 @@ def paint_skin(body, rims, out_dir: Path) -> None:
     follicle = ss(0.45, 0.72, fractal(pos, 26.0, 21, 2))
     stubble = beard * (0.35 + 0.65 * follicle)
 
-    # Sparse round freckles over nose and cheek tops, soft enough to be tone.
-    spots = np.random.default_rng(31)
-    freckles = np.zeros((size, size))
-    for _ in range(170):
-        cx, cy = spots.uniform(0.0, 5.6), spots.uniform(157.0, 161.0)
-        side_sign = spots.choice((-1.0, 1.0))
-        radius = spots.uniform(0.045, 0.10)
-        near = (np.abs(x - side_sign * cx) < 0.3) & (np.abs(y - cy) < 0.3) & (z > 8.0)
-        d2 = (x[near] - side_sign * cx) ** 2 + (y[near] - cy) ** 2
-        freckles[near] = np.maximum(freckles[near], np.exp(-d2 / (radius * radius)) * spots.uniform(0.25, 0.7))
-    blend(freckles, (0.56, 0.37, 0.30), 0.26)
     colour *= (0.98 + 0.04 * fine)[..., None]
 
     # Lips follow the measured mouth line, with a real cupid's bow.
@@ -1932,6 +2166,8 @@ def paint_skin(body, rims, out_dir: Path) -> None:
     mask_image = new_image("skin_mask", size, "Non-Color")
     write_pixels(mask_image, mask)
     save_image(mask_image, out_dir / "skin_mask.png")
+
+    bake_skin_layers(pos, line, rim_gap, above, out_dir)
 
     rgba = np.ones((size, size, 4), dtype=np.float32)
     rgba[..., :3] = np.clip(colour, 0.0, 1.0)
