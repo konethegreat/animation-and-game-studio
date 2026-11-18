@@ -10,6 +10,15 @@ export type CharacterState = {
   expression: string;
   light: string;
   cloth: string;
+  outfit: {
+    top: string;
+    topFit: number;
+    bottom: string;
+    bottomFit: number;
+    bottomColor: string;
+    shoes: boolean;
+    shoeColor: string;
+  };
   body: { type: BodyType; height: number };
   morphs: Record<string, number>;
   skin: {
@@ -49,6 +58,7 @@ export function defaultState(): CharacterState {
     expression: "neutral",
     light: "softbox",
     cloth: "#23272f",
+    outfit: { top: "tank", topFit: 0, bottom: "trousers", bottomFit: 0, bottomColor: "#1e2024", shoes: true, shoeColor: "#17181b" },
     body: { type: "female", height: 1 },
     morphs: {},
     skin: {
@@ -110,6 +120,7 @@ export function sanitizeState(input: unknown, options: StateOptions): CharacterS
   const base = defaultState();
   const root = record(input);
   const body = record(root.body);
+  const outfit = record(root.outfit);
   const skin = record(root.skin);
   const eyes = record(root.eyes);
   const hair = record(root.hair);
@@ -124,6 +135,15 @@ export function sanitizeState(input: unknown, options: StateOptions): CharacterS
     expression: choice(root.expression, options.expressions, base.expression),
     light: choice(root.light, options.lights, base.light),
     cloth: hex(root.cloth, base.cloth),
+    outfit: {
+      top: choice(outfit.top, ["tank", "tee", "long"], base.outfit.top),
+      topFit: clamp(outfit.topFit, 0, 1, 0),
+      bottom: choice(outfit.bottom, ["trousers", "shorts"], base.outfit.bottom),
+      bottomFit: clamp(outfit.bottomFit, 0, 1, 0),
+      bottomColor: hex(outfit.bottomColor, base.outfit.bottomColor),
+      shoes: outfit.shoes !== false,
+      shoeColor: hex(outfit.shoeColor, base.outfit.shoeColor),
+    },
     body: {
       type: body.type === "male" ? "male" : "female",
       height: clamp(body.height, 0.92, 1.08, base.body.height),

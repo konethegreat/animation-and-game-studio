@@ -15,7 +15,7 @@ from pathlib import Path
 import bmesh
 import bpy
 import numpy as np
-from mathutils import Vector, kdtree
+from mathutils import Vector, bvhtree, kdtree
 
 # Keep only targets the probe can actually drive. Names become glTF morph names.
 BODY_SHAPES = {
@@ -71,12 +71,18 @@ IRIS_RADIUS = 0.565
 CORNEA_RADIUS = 0.72
 MOUTH_CORNER_X = 2.42
 DEFAULT_FACE = {"face_jaw": -0.40, "face_cheeks": -0.35, "face_jawwidth": -0.25, "body_frame": -1.3}
-FEATURE_KEYS = ("feat_lips", "feat_nose_wide", "feat_nose_bridge", "feat_cheeks")
+FEATURE_KEYS = (
+    "feat_lips", "feat_nose_wide", "feat_nose_bridge", "feat_cheeks",
+    "feat_eye_tilt", "feat_eye_hood", "feat_brow_arch",
+    "feat_lip_bow", "feat_lip_balance", "feat_nose_tip",
+)
 BUILD_KEYS = ("build_female", "build_male")
+# Baked into the default build or unused by any control, so not worth shipping.
+UNUSED_KEYS = {"body_frame", "body_upperchest"}
 # Relaxed stance, in degrees. The forearm also swings back toward the thigh.
 BODY_POSE = {"clavicle": -7.0, "uparm": -24.0, "lowarm": -14.0, "lowarm_x": 26.0, "upleg": -6.5, "foot": 6.5}
 RESTING_LIFT = 0.16
-RESTING_LID = 0.22
+RESTING_LID = 0.12
 ARM_RIG: dict = {}
 IDENTITY: dict = {}
 REST_CO: np.ndarray | None = None
@@ -98,6 +104,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--bake-ao", action="store_true")
     parser.add_argument("--hair-only", action="store_true")
     parser.add_argument("--styles", default=None, help="comma separated hair styles to regenerate")
+    parser.add_argument("--heads", default="assets/embed/valid/heads", help="head surfaces from extract_valid_heads.py")
     return parser.parse_args(argv)
 
 
@@ -433,7 +440,9 @@ def add_build_keys(body) -> None:
     delta = compose(target, 0.65)
     # Neck and jaw stay authored: the identity space has no sex axis for them.
     head = np.zeros_like(co)
-    head[:, [0, 2]] += co[:, [0, 2]] * (-0.10 * neck)[:, None]
+    # Height alone includes the anterior chin in the neck-narrowing band.
+    neck_depth = ss(11.5, 7.5, z)
+    head[:, [0, 2]] += co[:, [0, 2]] * (-0.10 * neck * neck_depth)[:, None]
     head[:, 0] += -r["sx"] * 0.14 * r["jaw_side"]
     head[:, 0] += r["sx"] * 0.12 * r["zygoma"]
     blob = r["blob"]
@@ -450,27 +459,35 @@ def add_build_keys(body) -> None:
     longer = ss(159.5, 157.0, y) * ss(145.5, 149.5, y) * face_side
     head[:, 1] += -0.32 * longer
     head[:, 1] += -0.16 * r["chin_bottom"]
-    head[:, 2] += 0.08 * r["chin"]
+    head[:, 2] += 0.50 * r["chin"] + 0.30 * r["chin_bottom"] + 0.18 * blob(0.0, 155.9, 14.0, 2.6, 1.8, 2.2)
+    # A clean angle under the jaw and a longer, slimmer neck. A jaw that slides straight
+    # into the neck is the strongest cue for a soft, young face.
+    head += -normals * (0.34 * r["under"])[:, None]
+    head[:, 1] += 0.16 * r["under"]
+    throat = ss(140.0, 144.0, y) * ss(150.5, 147.0, y) * ss(1.0, 5.0, z) * (ax < 7.5)
+    head[:, 2] += -0.85 * throat
+    head[:, [0, 2]] += co[:, [0, 2]] * (-0.06 * ss(140.0, 145.0, y) * ss(152.0, 148.0, y) * neck_depth)[:, None]
+    head[:, 1] += 0.60 * ss(140.0, 150.0, y)
     head[:, 0] += x * (-0.018 * np.exp(-(((y - 152.5) / 3.6) ** 2)) * face_side)
     head[:, 0] += -r["sx"] * 0.06 * r["gonion"]
     head[:, 0] += r["x"] * (-0.02 * (r["chin"] + r["chin_bottom"]))
     # Cheekbones high and clear, with the hollow beneath them.
     head[:, 2] += 0.03 * r["zygoma"]
     head[:, 0] += r["sx"] * 0.14 * r["zygoma"]
-    head += -normals * (0.26 * r["buccal"])[:, None]
+    head += -normals * (0.46 * r["buccal"])[:, None]
     # The lower cheek carries a soft fullness that reads as rounded; take it in.
-    lower_cheek = blob(5.2, 156.4, 7.8, 2.6, 1.9, 3.4)
-    head[:, 0] += -r["sx"] * 0.26 * lower_cheek
-    head[:, 2] += -0.12 * lower_cheek
-    # A refined nose that is still an adult's.
-    nose_region = ss(161.8, 160.4, y) * ss(156.8, 157.8, y) * ss(3.4, 2.2, ax) * (z > 10.5)
-    head[:, 0] += x * (-0.055 * nose_region)
-    head[:, 2] += -np.maximum(z - 12.0, 0.0) * 0.025 * nose_region
+    lower_cheek = blob(5.4, 156.2, 7.6, 2.8, 2.2, 3.6)
+    head[:, 0] += -r["sx"] * 0.58 * lower_cheek
+    head[:, 2] += -0.30 * lower_cheek
+    # A rounder tip with less projection: an adult nose, never a pointed or pinched one.
+    head[:, 2] += -0.55 * blob(0.0, 159.0, 16.0, 1.3, 1.1, 1.8) - 0.12 * blob(0.0, 161.0, 15.0, 0.9, 1.6, 1.8)
     # A softer brow, kept modest.
     head[:, 2] += -0.17 * blob(3.2, 164.2, 11.6, 3.0, 1.1, 2.2) - 0.19 * blob(0.0, 164.2, 13.2, 1.6, 1.0, 1.4)
     female_face = diffuse(head, edges, 5)
-    lids = key_deltas(body, ["expr_upperlid_L", "expr_upperlid_R"])
+    lids = key_deltas(body, ["expr_upperlid_L", "expr_upperlid_R", "expr_smile_L", "expr_smile_R"])
     female_face = female_face + (lids["expr_upperlid_L"] + lids["expr_upperlid_R"]) * 0.05
+    # Corners that rest level, not turned down.
+    female_face = female_face + (lids["expr_smile_L"] + lids["expr_smile_R"]) * 0.10
     add_key(body, "build_female", delta + female_face)
 
     # Male: broad ribcage and lats, narrower hip, a straighter line, stronger neck.
@@ -541,7 +558,7 @@ def add_feature_keys(body) -> None:
     delta = np.zeros_like(co)
     # Fuller: vermilion rolls outward, grows away from the mouth line, and widens.
     delta[:, 1] += (y - line) * 0.36 * lip_mask
-    delta[:, 2] += 0.24 * lip_mask * ss(0.0, 0.5, np.abs(y - line))
+    delta[:, 2] += 0.13 * lip_mask * ss(0.0, 0.5, np.abs(y - line))
     delta[:, 0] += x * 0.05 * lip_mask
     add_key(body, "feat_lips", delta)
 
@@ -557,12 +574,174 @@ def add_feature_keys(body) -> None:
     delta[:, 2] += -0.42 * bridge - 0.16 * tip
     add_key(body, "feat_nose_bridge", delta)
 
-    cheek = np.exp(-(((ax - 5.6) / 2.1) ** 2 + ((y - 159.2) / 1.25) ** 2)) * (z > 5.0)
+    cheek = np.exp(-(((ax - 5.9) / 2.5) ** 2 + ((y - 159.9) / 1.65) ** 2)) * ss(3.0, 7.0, z)
     delta = np.zeros_like(co)
     delta[:, 0] += np.sign(x) * 0.30 * cheek
-    delta[:, 2] += 0.30 * cheek
-    delta[:, 1] += 0.08 * cheek
-    add_key(body, "feat_cheeks", delta)
+    delta[:, 2] += 0.22 * cheek
+    delta[:, 1] += 0.05 * cheek
+    add_key(body, "feat_cheeks", diffuse(delta, mesh_edges(body), 4))
+
+    eye = np.exp(-(((ax - 3.2) / 2.0) ** 4 + ((y - LID_MID_Y) / 1.5) ** 4)) * ss(8.5, 10.5, z)
+    delta = np.zeros_like(co)
+    delta[:, 1] = (ax - 3.2) * 0.18 * eye
+    add_key(body, "feat_eye_tilt", delta)
+
+    delta = np.zeros_like(co)
+    delta[:, 1] = -(y - LID_MID_Y) * 0.28 * eye
+    add_key(body, "feat_eye_hood", delta)
+
+    arch = np.exp(-(((ax - 4.0) / 1.4) ** 2 + ((y - 164.3) / 1.1) ** 2)) * ss(7.0, 10.0, z)
+    delta = np.zeros_like(co)
+    delta[:, 1] = 0.42 * arch
+    add_key(body, "feat_brow_arch", delta)
+
+    upper = ss(0.05, 0.35, y - line) * np.exp(-((y - line - 0.55) / 0.65) ** 2) * ss(10.5, 12.0, z)
+    bow = np.exp(-((ax - 0.65) / 0.40) ** 2) - 0.45 * np.exp(-(ax / 0.28) ** 2)
+    delta = np.zeros_like(co)
+    delta[:, 1] = 0.20 * bow * upper
+    delta[:, 2] = 0.09 * bow * upper
+    add_key(body, "feat_lip_bow", delta)
+
+    balance = lip_mask * ss(0.06, 0.45, np.abs(y - line)) * ss(10.5, 12.0, z)
+    delta = np.zeros_like(co)
+    delta[:, 1] = 0.20 * balance
+    delta[:, 2] = 0.08 * balance * np.tanh((y - line) * 5.0)
+    add_key(body, "feat_lip_balance", delta)
+
+    tip = np.exp(-((y - 159.0) / 0.95) ** 2) * ss(1.9, 0.4, ax) * ss(12.5, 14.5, z)
+    delta = np.zeros_like(co)
+    delta[:, 1] = 0.26 * tip
+    delta[:, 2] = 0.25 * tip
+    add_key(body, "feat_nose_tip", delta)
+
+
+def profile_landmarks(points, eye_y, mouth_y):
+    """Nose tip, nasion, subnasale and chin, read from the face's midline profile."""
+    mid = points[np.abs(points[:, 0]) < 0.14]
+    mid = mid[mid[:, 2] > np.percentile(mid[:, 2], 40)]
+
+    def pick(low, high, largest):
+        band = mid[(mid[:, 1] > low) & (mid[:, 1] < high)]
+        return band[np.argmax(band[:, 2]) if largest else np.argmin(band[:, 2])]
+
+    tip = pick(mouth_y + 1.0, eye_y - 1.0, True)
+    return {
+        "tip": tip,
+        "nasion": pick(tip[1] + 1.5, eye_y + 2.5, False),
+        "subnasale": pick(mouth_y + 0.7, tip[1] - 0.2, False),
+        "chin": pick(mouth_y - 6.0, mouth_y - 1.8, True),
+    }
+
+
+def similarity(source, target):
+    """Scale, rotation and shift taking source landmarks onto target landmarks."""
+    source_mean, target_mean = source.mean(axis=0), target.mean(axis=0)
+    a, b = source - source_mean, target - target_mean
+    u, s, vt = np.linalg.svd(a.T @ b)
+    sign = np.sign(np.linalg.det(vt.T @ u.T))
+    rotation = vt.T @ np.diag([1.0, 1.0, sign]) @ u.T
+    scale = (s * [1.0, 1.0, sign]).sum() / (a**2).sum()
+    return lambda p: (p - source_mean) @ rotation.T * scale + target_mean
+
+
+def vertex_normals(co, tris):
+    normals = np.zeros_like(co)
+    cross = np.cross(co[tris[:, 1]] - co[tris[:, 0]], co[tris[:, 2]] - co[tris[:, 0]])
+    for corner in range(3):
+        np.add.at(normals, tris[:, corner], cross)
+    return normals / np.maximum(np.linalg.norm(normals, axis=1, keepdims=True), 1e-9)
+
+
+def add_reference_faces(body, rims, heads_dir: Path) -> None:
+    """Wrap the head onto real proportions. Rig, lids, hair and UVs all stay ours.
+
+    Each reference face is one more shape key: landmarks line the two heads up,
+    then the surface is pulled onto the reference in shrinking smooth steps. Our
+    lids keep their own opening, because that is what the eye shells are fitted to.
+    """
+    files = sorted(heads_dir.glob("*.npz")) if heads_dir.exists() else []
+    if not files:
+        print(f"no reference heads in {heads_dir}, skipping")
+        return
+    co, _ = body_arrays(body)
+    edges = mesh_edges(body)
+    tris = np.array([p.vertices[:3] for p in body.data.polygons], dtype=np.int64)
+    x, y, z = co[:, 0], co[:, 1], co[:, 2]
+    ax = np.abs(x)
+
+    # The face moves; ears, scalp and neck stay where hair and clothes expect them.
+    ear = ss(6.0, 7.5, ax) * ss(6.0, 3.0, z)
+    mask = ss(146.5, 150.5, y) * ss(-2.0, 4.0, z) * ss(170.5, 166.5, y) * (1.0 - ear) * (ax < 11.0)
+    mask = diffuse(mask, edges, 6)
+    moving = np.where(mask > 0.002)[0]
+
+    def eye_points(points, indices):
+        rim = points[indices]
+        return rim[np.argmin(np.abs(rim[:, 0]))], rim[np.argmax(np.abs(rim[:, 0]))]
+
+    xs, ys = mouth_curve(body)
+    mouth_y = float(ys[0])
+    corner_y = float(ys[-1])
+    def nearest(point):
+        return co[moving[np.argmin(np.linalg.norm(co[moving] - point, axis=1))]]
+    surface = np.array([nearest(np.array([s * MOUTH_CORNER_X, corner_y, 12.5])) for s in (1.0, -1.0)])
+    eye_y = float(co[rims[1.0], 1].mean())
+    ours = profile_landmarks(co[y > 145.0], eye_y, mouth_y)
+    our_marks = np.array([
+        *eye_points(co, rims[1.0]), *eye_points(co, rims[-1.0]), surface[0], surface[1],
+        ours["tip"], ours["nasion"], ours["subnasale"], ours["chin"],
+    ])
+
+    for index, path in enumerate(files):
+        data = np.load(path)
+        points, faces = data["co"].astype(np.float64), data["tris"]
+        mouth = points[data["mouth"]]
+        corners = mouth[[np.argmax(mouth[:, 0]), np.argmin(mouth[:, 0])]]
+        theirs = profile_landmarks(points, float(points[data["eye_left"], 1].mean()), float(mouth[:, 1].mean()))
+        their_marks = np.array([
+            *eye_points(points, data["eye_left"]), *eye_points(points, data["eye_right"]), corners[0], corners[1],
+            theirs["tip"], theirs["nasion"], theirs["subnasale"], theirs["chin"],
+        ])
+        align = similarity(their_marks, our_marks)
+        placed = align(points)
+        placed_marks = align(their_marks)
+        tree = bvhtree.BVHTree.FromPolygons([tuple(p) for p in placed.tolist()], faces.tolist(), all_triangles=True)
+
+        # Landmarks first: a soft warp so the surfaces start on the right features.
+        shift = placed_marks - our_marks
+        kernel = np.exp(-(np.linalg.norm(our_marks[:, None] - our_marks[None], axis=2) / 4.5) ** 2)
+        weights = np.linalg.solve(kernel + 0.01 * np.eye(len(kernel)), shift)
+        reach = np.exp(-(np.linalg.norm(co[:, None] - our_marks[None], axis=2) / 4.5) ** 2)
+        current = co + (reach @ weights) * mask[:, None]
+
+        # Then shrinking smooth steps toward the nearest surface facing the same way.
+        for smoothing in (40, 28, 20, 14, 10, 7, 5, 4, 3, 3):
+            normals = vertex_normals(current, tris)
+            pull = np.zeros_like(co)
+            trust = np.zeros(len(co))
+            for vertex in moving:
+                hit, normal, _, distance = tree.find_nearest(current[vertex])
+                if hit is None or distance > 2.2 or np.dot(normal, normals[vertex]) < 0.25:
+                    continue
+                pull[vertex] = np.array(hit) - current[vertex]
+                trust[vertex] = 1.0
+            spread = diffuse(trust, edges, smoothing)
+            pull = diffuse(pull, edges, smoothing) / np.maximum(spread, 0.02)[:, None]
+            current = current + pull * (mask * 0.8)[:, None]
+
+        delta = diffuse((current - co) * mask[:, None], edges, 2)
+        # Around each eye the whole region may move, but the aperture keeps its shape.
+        calm = diffuse(delta, edges, 60)
+        for side in (1.0, -1.0):
+            centre = co[rims[side]].mean(axis=0)
+            zone = np.exp(-(((x - centre[0]) / 2.6) ** 2 + ((y - centre[1]) / 1.6) ** 2)) * (z > 6.0)
+            delta = delta + (calm - delta) * zone[:, None]
+        name = "ref_" + path.stem.replace("Black_", "").lower()
+        add_key(body, name, delta)
+        HEAD_SHAPES[name] = name
+        KEEP[name] = name
+        size = np.linalg.norm(delta, axis=1)
+        print(f"reference {name}: mean move {size[moving].mean():.2f} cm, largest {size.max():.2f} cm")
 
 
 def import_body(source: Path) -> bpy.types.Object:
@@ -800,9 +979,9 @@ def build_eyes(body, rims: dict[float, np.ndarray], out_dir: Path) -> list:
 
     co, _ = body_arrays(body)
     matrix = body.matrix_world
-    rigid_names = [n for n in KEEP.values() if not n.startswith("expr_")]
+    rigid_names = [n for n in KEEP.values() if not n.startswith("expr_") and n not in UNUSED_KEYS] + list(BUILD_KEYS) + list(FEATURE_KEYS)
     rigid = key_deltas(body, rigid_names)
-    all_deltas = key_deltas(body, list(HEAD_SHAPES.values()) + list(EXPRESSION_SHAPES.values()) + list(BUILD_KEYS))
+    all_deltas = key_deltas(body, list(HEAD_SHAPES.values()) + list(EXPRESSION_SHAPES.values()) + list(BUILD_KEYS) + list(FEATURE_KEYS))
     skin_tree = kdtree.KDTree(int((co[:, 1] > 150).sum()))
     for index in np.where(co[:, 1] > 150)[0]:
         skin_tree.insert(co[index], int(index))
@@ -1456,7 +1635,7 @@ def style_cornrows(field, rng):
             path = trace_row(field, start, 0.0, rng)
             strands.append((path, rng.uniform(0.92, 1.0), np.full(len(path), rng.uniform(0.82, 1.05)), rng.random()))
     print(f"  cornrows {len(strands)}")
-    return strands, {"mode": 3, "width": 0.0085, "taper": 0.0, "shine": 0.58, "capAlpha": 0.42, "capLow": 0.0, "capHigh": 0.0}
+    return strands, {"mode": 3, "width": 0.0085, "taper": 0.0, "shine": 0.58, "capAlpha": 0.2, "capLow": 0.0, "capHigh": 0.0}
 
 
 def style_bantu(field, rng):
@@ -1526,9 +1705,9 @@ def beard_density_fn(body, kind):
         ax = np.abs(x)
         line = np.interp(ax, xs, ys)
         # Cheek line: sideburn down to the mouth corner, then across the upper lip.
-        upper = np.interp(ax, (0.0, 2.4, 3.6, 5.2, 7.0, 9.0), (158.0, 157.6, 155.9, 155.0, 157.2, 159.2))
+        upper = np.interp(ax, (0.0, 2.4, 3.6, 5.2, 7.0, 9.0), (158.0, 157.6, 155.9, 155.0, 156.5, 157.2))
         lower = np.interp(np.clip(z, -2.0, 14.0), (-2.0, 3.0, 8.0, 12.0, 14.0), (150.8, 149.6, 148.2, 147.7, 148.6))
-        inside = ss(-0.25, 0.20, upper - y) * ss(-0.30, 0.15, y - lower) * ss(1.6, 2.8, z) * ss(8.6, 7.8, ax)
+        inside = ss(-0.10, 0.08, upper - y) * ss(-0.30, 0.15, y - lower) * ss(1.6, 2.8, z) * ss(8.6, 7.8, ax)
         # Lips stay clear.
         cap = np.clip(1.0 - (ax / 2.9) ** 2, 0.0, 1.0)
         lip_top = line + 1.14 * cap ** 0.70
@@ -1574,7 +1753,7 @@ def beard_strands(body, field, rng, kind, count, length, reach):
 
 BEARD_STYLES = {
     "beard_goatee": ("goatee", 5200, (0.45, 0.75), 0.30),
-    "beard_short": ("full", 11000, (0.32, 0.55), 0.14),
+    "beard_short": ("full", 11000, (0.18, 0.34), 0.05),
     "beard_full": ("full", 15000, (0.7, 1.15), 0.72),
 }
 
@@ -1593,6 +1772,33 @@ def build_beards(body, field, hair_dir: Path) -> None:
             solved, *_ = np.linalg.lstsq(basis, delta[region] * 0.01, rcond=None)
             follow[key] = [round(float(v), 6) for v in solved.T.ravel()]
         write_hair(hair_dir / f"{name}.bin", strands, {"mode": 0, "width": 0.012, "taper": 0.5, "shine": 0.3, "capAlpha": 1.0, "capLow": 0.0, "capHigh": 0.0}, follow)
+
+
+def laid_edges(field, rng, count, seed):
+    """Baby hairs along the front, flat and swept. Part of how these styles are worn."""
+
+    def band(x, y, z):
+        return np.exp(-((hair_density(x, y, z) - 0.30) / 0.22) ** 2)
+
+    roots, normals, _, _, densities = field.sampler.sample(count, seed, band)
+    strands = []
+    for point, normal, value in zip(roots, normals, densities):
+        if value > 0.72:
+            continue
+        side = np.array([1.0 if point[0] >= 0.0 else -1.0, 0.0, -0.25])
+        flow = hair_flow(point) * 0.55 + side * 0.65
+        tangent = flow - normal * float(flow @ normal)
+        tangent = tangent / max(1e-6, float(np.linalg.norm(tangent)))
+        across = np.cross(normal, tangent)
+        length = rng.uniform(0.45, 1.05)
+        s = np.linspace(0.0, 1.0, 6)
+        curl = np.sin(s * math.pi * rng.uniform(0.8, 1.6)) * rng.uniform(0.06, 0.18) * rng.choice((-1.0, 1.0))
+        path = point[None, :] + tangent[None, :] * (s * length)[:, None] + across[None, :] * curl[:, None] + normal[None, :] * 0.03
+        strands.append((path, rng.uniform(0.018, 0.03), (0.55 + 0.35 * s) * rng.uniform(0.85, 1.1), rng.random()))
+    return strands
+
+
+EDGE_STYLES = {"puff": 2600, "waves": 2200, "fade": 1500, "coils": 1500, "cornrows": 1800, "braids": 2000, "twists": 1800, "locs": 1800, "bantu": 1800}
 
 
 HAIR_STYLES = {
@@ -1618,7 +1824,12 @@ def build_hair_styles(body, out_dir: Path, only: str | None = None) -> None:
     for index, (name, style) in enumerate(HAIR_STYLES.items()):
         if only and name not in only.split(","):
             continue
-        strands, params = style(field, np.random.default_rng(100 + index))
+        rng = np.random.default_rng(100 + index)
+        strands, params = style(field, rng)
+        if name in EDGE_STYLES:
+            # Ropes draw with a wide strand width, so edges go in their own unit.
+            scale = 0.012 / params["width"]
+            strands = strands + [(p, w * scale, s, q) for p, w, s, q in laid_edges(field, rng, EDGE_STYLES[name], 500 + index)]
         write_hair(hair_dir / f"{name}.bin", strands, params, follow)
     if not only or "beard" in only:
         build_beards(body, field, hair_dir)
@@ -1719,7 +1930,7 @@ def build_brows(body) -> list:
             a = start + step * 2
             faces.append((a, a + 1, a + 3, a + 2))
     brows = mesh_object("brows", verts, faces, None, material, body.matrix_world)
-    deltas = key_deltas(body, list(HEAD_SHAPES.values()) + list(EXPRESSION_SHAPES.values()) + list(BUILD_KEYS))
+    deltas = key_deltas(body, list(HEAD_SHAPES.values()) + list(EXPRESSION_SHAPES.values()) + list(BUILD_KEYS) + list(FEATURE_KEYS))
     add_follow_keys(brows, deltas, np.array(sources), np.array(weights))
     brow_co = np.array(verts)
     centre = brow_centre(np.abs(brow_co[:, 0]))
@@ -1996,6 +2207,19 @@ def bake_skin_layers(pos, line, rim_gap, above, out_dir: Path) -> None:
     liner = np.maximum(liner, ss(0.08, 0.03, wing) * face)
     blush = blob(5.0, 159.0, 9.6, 2.0, 1.4, 2.8)
     save("skin_makeup", shadow, liner, blush, step=2)
+    drape = fractal(pos * np.array([1.0, 0.26, 1.0]), 0.62, 111, 3)
+    folds = 0.5 + (drape - 0.5) * 0.9
+    torso = ss(26.0, 20.0, ax) * ss(98.0, 104.0, y) * ss(150.0, 142.0, y)
+    for centre, depth in ((107.0, 0.22), (110.5, 0.16), (114.5, 0.10)):
+        ridge = centre + 0.5 * np.sin(x * 0.35 + centre)
+        folds = folds - depth * np.exp(-(((y - ridge) / 0.7) ** 2)) * torso
+    for tx, ty in ((9.0, 122.0), (7.5, 116.0), (11.0, 113.0)):
+        reach = segment_distance(ax, y, 16.5, 131.0, tx, ty)
+        folds = folds - 0.18 * np.exp(-((reach / 0.6) ** 2)) * torso
+    for centre, depth in ((50.0, 0.20), (53.5, 0.12), (86.0, 0.18), (82.5, 0.12)):
+        ridge = centre + 0.6 * np.sin(x * 0.6 + centre)
+        folds = folds - depth * np.exp(-(((y - ridge) / 0.8) ** 2)) * ss(90.0, 86.0, y + 0.0 * x + (0.0 if centre < 80 else -8.0))
+    save("skin_cloth", folds, folds, folds, step=2)
     print("baked skin layers")
 
 
@@ -2033,6 +2257,27 @@ def paint_skin(body, rims, out_dir: Path) -> None:
     # Shadow under the eye and around the socket.
     blend(blob(3.2, 160.8, 11.5, 1.9, 0.75, 2.0), (0.62, 0.45, 0.42), 0.24)
     blend(blob(3.2, 163.0, 11.5, 2.5, 0.45, 2.0), (0.66, 0.46, 0.41), 0.34)
+    # A face is not one flat value. Light rests on the high planes and the skin falls
+    # darker around the eyes and mouth and under the jaw. That falloff is strong on
+    # deep skin, where darker skin around the eyes and mouth is common, and it is what
+    # the side by side with real proportions showed this head was missing.
+    def value(mask, factor):
+        nonlocal colour
+        colour = colour * (1.0 + (factor - 1.0) * np.clip(mask, 0.0, 1.0))[..., None]
+
+    value(blob(3.2, 162.7, 11.5, 2.9, 1.35, 3.2), 0.74)
+    value(blob(1.7, 162.2, 12.5, 1.1, 1.0, 2.5), 0.86)
+    value(blob(3.2, 160.6, 11.5, 2.6, 0.9, 2.5), 0.84)
+    value(blob(1.35, 160.2, 13.0, 0.75, 2.0, 2.2), 0.85)
+    value(blob(0.0, 155.7, 13.5, 3.9, 2.7, 4.0, False), 0.80)
+    value(ss(154.0, 149.5, y) * ss(138.0, 143.0, y), 0.82)
+    value(blob(7.0, 164.5, 7.0, 2.0, 3.0, 3.0), 0.86)
+    value(ss(166.5, 169.0, y) * front, 0.86)
+    value(blob(5.0, 159.6, 9.6, 2.2, 1.1, 2.4), 1.16)
+    value(blob(0.0, 165.6, 13.0, 3.2, 1.6, 2.5, False), 1.08)
+    value(blob(0.0, 160.8, 15.0, 0.45, 1.8, 1.5, False), 1.10)
+    value(blob(0.0, 158.9, 16.0, 0.6, 0.5, 1.0, False), 1.08)
+    value(blob(0.0, 151.4, 13.0, 1.4, 0.9, 1.5, False), 1.10)
     # Stubble is a choice made on the page, so it lives in the mask, not the skin.
     beard = (
         ss(158.0, 156.6, y) * ss(147.5, 149.5, y) * ss(5.5, 8.0, z) * ss(7.4, 5.4, ax)
@@ -2263,7 +2508,64 @@ def trouser_edge(co) -> float:
     return min(105.5 - co.y, co.y - 11.5, 34.0 - abs(co.x))
 
 
-def build_garment(body: bpy.types.Object, out_dir: Path, name: str = "garment", edge_fn=None, offset: float = 0.35, tint=(0.34, 0.38, 0.44, 1.0)) -> bpy.types.Object:
+def shorts_edge(co) -> float:
+    return min(105.5 - co.y, co.y - 76.0, 34.0 - abs(co.x))
+
+
+def shoe_edge(co) -> float:
+    return 10.0 - co.y
+
+
+def sole_edge(co) -> float:
+    return 2.0 - co.y
+
+
+def arm_position(co):
+    """Distance along the rest-pose arm from the shoulder, and off its axis."""
+    side = "l" if co.x > 0 else "r"
+    pivots = ARM_RIG["pivots"]
+    shoulder, elbow, wrist = (pivots[(side, part)] for part in ("uparm", "lowarm", "wrist"))
+    point = np.array((co.x, co.y, co.z))
+    upper = elbow - shoulder
+    upper_length = float(np.linalg.norm(upper))
+    t_upper = float((point - shoulder) @ upper) / upper_length ** 2
+    along_upper = t_upper * upper_length
+    near_upper = float(np.linalg.norm(point - shoulder - upper * min(1.0, max(0.0, t_upper))))
+    lower = wrist - elbow
+    lower_length = float(np.linalg.norm(lower))
+    t_lower = float((point - elbow) @ lower) / lower_length ** 2
+    near_lower = float(np.linalg.norm(point - elbow - lower * min(1.0, max(0.0, t_lower))))
+    if near_lower < near_upper:
+        return upper_length + t_lower * lower_length, near_lower, upper_length, lower_length
+    return along_upper, near_upper, upper_length, lower_length
+
+
+def sleeve_edge(co, fraction_upper, fraction_lower):
+    along, off_axis, upper_length, lower_length = arm_position(co)
+    if off_axis > 8.5 or along < -6.0:
+        return -9.0
+    return upper_length * fraction_upper + lower_length * fraction_lower - along
+
+
+def tee_edge(co) -> float:
+    return max(garment_edge(co), min(sleeve_edge(co, 0.55, 0.0), garment_limit(co.x, co.z) - co.y + 6.0))
+
+
+def long_sleeve_edge(co) -> float:
+    return max(garment_edge(co), min(sleeve_edge(co, 1.0, 0.94), garment_limit(co.x, co.z) - co.y + 6.0))
+
+
+def top_loose(y, ax):
+    """A relaxed top hangs from the chest, so it stands off most at the hem."""
+    return 0.35 + 1.45 * ss(130.0, 104.0, y) * ss(30.0, 20.0, ax) + 0.45 * ss(19.0, 24.0, ax)
+
+
+def bottom_loose(y, ax):
+    """Straight legged: skims the hip and falls clear of the calf."""
+    return 0.18 + 1.75 * ss(86.0, 42.0, y)
+
+
+def build_garment(body: bpy.types.Object, out_dir: Path, name: str = "garment", edge_fns=(garment_edge,), offset: float = 0.35, loose=None, tint=(0.34, 0.38, 0.44, 1.0)) -> bpy.types.Object:
     """Duplicate part of the body as clothing; reshape with the body's morph keys."""
     fabric_path = out_dir / "fabric.png"
     generate_fabric_texture(fabric_path)
@@ -2286,13 +2588,16 @@ def build_garment(body: bpy.types.Object, out_dir: Path, name: str = "garment", 
     links.new(multiply.outputs["Color"], bsdf.inputs["Base Color"])
 
     mesh = body.data
-    keys = [block for block in mesh.shape_keys.key_blocks if block.name != "Basis"]
+    wanted = {*BODY_SHAPES.values(), *BUILD_KEYS, "face_jaw"} - UNUSED_KEYS
+    keys = [block for block in mesh.shape_keys.key_blocks if block.name in wanted]
     uv_data = mesh.uv_layers.active.data
 
     # Keep a margin past the cut. The page discards on the interpolated distance,
     # so the visible edge is a smooth curve whatever the triangles underneath do.
-    edge_of = edge_fn or garment_edge
-    edges = [edge_of(Vector(point)) for point in REST_CO]
+    channels = [[fn(Vector(point)) for point in REST_CO] for fn in edge_fns]
+    while len(channels) < 3:
+        channels.append(channels[0])
+    edges = [max(values) for values in zip(*channels)]
     selected = [poly for poly in mesh.polygons if max(edges[v] for v in poly.vertices) > -0.2]
     if not selected:
         raise RuntimeError("garment region selected no faces")
@@ -2335,8 +2640,8 @@ def build_garment(body: bpy.types.Object, out_dir: Path, name: str = "garment", 
         poly.use_smooth = True
     edge_layer = garment_mesh.color_attributes.new(name="Edge", type="FLOAT_COLOR", domain="POINT")
     for index, src in enumerate(source):
-        value = max(0.0, min(1.0, 0.5 + edges[src] / 6.0))
-        edge_layer.data[index].color = (value, value, value, 1.0)
+        encoded = [max(0.0, min(1.0, 0.5 + channel[src] / 6.0)) for channel in channels]
+        edge_layer.data[index].color = (encoded[0], encoded[1], encoded[2], 1.0)
 
     garment = bpy.data.objects.new(name, garment_mesh)
     bpy.context.scene.collection.objects.link(garment)
@@ -2350,6 +2655,13 @@ def build_garment(body: bpy.types.Object, out_dir: Path, name: str = "garment", 
         for out_index, src_index in enumerate(source):
             delta = block.data[src_index].co - basis.data[src_index].co
             key.data[out_index].co = Vector(verts[out_index]) + delta
+        key.value = 0.0
+    if loose is not None:
+        key = garment.shape_key_add(name=f"{name}_loose", from_mix=False)
+        for out_index, src_index in enumerate(source):
+            rest = REST_CO[src_index]
+            amount = float(loose(rest[1], abs(rest[0])))
+            key.data[out_index].co = Vector(verts[out_index]) + mesh.vertices[src_index].normal * amount
         key.value = 0.0
     print(f"{name} faces={len(selected)} verts={len(verts)} keys={len(keys)}")
     return garment
@@ -2704,6 +3016,7 @@ def main() -> None:
     add_shape_keys(body)
     pose_body(body)
     rims = open_eyes(body)
+    add_reference_faces(body, rims, Path(args.heads).resolve())
     build_hair_styles(body, out_dir, args.styles)
     if args.hair_only:
         return
@@ -2726,12 +3039,16 @@ def main() -> None:
     eye_objects = build_eyes(body, rims, out_dir)
     brow_objects = build_brows(body)
     hair_objects = build_hair_cap(body, out_dir)
-    garment = build_garment(body, out_dir)
-    trousers = build_garment(body, out_dir, "trousers", trouser_edge, 0.28)
+    garment = build_garment(body, out_dir, "garment", (garment_edge, tee_edge, long_sleeve_edge), 0.35, top_loose)
+    trousers = build_garment(body, out_dir, "trousers", (trouser_edge, shorts_edge), 0.28, bottom_loose)
+    shoes = build_garment(body, out_dir, "shoes", (shoe_edge, sole_edge), 0.5)
+
+    for name in UNUSED_KEYS:
+        body.shape_key_remove(body.data.shape_keys.key_blocks[name])
 
     for obj in bpy.context.scene.objects:
         obj.select_set(False)
-    for obj in [body, *eye_objects, *brow_objects, *hair_objects, garment, trousers]:
+    for obj in [body, *eye_objects, *brow_objects, *hair_objects, garment, trousers, shoes]:
         obj.select_set(True)
 
     bpy.context.view_layer.objects.active = body

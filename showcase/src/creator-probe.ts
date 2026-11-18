@@ -54,9 +54,19 @@ const BODY_SLIDERS: SliderDef[] = [
 
 const FACE_SLIDERS: SliderDef[] = [
   { name: "feat_lips", label: "Lip fullness" },
+  { name: "feat_lip_bow", label: "Cupid's bow" },
+  { name: "feat_lip_balance", label: "Upper / lower lip" },
   { name: "feat_nose_wide", label: "Nose width" },
   { name: "feat_nose_bridge", label: "Nose bridge" },
+  { name: "feat_nose_tip", label: "Nose tip" },
+  { name: "feat_eye_tilt", label: "Eye corner tilt" },
+  { name: "feat_eye_hood", label: "Lid hooding" },
+  { name: "feat_brow_arch", label: "Brow arch" },
   { name: "face_jaw", label: "Head size" },
+  { name: "face_jawwidth", label: "Face width" },
+  { name: "face_eyes", label: "Eye set" },
+  { name: "face_nosewidth", label: "Nose shape" },
+  { name: "face_mouth2", label: "Mouth shape" },
   { name: "face_chin", label: "Chin" },
   { name: "face_midface", label: "Midface" },
   { name: "face_mouth", label: "Mouth" },
@@ -65,6 +75,16 @@ const FACE_SLIDERS: SliderDef[] = [
   { name: "face_brow", label: "Brow ridge" },
   { name: "face_cheeks", label: "Cheeks" },
   { name: "face_lips", label: "Lips" },
+];
+
+// Local VALID references do not establish source-avatar redistribution rights.
+const REFERENCE_SLIDERS: SliderDef[] = [
+  { name: "ref_f_1", label: "Reference woman 1" },
+  { name: "ref_f_2", label: "Reference woman 2" },
+  { name: "ref_f_3", label: "Reference woman 3" },
+  { name: "ref_m_1", label: "Reference man 1" },
+  { name: "ref_m_2", label: "Reference man 2" },
+  { name: "ref_m_3", label: "Reference man 3" },
 ];
 
 const EXPRESSIONS: Record<string, Record<string, number>> = {
@@ -133,11 +153,11 @@ type SkinTone = {
 };
 
 const SKIN_TONES: SkinTone[] = [
-  { label: "Ebony", value: 0x3a241b, lipUpper: 0x3c2320, lipLower: 0x4f2d29, palm: 0x8c6250, shine: 1.0 },
-  { label: "Espresso", value: 0x4d2f20, lipUpper: 0x4a2c27, lipLower: 0x5f3831, palm: 0x9e7059, shine: 0.95 },
-  { label: "Umber", value: 0x62402b, lipUpper: 0x5e3730, lipLower: 0x70433a, palm: 0xad7f66, shine: 0.88 },
-  { label: "Mahogany", value: 0x74492f, lipUpper: 0x733f33, lipLower: 0x8a5040, palm: 0xb88a6e, shine: 0.8 },
-  { label: "Chestnut", value: 0x8c5c3d, lipUpper: 0x84503f, lipLower: 0x9a5f4e, palm: 0xc69a7c, shine: 0.7 },
+  { label: "Ebony", value: 0x3b2419, lipUpper: 0x301d1d, lipLower: 0x4f2e2c, palm: 0x8c6250, shine: 1.0 },
+  { label: "Espresso", value: 0x4a2d1f, lipUpper: 0x3c2421, lipLower: 0x5c3531, palm: 0x9e7059, shine: 0.95 },
+  { label: "Umber", value: 0x573727, lipUpper: 0x452825, lipLower: 0x693e38, palm: 0xad7f66, shine: 0.88 },
+  { label: "Mahogany", value: 0x643f2d, lipUpper: 0x52302b, lipLower: 0x794840, palm: 0xb88a6e, shine: 0.8 },
+  { label: "Chestnut", value: 0x77523c, lipUpper: 0x6a3f34, lipLower: 0x8c554a, palm: 0xc69a7c, shine: 0.7 },
   { label: "Caramel", value: 0x8c6244, lipUpper: 0x7e4a3d, lipLower: 0xa86a58, palm: 0xd2ab8d, shine: 0.6 },
   { label: "Bronze", value: 0x9c7450, lipUpper: 0x905748, lipLower: 0xb47a66, palm: 0xdcb99c, shine: 0.54 },
   { label: "Honey", value: 0xb28a64, lipUpper: 0xa06650, lipLower: 0xbf8470, palm: 0xe4c4a8, shine: 0.48 },
@@ -155,6 +175,40 @@ const HAIR_COLORS = [
   { label: "Honey blonde", value: 0xab7d50 },
   { label: "Silver", value: 0xb4b0a8 },
 ];
+
+const TOP_CUTS = [
+  { id: "tank", label: "Tank" },
+  { id: "tee", label: "Tee" },
+  { id: "long", label: "Long sleeve" },
+];
+const BOTTOM_CUTS = [
+  { id: "trousers", label: "Trousers" },
+  { id: "shorts", label: "Shorts" },
+];
+const BOTTOM_COLORS = [
+  { label: "Charcoal", value: 0x1e2024 },
+  { label: "Denim", value: 0x2b3c5a },
+  { label: "Khaki", value: 0x7d6e52 },
+  { label: "Olive", value: 0x3e4632 },
+  { label: "Cream", value: 0xcfc5ae },
+];
+const SHOE_COLORS = [
+  { label: "Black", value: 0x17181b },
+  { label: "Brown", value: 0x4a2e1c },
+  { label: "White", value: 0xd8d4cc },
+  { label: "Clay", value: 0xa2604a },
+];
+// Each starting look has clothes that suit it, not one uniform for everyone.
+const LOOK_OUTFITS: Record<string, Partial<CharacterState["outfit"]>> = {
+  amara: { top: "tee", topFit: 0.3, bottomColor: "#2b3c5a" },
+  thabo: { top: "tee", topFit: 0.6, bottomFit: 0.8 },
+  naledi: { top: "long", topFit: 0.2, bottomColor: "#7d6e52", bottomFit: 0.6 },
+  kofi: { top: "tank", topFit: 0.5, bottomFit: 0.9, bottomColor: "#3e4632" },
+  zola: { top: "long", topFit: 0.1, bottomColor: "#1e2024" },
+  malik: { top: "tee", topFit: 0.8, bottomFit: 0.7, bottomColor: "#2b3c5a", shoeColor: "#d8d4cc" },
+  imani: { top: "tank", topFit: 0.1, bottomColor: "#cfc5ae", bottomFit: 0.5, shoeColor: "#4a2e1c" },
+  tariq: { top: "long", topFit: 0.5, bottomFit: 0.7, bottomColor: "#7d6e52", shoeColor: "#4a2e1c" },
+};
 
 const BEARD_STYLES = [
   { id: "none", label: "None" },
@@ -193,14 +247,14 @@ type Look = {
 };
 
 const LOOKS: Look[] = [
-  { id: "amara", label: "Amara", body: "female", skin: "Umber", hair: "afro", hairColor: "Natural black", iris: "Dark brown", cloth: "Moss", shape: { feat_lips: 0.75, feat_nose_wide: 0.55, feat_nose_bridge: 0.35, feat_cheeks: 0.6 } },
-  { id: "thabo", beard: "beard_short", stubble: 0.55, label: "Thabo", body: "male", skin: "Espresso", hair: "fade", hairColor: "Natural black", iris: "Dark brown", cloth: "Ink", shape: { feat_lips: 0.6, feat_nose_wide: 0.8, feat_nose_bridge: 0.5, feat_cheeks: 0.3, shape_jaw_width: 0.35, shape_jaw_angle: 0.6 } },
-  { id: "naledi", label: "Naledi", body: "female", skin: "Ebony", hair: "braids", hairColor: "Natural black", iris: "Dark brown", cloth: "Bone", shape: { feat_lips: 0.9, feat_nose_wide: 0.7, feat_nose_bridge: 0.55, feat_cheeks: 0.8 } },
-  { id: "kofi", beard: "beard_full", stubble: 0.7, label: "Kofi", body: "male", skin: "Mahogany", hair: "locs", hairColor: "Soft black", iris: "Hazel", cloth: "Moss", shape: { feat_lips: 0.5, feat_nose_wide: 0.6, feat_nose_bridge: 0.3, feat_cheeks: 0.5 } },
-  { id: "zola", label: "Zola", body: "female", skin: "Chestnut", hair: "cornrows", hairColor: "Natural black", iris: "Dark brown", cloth: "Slate", shape: { feat_lips: 0.55, feat_nose_wide: 0.35, feat_nose_bridge: 0.15, feat_cheeks: 0.7 } },
-  { id: "malik", beard: "beard_goatee", stubble: 0.35, label: "Malik", body: "male", skin: "Umber", hair: "waves", hairColor: "Natural black", iris: "Dark brown", cloth: "Clay", shape: { feat_lips: 0.45, feat_nose_wide: 0.5, feat_nose_bridge: 0.2, feat_cheeks: 0.35, shape_jaw_width: 0.15, shape_jaw_angle: 0.3 } },
-  { id: "imani", label: "Imani", body: "female", skin: "Caramel", hair: "puff", hairColor: "Espresso", iris: "Amber", cloth: "Ink", shape: { feat_lips: 0.5, feat_nose_wide: 0.3, feat_nose_bridge: 0.1, feat_cheeks: 0.5 } },
-  { id: "tariq", stubble: 0.45, label: "Tariq", body: "male", skin: "Bronze", hair: "crop", hairColor: "Espresso", iris: "Green", cloth: "Slate", shape: { feat_lips: 0.1, feat_nose_wide: 0.1, shape_jaw_width: 0.25, shape_jaw_angle: 0.7 } },
+  { id: "amara", label: "Amara", body: "female", skin: "Umber", hair: "afro", hairColor: "Natural black", iris: "Dark brown", cloth: "Moss", shape: { face_chin: 0.05, face_midface: -0.25, face_eyes: 0.05, face_brow: -0.15, feat_lips: 0.65, feat_lip_bow: 0.65, feat_lip_balance: -0.35, feat_nose_wide: 0.7, feat_nose_bridge: 0.55, feat_nose_tip: 0.05, feat_cheeks: 0.3, feat_eye_tilt: 0.5, feat_eye_hood: 0.25, feat_brow_arch: 0.2, shape_jaw_width: -0.1, shape_chin_width: 0.3, shape_chin_length: 0.15 } },
+  { id: "thabo", beard: "beard_short", stubble: 0.55, label: "Thabo", body: "male", skin: "Espresso", hair: "fade", hairColor: "Natural black", iris: "Dark brown", cloth: "Ink", shape: { face_chin: 0.35, face_brow: 0.3, face_midface: -0.2, face_mouth: -0.25, face_cheeks: 0.2, feat_lips: 0.6, feat_nose_wide: 0.8, feat_nose_bridge: 0.5, feat_cheeks: 0.3, shape_jaw_width: 0.35, shape_jaw_angle: 0.6 } },
+  { id: "naledi", label: "Naledi", body: "female", skin: "Ebony", hair: "braids", hairColor: "Natural black", iris: "Dark brown", cloth: "Bone", shape: { face_midface: -0.35, face_mouth: 0.35, face_cheeks: 0.15, face_nose: 0.15, feat_lips: 0.9, feat_lip_bow: -0.3, feat_lip_balance: 0.4, feat_nose_wide: 0.95, feat_nose_bridge: 0.85, feat_nose_tip: -0.25, feat_cheeks: 0.55, feat_eye_tilt: 0.05, feat_eye_hood: 0.7, feat_brow_arch: -0.55, shape_jaw_width: 0.55, shape_jaw_angle: 0.45, shape_chin_width: 0.6, shape_cheek_hollow: -0.25 } },
+  { id: "kofi", beard: "beard_full", stubble: 0.7, label: "Kofi", body: "male", skin: "Mahogany", hair: "locs", hairColor: "Soft black", iris: "Hazel", cloth: "Moss", shape: { face_midface: 0.4, face_chin: -0.2, face_eyes: -0.35, face_nose: 0.3, feat_lips: 0.5, feat_nose_wide: 0.6, feat_nose_bridge: 0.3, feat_cheeks: 0.5 } },
+  { id: "zola", label: "Zola", body: "female", skin: "Chestnut", hair: "cornrows", hairColor: "Natural black", iris: "Dark brown", cloth: "Slate", shape: { face_chin: 0.15, face_forehead: 0.2, face_mouth2: -0.2, face_eyes: -0.25, face_brow: -0.1, feat_lips: 0.4, feat_lip_bow: 0.85, feat_lip_balance: 0.05, feat_nose_wide: 0.35, feat_nose_bridge: -0.45, feat_nose_tip: -0.2, feat_cheeks: 0.55, feat_eye_tilt: 0.65, feat_eye_hood: 0.4, feat_brow_arch: 0.8, shape_jaw_width: 0.1, shape_jaw_angle: 0.35, shape_chin_width: 0.45, shape_chin_length: 0.65, shape_cheek_hollow: 0.15 } },
+  { id: "malik", beard: "beard_goatee", stubble: 0.35, label: "Malik", body: "male", skin: "Umber", hair: "waves", hairColor: "Natural black", iris: "Dark brown", cloth: "Clay", shape: { face_chin: 0.15, face_midface: -0.45, face_brow: 0.4, face_mouth2: 0.35, face_forehead: -0.25, feat_lips: 0.45, feat_nose_wide: 0.5, feat_nose_bridge: 0.2, feat_cheeks: 0.35, shape_jaw_width: 0.15, shape_jaw_angle: 0.3 } },
+  { id: "imani", label: "Imani", body: "female", skin: "Caramel", hair: "puff", hairColor: "Espresso", iris: "Amber", cloth: "Ink", shape: { face_chin: 0.1, face_midface: 0.25, face_cheeks: -0.3, face_nosewidth: -0.15, face_eyes: 0.15, feat_lips: 0.7, feat_lip_bow: -0.2, feat_lip_balance: -0.25, feat_nose_wide: 0.65, feat_nose_bridge: 0.6, feat_nose_tip: 0.45, feat_cheeks: 0.15, feat_eye_tilt: 0.3, feat_eye_hood: -0.1, feat_brow_arch: 0.35, shape_jaw_width: 0.25, shape_jaw_angle: -0.25, shape_chin_width: 0.4, shape_chin_length: 0.05, shape_cheek_hollow: -0.3 } },
+  { id: "tariq", stubble: 0.45, label: "Tariq", body: "male", skin: "Bronze", hair: "crop", hairColor: "Espresso", iris: "Green", cloth: "Slate", shape: { face_chin: -0.25, face_nose: 0.4, face_brow: 0.25, face_eyes: -0.2, face_cheeks: -0.3, feat_lips: 0.1, feat_nose_wide: 0.1, shape_jaw_width: 0.25, shape_jaw_angle: 0.7 } },
 ];
 
 const IRIS_COLORS = [
@@ -477,6 +531,7 @@ const hairUniforms = {
   uShine: { value: 1 },
   uFollow: { value: new THREE.Matrix4() },
   uRipple: { value: 0 },
+  uNudge: { value: 0 },
   uHighlight: { value: new THREE.Color(0x8c5230) },
   uHighlightAmount: { value: 0 },
   uGraying: { value: 0 },
@@ -547,6 +602,7 @@ const hairMaterial = new THREE.ShaderMaterial({
     uniform vec3 uHeadCenter;
     uniform mat4 uFollow;
     uniform float uCharacterScale;
+    uniform float uNudge;
     varying vec3 vTangentW;
     varying vec3 vWorld;
     varying vec4 vData;
@@ -563,6 +619,7 @@ const hairMaterial = new THREE.ShaderMaterial({
       world.xyz *= uCharacterScale;
       vec3 tangent = normalize(mat3(modelMatrix) * aTangent.xyz);
       vec3 toCamera = normalize(cameraPosition - world.xyz);
+      world.xyz += toCamera * uNudge;
       vec3 across = normalize(cross(tangent, toCamera));
       vec4 clip = projectionMatrix * viewMatrix * world;
       float pixelsPerMetre = projectionMatrix[1][1] * uViewportHeight * 0.5 / clip.w;
@@ -705,7 +762,7 @@ const hairMaterial = new THREE.ShaderMaterial({
           float band = pow(max(dot(ridge, H), 0.0), 14.0);
           float valley = 0.55 + 0.45 * sin(phase);
           diffuse *= 0.55 + 0.9 * valley;
-          specular = specular * 0.35 + uLightColor * lit * band * (vec3(0.15, 0.14, 0.13) + hue * 0.6);
+          specular = min(specular * 0.2, vec3(0.03)) + uLightColor * lit * min(band, 0.7) * smoothstep(0.03, 0.05, vData.z) * (vec3(0.12, 0.112, 0.105) + hue * 0.6);
         }
       }
 
@@ -800,6 +857,9 @@ const hairCapMaterial = new THREE.ShaderMaterial({
 let skinMaterial: THREE.MeshPhysicalMaterial | null = null;
 let browsMaterial: THREE.MeshStandardMaterial | null = null;
 let garmentMaterial: THREE.MeshPhysicalMaterial | null = null;
+let trouserMaterial: THREE.MeshPhysicalMaterial | null = null;
+let shoeMaterial: THREE.MeshPhysicalMaterial | null = null;
+let shoeMesh: THREE.Mesh | null = null;
 
 function sourceMaterial(mesh: THREE.Mesh): THREE.MeshStandardMaterial | null {
   const material = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
@@ -914,8 +974,8 @@ function buildSkin(mesh: THREE.Mesh): void {
     sheen: 0.02,
     sheenRoughness: 0.9,
     sheenColor: new THREE.Color(0xffe2d2),
-    specularIntensity: 0.46,
-    envMapIntensity: 0.3,
+    specularIntensity: 0.62,
+    envMapIntensity: 0.42,
   });
   if (material.map) {
     material.map.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
@@ -1048,7 +1108,7 @@ function buildSkin(mesh: THREE.Mesh): void {
         }
         vec4 probePore = texture2D( uPores, vNormalMapUv * 26.0 );
         normal = normalize( normal + ( tbn[ 0 ] * ( probePore.x * 2.0 - 1.0 ) + tbn[ 1 ] * ( probePore.y * 2.0 - 1.0 ) ) * 0.28 );
-        roughnessFactor = clamp( roughnessFactor * mix( 1.0, 0.76, uShine ) + ( 1.0 - probePore.a ) * 0.16, 0.0, 1.0 );
+        roughnessFactor = clamp( roughnessFactor * mix( 1.0, 0.68, uShine ) + ( 1.0 - probePore.a ) * 0.16, 0.0, 1.0 );
         diffuseColor.rgb *= mix( 0.95, 1.0, probePore.a );
         // Glossy or matte lips, satin eyeshadow, skin that dries a little with age.
         roughnessFactor = mix( roughnessFactor, mix( 0.62, 0.14, uLipGloss ), probeMask.r * uLipOpacity );
@@ -1193,7 +1253,9 @@ function buildCornea(mesh: THREE.Mesh): void {
   mesh.receiveShadow = false;
 }
 
-function buildGarment(mesh: THREE.Mesh, colour: number = CLOTH_COLORS[0].value): THREE.MeshPhysicalMaterial {
+const garmentPick = { top: new THREE.Vector3(1, 0, 0), bottom: new THREE.Vector3(1, 0, 0), shoes: new THREE.Vector3(1, 0, 0) };
+
+function buildGarment(mesh: THREE.Mesh, colour: number, pick: THREE.Vector3, sole = 0): THREE.MeshPhysicalMaterial {
   const source = sourceMaterial(mesh);
   const material = new THREE.MeshPhysicalMaterial({
     map: source?.map ?? null,
@@ -1210,20 +1272,28 @@ function buildGarment(mesh: THREE.Mesh, colour: number = CLOTH_COLORS[0].value):
   if (material.map) {
     material.map.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   }
+  // Folds share the body's UVs, so they sit where a body actually creases cloth.
+  const folds = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}models/probe/skin_cloth.png`);
+  folds.flipY = false;
+  material.bumpMap = folds;
+  material.bumpScale = 1.3;
   // Cut on the distance field baked per vertex, with a stitched-looking hem.
   material.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", "#include <common>\nattribute vec4 color;\nvarying float vEdge;")
-      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvEdge = color.r;");
+      .replace("#include <common>", "#include <common>\nattribute vec4 color;\nvarying vec3 vEdge;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvEdge = color.rgb;");
+    shader.uniforms.uPick = { value: pick };
+    shader.uniforms.uSole = { value: sole };
     shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", "#include <common>\nvarying float vEdge;")
+      .replace("#include <common>", "#include <common>\nvarying vec3 vEdge;\nuniform vec3 uPick;\nuniform float uSole;")
       .replace(
         "#include <alphatest_fragment>",
-        `float probeEdge = ( vEdge - 0.5 ) * 6.0;
+        `float probeEdge = ( dot( vEdge, uPick ) - 0.5 ) * 6.0;
         float probeEdgeWidth = max( fwidth( probeEdge ), 0.0001 );
         diffuseColor.a = smoothstep( -probeEdgeWidth, probeEdgeWidth, probeEdge );
         if ( diffuseColor.a < 0.01 ) discard;
-        diffuseColor.rgb *= mix( 0.74, 1.0, smoothstep( 0.32, 0.46, probeEdge ) );`,
+        diffuseColor.rgb *= mix( 0.74, 1.0, smoothstep( 0.32, 0.46, probeEdge ) );
+        diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.72, 0.70, 0.66 ), uSole * smoothstep( 0.5, 0.515, vEdge.g ) );`,
       );
   };
   material.customProgramCacheKey = () => "probe-garment";
@@ -1391,6 +1461,7 @@ beardMaterial.uniforms = {
   uMode: { value: 0 },
   uShine: { value: 0.3 },
   uRipple: { value: 0 },
+  uNudge: { value: 0.007 },
   uHighlightAmount: { value: 0 },
 };
 
@@ -1452,12 +1523,17 @@ function buildCharacter(root: THREE.Object3D): void {
         buildBrows(object);
         break;
       case "garment":
-        garmentMaterial = buildGarment(object);
+        garmentMaterial = buildGarment(object, CLOTH_COLORS[0].value, garmentPick.top);
         // Its depth pass would use the uncut margin and print a zigzag on the skin.
         object.castShadow = false;
         break;
       case "trousers":
-        buildGarment(object, 0x1e2024);
+        trouserMaterial = buildGarment(object, 0x1e2024, garmentPick.bottom);
+        object.castShadow = false;
+        break;
+      case "shoes":
+        shoeMaterial = buildGarment(object, 0x1e2024, garmentPick.shoes, 1);
+        shoeMesh = object;
         object.castShadow = false;
         break;
       case "sclera_L":
@@ -1572,7 +1648,8 @@ function applyView(name: ViewName, instant = reducedMotion): void {
 // ---- State to scene. Every control writes the store; only this reads it.
 const store = createStore(defaultState());
 const LIGHT_NAMES = Object.keys(LIGHT_PRESETS);
-const ALL_SLIDERS = [...BODY_SLIDERS, ...SHAPE_SLIDERS, ...FACE_SLIDERS];
+const FACE_REACH = 2.4;
+const ALL_SLIDERS = [...BODY_SLIDERS, ...SHAPE_SLIDERS, ...FACE_SLIDERS, ...REFERENCE_SLIDERS];
 const stateOptions = {
   tones: SKIN_TONES.map((tone) => tone.label),
   styles: HAIR_STYLES.map((style) => style.id),
@@ -1602,7 +1679,12 @@ function syncScene(state: CharacterState): void {
   firstSync = false;
 
   // Morphs: sliders, body type, expression.
-  for (const def of ALL_SLIDERS) setMorphTarget(def.name, state.morphs[def.name] ?? 0, instant);
+  for (const def of ALL_SLIDERS) {
+    const reach = def.name.startsWith("face_") && def.name !== "face_jaw" ? FACE_REACH : 1;
+    // The closed-lid morph is authored without aperture hooding.
+    const value = def.name === "feat_eye_hood" && state.expression === "blink" ? 0 : (state.morphs[def.name] ?? 0) * reach;
+    setMorphTarget(def.name, value, instant);
+  }
   const female = state.body.type === "female";
   setMorphTarget("build_female", female ? 1 : 0, instant);
   setMorphTarget("build_male", female ? 0 : 1, instant);
@@ -1684,6 +1766,14 @@ function syncScene(state: CharacterState): void {
   }
 
   garmentMaterial?.color.setStyle(state.cloth);
+  const outfit = state.outfit;
+  pick(garmentPick.top, TOP_CUTS.findIndex((cut) => cut.id === outfit.top) + 1);
+  pick(garmentPick.bottom, BOTTOM_CUTS.findIndex((cut) => cut.id === outfit.bottom) + 1);
+  setMorphTarget("garment_loose", outfit.topFit, instant);
+  setMorphTarget("trousers_loose", outfit.bottom === "trousers" ? outfit.bottomFit : outfit.bottomFit * 0.5, instant);
+  trouserMaterial?.color.setStyle(outfit.bottomColor);
+  shoeMaterial?.color.setStyle(outfit.shoeColor);
+  if (shoeMesh) shoeMesh.visible = outfit.shoes;
 }
 
 store.subscribe(syncScene);
@@ -1820,12 +1910,14 @@ function lookState(look: Look): CharacterState {
   state.morphs = { ...look.shape };
   state.skin.tone = look.skin;
   state.skin.stubble = look.stubble ?? 0;
+  state.skin.age = look.body === "female" ? 0.08 : 0.16;
   state.hair.style = look.hair;
   state.hair.beard = look.beard ?? "none";
   state.hair.color = hexOf(HAIR_COLORS, look.hairColor);
   state.eyes.left = state.eyes.right = hexOf(IRIS_COLORS, look.iris);
   state.cloth = hexOf(CLOTH_COLORS, look.cloth);
   state.light = store.get().light;
+  Object.assign(state.outfit, LOOK_OUTFITS[look.id] ?? {});
   return state;
 }
 
@@ -1850,15 +1942,21 @@ function randomize(): void {
   const eye = colorHex(Math.random() < lightEyes ? any(IRIS_COLORS).value : IRIS_COLORS[0].value);
   state.eyes.left = state.eyes.right = eye;
   state.cloth = colorHex(any(CLOTH_COLORS).value);
+  state.outfit.top = any(TOP_CUTS).id;
+  state.outfit.topFit = Math.random() * 0.8;
+  state.outfit.bottom = Math.random() < 0.85 ? "trousers" : "shorts";
+  state.outfit.bottomFit = Math.random() * 0.9;
+  state.outfit.bottomColor = colorHex(any(BOTTOM_COLORS).value);
+  state.outfit.shoeColor = colorHex(any(SHOE_COLORS).value);
   // Stay inside the ranges that were tuned to look good, like a curated preset.
   state.morphs = { ...FACE_SHAPES[any(Object.keys(FACE_SHAPES))] };
-  for (const def of FACE_SLIDERS) state.morphs[def.name] = spread(0.35);
+  for (const def of FACE_SLIDERS) state.morphs[def.name] = def.name === "face_jaw" ? spread(0.2) : spread(0.55);
   state.morphs.feat_lips = Math.random() * 0.9;
   state.morphs.feat_nose_wide = Math.random() * 0.8;
   state.morphs.feat_nose_bridge = Math.random() * 0.5;
   for (const def of BODY_SLIDERS) state.morphs[def.name] = spread(0.45);
   state.skin.freckles = Math.random() < 0.3 ? Math.random() * 0.6 : 0;
-  state.skin.age = Math.random() < 0.3 ? Math.random() * 0.45 : 0;
+  state.skin.age = 0.1 + (Math.random() < 0.3 ? Math.random() * 0.4 : Math.random() * 0.1);
   if (state.body.type === "male") {
     state.skin.stubble = Math.random() * 0.8;
     state.hair.beard = any(BEARD_STYLES).id;
@@ -1940,8 +2038,36 @@ buildRange(rangeHost("#probe-height"), "state-height", "Height", [0.92, 1.08, 0.
   s.body.height = v;
 });
 buildMorphRanges("#probe-body", BODY_SLIDERS);
+const outfitChips = (host: string, cuts: Array<{ id: string; label: string }>, read: (s: CharacterState) => string, write: (s: CharacterState, id: string) => void): void =>
+  buildChips(host, cuts, read, (id) => {
+    store.update((s) => {
+      write(s, id);
+      s.look = null;
+    });
+  });
+outfitChips("#probe-top", TOP_CUTS, (s) => s.outfit.top, (s, id) => {
+  s.outfit.top = id;
+});
 buildSwatches("#probe-cloth", CLOTH_COLORS, (s) => s.cloth, (s, hex) => {
   s.cloth = hex;
+});
+buildRange(rangeHost("#probe-top-range"), "outfit-top-fit", "Fitted to relaxed", [0, 1, 0.01], (s) => s.outfit.topFit, (s, v) => {
+  s.outfit.topFit = v;
+});
+outfitChips("#probe-bottom", BOTTOM_CUTS, (s) => s.outfit.bottom, (s, id) => {
+  s.outfit.bottom = id;
+});
+buildSwatches("#probe-bottom-color", BOTTOM_COLORS, (s) => s.outfit.bottomColor, (s, hex) => {
+  s.outfit.bottomColor = hex;
+});
+buildRange(rangeHost("#probe-bottom-range"), "outfit-bottom-fit", "Slim to straight", [0, 1, 0.01], (s) => s.outfit.bottomFit, (s, v) => {
+  s.outfit.bottomFit = v;
+});
+outfitChips("#probe-shoes", [{ id: "on", label: "Shoes" }, { id: "off", label: "Barefoot" }], (s) => (s.outfit.shoes ? "on" : "off"), (s, id) => {
+  s.outfit.shoes = id === "on";
+});
+buildSwatches("#probe-shoe-color", SHOE_COLORS, (s) => s.outfit.shoeColor, (s, hex) => {
+  s.outfit.shoeColor = hex;
 });
 
 buildChips("#probe-face-shapes", titled(Object.keys(FACE_SHAPES)), () => null, (id) => {
@@ -1952,7 +2078,7 @@ buildChips("#probe-face-shapes", titled(Object.keys(FACE_SHAPES)), () => null, (
   });
 });
 buildMorphRanges("#probe-shape", SHAPE_SLIDERS);
-buildMorphRanges("#probe-face", FACE_SLIDERS);
+buildMorphRanges("#probe-face", [...REFERENCE_SLIDERS, ...FACE_SLIDERS]);
 buildChips("#probe-expressions", titled(Object.keys(EXPRESSIONS)), (state) => state.expression, (id) => {
   store.update((state) => {
     state.expression = id;
