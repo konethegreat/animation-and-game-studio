@@ -1,0 +1,99 @@
+{
+  "files": {
+    "LICENSE.txt": {
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "size": 11358
+    },
+    "NOTICE.txt": {
+      "sha256": "7318cf89f7d170a8578e62fa76f2e005c09198edbb38ff8460bf25ec8a40064b",
+      "size": 1567
+    },
+    "hair/afro.bin": {
+      "sha256": "f037bc8820fb403e83f926be64b77b57d27f6134c6607322a75246943ad791c3",
+      "size": 4608073
+    },
+    "hair/bantu.bin": {
+      "sha256": "387768df0c4a343906a71b54987ce8df5d65c2f4a8d2f126f69b7eda7c32dbff",
+      "size": 216394
+    },
+    "hair/beard_full.bin": {
+      "sha256": "00eb345b92c41a6d2f8ddf241e79d68cbd98021e1f39211263f557bf338e6d85",
+      "size": 3173918
+    },
+    "hair/beard_goatee.bin": {
+      "sha256": "9f2cadceceafff7268419b1adfb768bcc15044acfcfadd5d911ea701a086c1fd",
+      "size": 1104279
+    },
+    "hair/beard_short.bin": {
+      "sha256": "c005f3f37686903914f6ecd3e290f4cfa6b6924c5336c7236f2480ed5cfd8746",
+      "size": 2329794
+    },
+    "hair/braids.bin": {
+      "sha256": "2cda2bc878402337edc7b90db484cf83118d4301f3cddbb5ff5ad07956ec8166",
+      "size": 885425
+    },
+    "hair/coils.bin": {
+      "sha256": "fcb1d59364bef7ae1ac3c2cdee9fdc63616b721a63c4ee53eda097548e7efc26",
+      "size": 3782269
+    },
+    "hair/cornrows.bin": {
+      "sha256": "39567ed7c0f8a3bdb1a6159459a766a68ab76ae4a3418d31b006383df81a256e",
+      "size": 260478
+    },
+    "hair/crop.bin": {
+      "sha256": "bc98550ca85002161522ba5dee8823fbb252c4ce7d8a69ab1ad0f91ea37aedda",
+      "size": 2203512
+    },
+    "hair/fade.bin": {
+      "sha256": "8de2b63dfb207c5620ec4b2131b0b23b0e621cc721a920900bd4d9cf625c8152",
+      "size": 2233022
+    },
+    "hair/locs.bin": {
+      "sha256": "0eeea18b3c372e41d989ff13f070bfd269022516415d7ed795e7a15540ff8264",
+      "size": 237507
+    },
+    "hair/puff.bin": {
+      "sha256": "09037fe033f9286bc1bfd67893910e88734968c46f222a49ce743da325e7958f",
+      "size": 4601929
+    },
+    "hair/twists.bin": {
+      "sha256": "2afbaf1d442abcb7a2583bc6c8b8979e81f16c6991b9dda686d63caade9cf020",
+      "size": 295657
+    },
+    "hair/waves.bin": {
+      "sha256": "49df86c7cf107b3ff1547c33a0d88757aabed88aa7fdab18a2b61a2366d58377",
+      "size": 2131597
+    },
+    "probe.glb": {
+      "sha256": "af799831a4d0abb803eb30b0eb7934c8f2b9858acdaed51494d964dcfa55bcc1",
+      "size": 33021920
+    },
+    "skin_art.png": {
+      "sha256": "0b586d43c896c0c094b8f8f8fd3221e420749eefec791bcce410f170793955cc",
+      "size": 104627
+    },
+    "skin_cloth.png": {
+      "sha256": "1c9ea0c0e6f06e0bcebf987590473f0d758dd1df8a62af390ab20f3e6977af81",
+      "size": 736905
+    },
+    "skin_layers.png": {
+      "sha256": "d20cffd989e9ad33f3e2864dd05f7e3062bcbb765ad91ce71c6a469d32dcc7ce",
+      "size": 3427913
+    },
+    "skin_makeup.png": {
+      "sha256": "906779c5e68824dfc67184abf50641595dd602845dfc3fa63740a6e1f2ab5f62",
+      "size": 34269
+    },
+    "skin_marks.png": {
+      "sha256": "b84cd0dd6445f7579be9a88c9cd41240cfa58bfecba0251dc604696e81fd9338",
+      "size": 73589
+    },
+    "skin_mask.png": {
+      "sha256": "a1fbea9108d67816cfb1c31248d873b7d75c4df56d2e34d4d9c65f06f3db8019",
+      "size": 157242
+    }
+  },
+  "sha256": "1ee8170802dcb19d554e9d867941b28d343198116053799623cd4616370c8d4f",
+  "url": "https://github.com/konethegreat/animation-and-game-studio/releases/download/creator-beta-01/creator-beta-01.zip",
+  "version": 1
+}

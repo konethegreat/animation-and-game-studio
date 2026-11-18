@@ -6,9 +6,9 @@ Live showcase: https://konethegreat.github.io/animation-and-game-studio/
 
 ## Ownership
 
-Everything in this repository is original work by Kone Tshivhinda at Kone Studio. The code, films, models, game art, audio and text are proprietary and all rights are reserved. You are welcome to view the source and play the published work. Copying, redistribution, commercial use, derivative works and AI training are not permitted without written permission. See [LICENSE](LICENSE).
+Original studio work is by Kone Tshivhinda at Kone Studio. The original code, films, models, game art, audio and text are proprietary and all rights are reserved. You are welcome to view the source and play the published work. Copying, redistribution, commercial use, derivative works and AI training of that original work are not permitted without written permission. See [LICENSE](LICENSE).
 
-Third party tools, libraries and fonts keep their own licences. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Third party assets, tools, libraries and fonts keep their own licences. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and the [creator beta asset notice](assets/repo/creator-beta-NOTICE.txt). The creator uses Meta's MHR base under Apache-2.0, not an originally authored studio base mesh.
 
 ## Film
 
@@ -37,6 +37,32 @@ Everything is authored as code, rendered headless and validated before it ships.
 - ffprobe, frame scans, GLB inspection and build size checks run before a render is accepted.
 - `studio publish` copies curated media into `showcase/public`, regenerates the gallery data and writes third party notices.
 - Vite and Three.js build the showcase, GitHub Actions deploys it to Pages.
+
+## Character creator beta
+
+The showcase includes `creator-probe.html`, linked as Creator beta. Mouth and expressions are unfinished, and Portrait B is a sculpt study rather than an approved likeness. Desktop is recommended; the initial download is roughly 40 MB, with additional hairstyles downloaded on demand.
+
+Before running `pnpm --dir showcase dev --port 5200 --strictPort` or building the site, run `python -m studio.lib.creator_assets restore`. This restores the versioned release archive pinned by `assets/creator-beta.json` into ignored `showcase/public/models/probe/`. Archive and individual file hashes are checked before any asset is written. The local creator opens at `http://localhost:5200/animation-and-game-studio/creator-probe.html`. For offline builds, pass `--archive` with the downloaded ZIP path.
+
+The beta package includes the MHR Apache-2.0 licence and a separate modification notice. No VALID reference-avatar morphs or hair followers are shipped: source-avatar redistribution rights were not established. The builder includes reference heads only when `--heads` is explicitly supplied for local research; the release packager rejects those outputs. AI reference portraits and private owner assets are not part of the creator package.
+
+Skin scattering uses shadow-attenuated incident light, not emission. Eye-white brightness uses sRGB like the eye-colour swatches. Run `node showcase/scripts/check-creator-materials.mjs` with the dev server active to check unlit skin, scattering response and eye-white colour mapping in Chrome. This manual browser check requires an installed Playwright module; set `PLAYWRIGHT_MODULE` to its module specifier or absolute file URL if `playwright` is not resolvable. Set `CREATOR_URL` to check a built or deployed page. `check-creator-beta.mjs` checks desktop and phone-width navigation, controls, licences and the Bin City shell; `check-creator-errors.mjs` checks invalid imports and failed hair downloads. These scripts use the same Playwright module setting.
+
+The Portrait B starting look is a local sculpt study based on the owner's selected AI portrait, not an approved likeness or an automatically reconstructed head. Its blend control changes facial proportions and lip contours without replacing the other presets. `studio/tools/character/check_face_shapes.py` runs inside Blender with `--source` pointing to the MHR FBX and `--out` to a local preview directory; it checks head-only deformation, mouth-seam stability, eye apertures, smoothness and attachment following. The reference is frontal only, so its profile remains unknown. Morph normals are exported so lighting follows the sculpt; scalp displacement is fitted to the affine transform shared by strands and their cap. Rebuild the GLB and all hair followers after changing the sculpt.
+
+To rebuild beta assets, run Blender with `--python-exit-code 1` so script failures fail the command. Do not pass `--heads` or reuse research output directories:
+
+```bash
+blender --background --python-exit-code 1 --python studio/tools/character/build_probe.py -- --source /path/to/MHR/lod1.fbx --out assets/embed/mhr/beta/probe.glb --bake --bake-ao
+python -m studio.lib.creator_assets package assets/embed/mhr/beta assets/embed/creator-beta-01.zip --url https://github.com/konethegreat/animation-and-game-studio/releases/download/creator-beta-01/creator-beta-01.zip --manifest assets/creator-beta.json
+python -m studio.lib.creator_assets restore --archive assets/embed/creator-beta-01.zip
+pnpm --dir showcase typecheck
+pnpm --dir showcase build
+node showcase/scripts/check-creator-build.mjs
+python -m studio.lib.creator_assets verify showcase/dist/models/probe
+```
+
+Future asset revisions need a new release tag and archive name, not an overwrite of the pinned beta archive. The packager includes only runtime files plus licence notices, never reference portraits, FBX sources, intermediate textures or raw previews. Both CI and Pages restore and verify the same package before building.
 
 ## Engine matrix
 

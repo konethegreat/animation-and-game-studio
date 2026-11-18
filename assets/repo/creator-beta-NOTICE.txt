@@ -1,0 +1,32 @@
+Character Creator Beta Runtime
+
+MHR (Momentum Human Rig)
+Copyright (c) Meta Platforms, Inc. and affiliates.
+Upstream: https://github.com/facebookresearch/MHR
+Upstream revision: 85fc2cbaf77f606e41346cb791d8ad96a75e1a4b
+MHR is licensed under the Apache License, Version 2.0.
+
+Modifications and studio-created procedural runtime:
+Copyright (c) Kone Tshivhinda.
+
+probe.glb contains a modified MHR beta base. Changes by Kone Tshivhinda
+include procedural face morphs, eye openings and eyes, and clothing.
+The packaged hair/*.bin files and skin_*.png textures are procedural runtime
+assets created by Kone Tshivhinda.
+
+The underlying MHR material retains its Apache License, Version 2.0.
+See the included LICENSE.txt. These terms do not grant rights to the
+original studio additions or the surrounding studio repository.
+
+Original studio additions remain under the Kone Studio Proprietary Licence:
+Copyright (c) 2026 Kone Tshivhinda. All rights reserved. Viewing and using the
+published creator on the studio site is permitted. Copying, redistribution,
+commercial use, derivative works and AI training of those original additions
+require prior written permission. Full studio terms:
+https://github.com/konethegreat/animation-and-game-studio/blob/main/LICENSE
+These restrictions do not override the Apache-2.0 rights in the MHR material.
+
+No VALID reference avatars, Mixamo assets, or AI-generated images are included
+in this runtime package. No license is granted here for excluded source assets.
+
+This beta is not endorsed by Meta Platforms, Inc. or the MHR contributors.

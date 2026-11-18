@@ -5,6 +5,21 @@
   path: assets/repo/fonts/Fraunces.ttf
   sha256: 177ff6c0f14e5550a3c624247cd1189611d4eb65d000b14944c63d967958abbb
   credit: Fraunces Project Authors
+- id: mhr-license
+  lane: repo
+  license: Apache-2.0
+  source: https://github.com/facebookresearch/MHR/blob/85fc2cbaf77f606e41346cb791d8ad96a75e1a4b/LICENSE
+  path: assets/repo/mhr-LICENSE.txt
+  sha256: cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
+  credit: Meta Platforms, Inc. and affiliates
+- id: creator-beta-01
+  lane: embed
+  license: Apache-2.0 AND LicenseRef-Kone-Studio-Proprietary
+  source: https://github.com/konethegreat/animation-and-game-studio/releases/tag/creator-beta-01
+  download: https://github.com/konethegreat/animation-and-game-studio/releases/download/creator-beta-01/creator-beta-01.zip
+  path: assets/embed/creator-beta-01.zip
+  sha256: 1ee8170802dcb19d554e9d867941b28d343198116053799623cd4616370c8d4f
+  credit: Meta Platforms, Inc. and affiliates (MHR); Kone Tshivhinda (studio additions)
 - id: owner-portrait
   lane: private
   license: owner-consent

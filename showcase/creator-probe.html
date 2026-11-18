@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f6f1e6" />
+    <meta
+      name="description"
+      content="Character creator beta. Mouth and expressions are unfinished. Initial download is roughly 40 MB; desktop recommended."
+    />
+    <title>Creator beta / Kone Studio</title>
+  </head>
+  <body>
+    <main class="probe">
+      <header class="probe-head">
+        <a class="probe-brand" href="/animation-and-game-studio/" aria-label="Kone Studio home">
+          <span class="probe-mark" aria-hidden="true"></span>
+          <span>Kone Studio</span>
+        </a>
+        <div class="probe-head-meta">
+          <span class="probe-pill">Beta 01</span>
+          <span class="probe-state" id="probe-state">Loading rig</span>
+        </div>
+      </header>
+
+      <section class="probe-layout">
+        <div class="probe-view" id="probe-view" role="group" aria-label="Interactive 3D character lit in a studio">
+          <div class="probe-splash" id="probe-splash">
+            <p class="probe-splash-label">Character creator beta</p>
+            <div class="probe-track"><span id="probe-progress"></span></div>
+            <p class="probe-splash-note" id="probe-progress-label">Preparing the stage</p>
+          </div>
+          <div class="probe-hud">
+            <div class="probe-hint">Drag to orbit. Scroll to zoom.</div>
+            <div class="probe-stats" aria-live="off">
+              <span><b id="stat-fps">--</b> fps</span>
+              <span><b id="stat-tris">--</b> tris</span>
+              <span><b id="stat-calls">--</b> calls</span>
+              <span><b id="stat-size">--</b> MB</span>
+              <span><b id="stat-load">--</b> ms</span>
+            </div>
+          </div>
+          <div class="probe-views" id="probe-views" aria-label="Camera">
+            <button type="button" data-view="face">Face</button>
+            <button type="button" data-view="three">Three quarter</button>
+            <button type="button" data-view="bust">Bust</button>
+            <button type="button" data-view="full">Full</button>
+          </div>
+        </div>
+
+        <aside class="probe-panel" aria-label="Character controls">
+          <div class="probe-intro">
+            <p class="probe-eyebrow">Beta</p>
+            <h1>Character creator</h1>
+            <p>
+              Mouth and expressions are unfinished in this beta. Start from a look, then
+              adjust hair, skin, features and body.
+            </p>
+            <p>Initial download is roughly 40 MB. Desktop recommended.</p>
+          </div>
+
+          <section class="probe-block">
+            <div class="probe-actions">
+              <button type="button" id="probe-randomize">Randomize</button>
+              <button type="button" id="probe-export">Export JSON</button>
+              <button type="button" id="probe-import">Import JSON</button>
+              <input type="file" id="probe-import-file" accept="application/json,.json" hidden />
+            </div>
+            <p class="probe-file-note" id="probe-file-note" role="status"></p>
+          </section>
+
+          <div class="probe-tabs" id="probe-tabs" role="tablist" aria-label="Character sections">
+            <button type="button" role="tab" data-tab="identity">Body</button>
+            <button type="button" role="tab" data-tab="face">Face</button>
+            <button type="button" role="tab" data-tab="skin">Skin</button>
+            <button type="button" role="tab" data-tab="art">Art</button>
+            <button type="button" role="tab" data-tab="hair">Hair and eyes</button>
+          </div>
+
+          <div class="probe-tab-panel" data-panel="identity" role="tabpanel">
+            <section class="probe-block">
+              <h2>Looks</h2>
+              <div class="probe-chips" id="probe-looks"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Body type</h2>
+              <div class="probe-chips" id="probe-build"></div>
+              <div class="probe-sliders probe-after" id="probe-height"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Body shape</h2>
+              <div class="probe-sliders" id="probe-body"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Top</h2>
+              <div class="probe-chips" id="probe-top"></div>
+              <div class="probe-swatches probe-after" id="probe-cloth" aria-label="Top colour"></div>
+              <div class="probe-sliders probe-after" id="probe-top-range"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Bottoms</h2>
+              <div class="probe-chips" id="probe-bottom"></div>
+              <div class="probe-swatches probe-after" id="probe-bottom-color" aria-label="Bottoms colour"></div>
+              <div class="probe-sliders probe-after" id="probe-bottom-range"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Shoes</h2>
+              <div class="probe-chips" id="probe-shoes"></div>
+              <div class="probe-swatches probe-after" id="probe-shoe-color" aria-label="Shoe colour"></div>
+            </section>
+          </div>
+
+          <div class="probe-tab-panel" data-panel="face" role="tabpanel" hidden>
+            <section class="probe-block">
+              <h2>Face shape</h2>
+              <div class="probe-chips" id="probe-face-shapes"></div>
+              <div class="probe-sliders probe-after" id="probe-shape"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Features</h2>
+              <div class="probe-sliders" id="probe-face"></div>
+            </section>
+            <section class="probe-block">
+              <div class="probe-block-head">
+                <h2>Expressions</h2>
+                <button type="button" class="probe-text-button" id="probe-reset">Reset shape</button>
+              </div>
+              <div class="probe-chips" id="probe-expressions"></div>
+            </section>
+          </div>
+
+          <div class="probe-tab-panel" data-panel="skin" role="tabpanel" hidden>
+            <section class="probe-block">
+              <h2>Skin tone</h2>
+              <div class="probe-swatches" id="probe-skin"></div>
+              <div class="probe-sliders probe-after" id="probe-skin-base"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Skin details</h2>
+              <div class="probe-sliders" id="probe-skin-conditions"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Scars</h2>
+              <div class="probe-chips" id="probe-scars"></div>
+              <div class="probe-sliders probe-after" id="probe-scar-range"></div>
+            </section>
+          </div>
+
+          <div class="probe-tab-panel" data-panel="art" role="tabpanel" hidden>
+            <section class="probe-block">
+              <h2>Tattoo</h2>
+              <div class="probe-chips" id="probe-tattoos"></div>
+              <div class="probe-swatches probe-after" id="probe-tattoo-color" aria-label="Ink colour"></div>
+              <div class="probe-sliders probe-after" id="probe-tattoo-range"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Lips</h2>
+              <div class="probe-swatches" id="probe-lip-color" aria-label="Lip colour"></div>
+              <div class="probe-sliders probe-after" id="probe-lip-range"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Eyes</h2>
+              <div class="probe-swatches" id="probe-eye-color" aria-label="Eyeshadow colour"></div>
+              <div class="probe-sliders probe-after" id="probe-eye-range"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Blush</h2>
+              <div class="probe-swatches" id="probe-blush-color" aria-label="Blush colour"></div>
+              <div class="probe-sliders probe-after" id="probe-blush-range"></div>
+            </section>
+          </div>
+
+          <div class="probe-tab-panel" data-panel="hair" role="tabpanel" hidden>
+            <section class="probe-block">
+              <h2>Hairstyle</h2>
+              <div class="probe-chips" id="probe-styles"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Beard</h2>
+              <div class="probe-chips" id="probe-beards"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Hair colour</h2>
+              <div class="probe-swatches" id="probe-hair" aria-label="Hair colour"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Highlights and gray</h2>
+              <div class="probe-swatches" id="probe-highlights" aria-label="Highlight colour"></div>
+              <div class="probe-sliders probe-after" id="probe-hair-range"></div>
+            </section>
+            <section class="probe-block">
+              <h2>Eye colour</h2>
+              <div class="probe-swatches" id="probe-iris" aria-label="Both eyes"></div>
+              <p class="probe-sublabel">Right eye only</p>
+              <div class="probe-swatches" id="probe-iris-right" aria-label="Right eye"></div>
+              <div class="probe-sliders probe-after" id="probe-eye-state"></div>
+            </section>
+          </div>
+
+          <section class="probe-block">
+            <h2>Light</h2>
+            <div class="probe-chips" id="probe-light"></div>
+          </section>
+
+          <footer class="probe-foot">
+            <p>
+              Beta assets are not final. See the
+              <a href="models/probe/NOTICE.txt">asset notices</a> and
+              <a href="models/probe/LICENSE.txt">license</a> for attribution and terms.
+            </p>
+          </footer>
+        </aside>
+      </section>
+    </main>
+    <script type="module" src="/src/creator-probe.ts"></script>
+  </body>
+</html>
