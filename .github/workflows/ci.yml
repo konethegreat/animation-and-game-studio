@@ -50,6 +50,9 @@ jobs:
       - name: Publish curated media
         run: python studio/studio.py publish
 
+      - name: Restore verified creator beta assets
+        run: python -m studio.lib.creator_assets restore
+
       - name: Typecheck showcase
         working-directory: showcase
         run: pnpm typecheck
@@ -57,3 +60,8 @@ jobs:
       - name: Build showcase
         working-directory: showcase
         run: pnpm build
+
+      - name: Verify creator beta output
+        run: |
+          node showcase/scripts/check-creator-build.mjs
+          python -m studio.lib.creator_assets verify showcase/dist/models/probe

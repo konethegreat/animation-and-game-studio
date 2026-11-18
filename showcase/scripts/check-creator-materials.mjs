@@ -11,7 +11,7 @@ try {
       errors.push(`${message.text()} ${message.location().url}`);
     }
   });
-  await page.goto('http://localhost:5200/animation-and-game-studio/creator-probe.html');
+  await page.goto(process.env.CREATOR_URL || 'http://localhost:5200/animation-and-game-studio/creator-probe.html');
   await page.waitForFunction(() => Boolean(window.__probe), null, { timeout: 120000 });
   await page.getByRole('button', { name: 'Face', exact: true }).first().click();
   const morphNormals = await page.evaluate(() => {

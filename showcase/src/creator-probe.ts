@@ -78,16 +78,6 @@ const FACE_SLIDERS: SliderDef[] = [
   { name: "face_lips", label: "Lips" },
 ];
 
-// Local VALID references do not establish source-avatar redistribution rights.
-const REFERENCE_SLIDERS: SliderDef[] = [
-  { name: "ref_f_1", label: "Reference woman 1" },
-  { name: "ref_f_2", label: "Reference woman 2" },
-  { name: "ref_f_3", label: "Reference woman 3" },
-  { name: "ref_m_1", label: "Reference man 1" },
-  { name: "ref_m_2", label: "Reference man 2" },
-  { name: "ref_m_3", label: "Reference man 3" },
-];
-
 const EXPRESSIONS: Record<string, Record<string, number>> = {
   neutral: {},
   smile: { expr_smile_L: 0.85, expr_smile_R: 0.85, expr_innerbrow_L: 0.12, expr_innerbrow_R: 0.12 },
@@ -547,10 +537,10 @@ const capUniforms = {
 
 // One fitted affine per shape key, from the hair file. Hair, its shadow and the
 // cap all read the same summed matrix, so they stay seated as the head changes.
-const hairFollowKeys = new Map<string, number[]>();
+let hairFollowKeys = new Map<string, number[]>();
 const morphWeights = new Map<string, number>();
 
-const beardFollowKeys = new Map<string, number[]>();
+let beardFollowKeys = new Map<string, number[]>();
 const beardFollow = new THREE.Matrix4();
 
 function sumFollow(keys: Map<string, number[]>, target: THREE.Matrix4): void {
@@ -1336,11 +1326,12 @@ type HairParams = {
   capHigh: number;
 };
 
+type StrandAsset = { mesh: THREE.Mesh; params: HairParams; follow: Map<string, number[]> };
+
 function buildHairStrands(
   buffer: ArrayBuffer,
-  followKeys: Map<string, number[]> = hairFollowKeys,
   material: THREE.ShaderMaterial = hairMaterial,
-): { mesh: THREE.Mesh; params: HairParams } {
+): StrandAsset {
   const [strands, points] = new Uint32Array(buffer, 0, 2);
   const counts = new Uint8Array(buffer, 8, strands);
   let offset = 8 + strands + ((4 - (strands % 4)) % 4);
@@ -1356,8 +1347,8 @@ function buildHairStrands(
   const meta = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, offset + 4, metaLength))) as HairParams & {
     follow: Record<string, number[]>;
   };
-  for (const [name, affine] of Object.entries(meta.follow)) followKeys.set(name, affine);
-  updateHairFollow();
+  // Parsing a stale response must not change either active strand set's fit.
+  const follow = new Map(Object.entries(meta.follow));
 
   // Each point becomes a left and right vertex; the shader spreads them apart.
   const position = new Float32Array(points * 6);
@@ -1403,14 +1394,27 @@ function buildHairStrands(
   mesh.frustumCulled = false;
   mesh.castShadow = true;
   mesh.customDepthMaterial = hairDepthMaterial;
-  return { mesh, params: meta };
+  return { mesh, params: meta, follow };
 }
 
-const hairCache = new Map<string, Promise<{ mesh: THREE.Mesh; params: HairParams }>>();
+function assetNote(): HTMLElement {
+  const note = document.createElement("p");
+  note.className = "probe-file-note";
+  note.setAttribute("role", "status");
+  note.setAttribute("aria-atomic", "true");
+  // Keep download errors visible even when a look was chosen on another tab.
+  must<HTMLElement>("#probe-file-note").after(note);
+  return note;
+}
+
+const hairNote = assetNote();
+const beardNote = assetNote();
+const hairCache = new Map<string, Promise<StrandAsset>>();
 let activeHair: THREE.Mesh | null = null;
 let hairRequest = 0;
+let pendingHair: string | null = null;
 
-function loadHair(id: string): Promise<{ mesh: THREE.Mesh; params: HairParams }> {
+function loadHair(id: string): Promise<StrandAsset> {
   let pending = hairCache.get(id);
   if (!pending) {
     pending = fetch(`${import.meta.env.BASE_URL}models/probe/hair/${id}.bin`)
@@ -1418,7 +1422,11 @@ function loadHair(id: string): Promise<{ mesh: THREE.Mesh; params: HairParams }>
         if (!response.ok) throw new Error(`hair ${id} ${response.status}`);
         return response.arrayBuffer();
       })
-      .then(buildHairStrands);
+      .then((buffer) => buildHairStrands(buffer))
+      .catch((error: unknown) => {
+        if (hairCache.get(id) === pending) hairCache.delete(id);
+        throw error;
+      });
     hairCache.set(id, pending);
   }
   return pending;
@@ -1431,30 +1439,41 @@ function applyCap(params: { capAlpha: number; capLow: number; capHigh: number })
 }
 
 async function setHairStyle(id: string): Promise<void> {
-  for (const button of document.querySelectorAll<HTMLButtonElement>("#probe-styles button")) {
-    button.classList.toggle("is-active", button.dataset.style === id);
-  }
   const request = (hairRequest += 1);
-  if (id === "shaved") {
-    if (activeHair) character.remove(activeHair);
-    activeHair = null;
-    applyCap({ capAlpha: 0.3, capLow: 0, capHigh: 0 });
+  pendingHair = id;
+  hairNote.textContent = "";
+  try {
+    if (id === "shaved") {
+      if (activeHair) character.remove(activeHair);
+      activeHair = null;
+      applyCap({ capAlpha: 0.3, capLow: 0, capHigh: 0 });
+    } else {
+      const label = HAIR_STYLES.find((style) => style.id === id)?.label ?? "hair";
+      hairNote.textContent = `Loading ${label}.`;
+      const { mesh, params, follow } = await loadHair(id);
+      // Apply the mesh and its fit together, even when they came from the cache.
+      if (request !== hairRequest) return;
+      if (activeHair) character.remove(activeHair);
+      activeHair = mesh;
+      character.add(mesh);
+      hairFollowKeys = follow;
+      updateHairFollow();
+      hairUniforms.uStrandWidth.value = params.width;
+      hairUniforms.uTaper.value = params.taper;
+      hairUniforms.uMode.value = params.mode;
+      hairUniforms.uShine.value = params.shine;
+      hairUniforms.uRipple.value = params.ripple ?? 0;
+      applyCap(params);
+    }
+    appliedHair = id;
+    hairNote.textContent = "";
     renderer.shadowMap.needsUpdate = true;
-    return;
+  } catch {
+    if (request !== hairRequest) return;
+    hairNote.textContent = "Could not load this hairstyle. Choose it again to retry.";
+  } finally {
+    if (request === hairRequest) pendingHair = null;
   }
-  const { mesh, params } = await loadHair(id);
-  // A newer choice may have landed while this one was still downloading.
-  if (request !== hairRequest) return;
-  if (activeHair) character.remove(activeHair);
-  activeHair = mesh;
-  character.add(mesh);
-  hairUniforms.uStrandWidth.value = params.width;
-  hairUniforms.uTaper.value = params.taper;
-  hairUniforms.uMode.value = params.mode;
-  hairUniforms.uShine.value = params.shine;
-  hairUniforms.uRipple.value = params.ripple ?? 0;
-  applyCap(params);
-  renderer.shadowMap.needsUpdate = true;
 }
 
 const beardMaterial = hairMaterial.clone();
@@ -1471,17 +1490,12 @@ beardMaterial.uniforms = {
   uHighlightAmount: { value: 0 },
 };
 
-const beardCache = new Map<string, Promise<THREE.Mesh>>();
+const beardCache = new Map<string, Promise<StrandAsset>>();
 let activeBeard: THREE.Mesh | null = null;
 let beardRequest = 0;
+let pendingBeard: string | null = null;
 
-async function setBeard(id: string): Promise<void> {
-  const request = (beardRequest += 1);
-  if (id === "none") {
-    if (activeBeard) character.remove(activeBeard);
-    activeBeard = null;
-    return;
-  }
+function loadBeard(id: string): Promise<StrandAsset> {
   let pending = beardCache.get(id);
   if (!pending) {
     pending = fetch(`${import.meta.env.BASE_URL}models/probe/hair/${id}.bin`)
@@ -1490,19 +1504,48 @@ async function setBeard(id: string): Promise<void> {
         return response.arrayBuffer();
       })
       .then((buffer) => {
-        const { mesh } = buildHairStrands(buffer, beardFollowKeys, beardMaterial);
-        mesh.name = "beard";
-        mesh.castShadow = false;
-        mesh.customDepthMaterial = undefined;
-        return mesh;
+        const asset = buildHairStrands(buffer, beardMaterial);
+        asset.mesh.name = "beard";
+        asset.mesh.castShadow = false;
+        asset.mesh.customDepthMaterial = undefined;
+        return asset;
+      })
+      .catch((error: unknown) => {
+        if (beardCache.get(id) === pending) beardCache.delete(id);
+        throw error;
       });
     beardCache.set(id, pending);
   }
-  const mesh = await pending;
-  if (request !== beardRequest) return;
-  if (activeBeard) character.remove(activeBeard);
-  activeBeard = mesh;
-  character.add(mesh);
+  return pending;
+}
+
+async function setBeard(id: string): Promise<void> {
+  const request = (beardRequest += 1);
+  pendingBeard = id;
+  beardNote.textContent = "";
+  try {
+    if (id === "none") {
+      if (activeBeard) character.remove(activeBeard);
+      activeBeard = null;
+    } else {
+      const label = BEARD_STYLES.find((style) => style.id === id)?.label ?? "beard";
+      beardNote.textContent = `Loading ${label}.`;
+      const { mesh, follow } = await loadBeard(id);
+      if (request !== beardRequest) return;
+      if (activeBeard) character.remove(activeBeard);
+      activeBeard = mesh;
+      character.add(mesh);
+      beardFollowKeys = follow;
+      updateHairFollow();
+    }
+    appliedBeard = id;
+    beardNote.textContent = "";
+  } catch {
+    if (request !== beardRequest) return;
+    beardNote.textContent = "Could not load this beard. Choose it again to retry.";
+  } finally {
+    if (request === beardRequest) pendingBeard = null;
+  }
 }
 
 function buildCharacter(root: THREE.Object3D): void {
@@ -1655,7 +1698,7 @@ function applyView(name: ViewName, instant = reducedMotion): void {
 const store = createStore(defaultState());
 const LIGHT_NAMES = Object.keys(LIGHT_PRESETS);
 const FACE_REACH = 2.4;
-const ALL_SLIDERS = [...BODY_SLIDERS, ...SHAPE_SLIDERS, ...FACE_SLIDERS, ...REFERENCE_SLIDERS];
+const ALL_SLIDERS = [...BODY_SLIDERS, ...SHAPE_SLIDERS, ...FACE_SLIDERS];
 const stateOptions = {
   tones: SKIN_TONES.map((tone) => tone.label),
   styles: HAIR_STYLES.map((style) => style.id),
@@ -1763,13 +1806,16 @@ function syncScene(state: CharacterState): void {
   hairUniforms.uHighlightAmount.value = state.hair.highlightAmount;
   hairUniforms.uGraying.value = state.hair.graying;
   browsMaterial?.color.setStyle(state.hair.color).multiplyScalar(0.62).lerp(new THREE.Color(0x7c7a76), state.hair.graying * 0.7);
-  if (state.hair.style !== appliedHair) {
-    appliedHair = state.hair.style;
+  // Keep applied ids until downloads succeed so failed choices can retry.
+  if (state.hair.style !== (pendingHair ?? appliedHair)) {
     void setHairStyle(state.hair.style);
+  } else if (pendingHair === null) {
+    hairNote.textContent = "";
   }
-  if (state.hair.beard !== appliedBeard) {
-    appliedBeard = state.hair.beard;
+  if (state.hair.beard !== (pendingBeard ?? appliedBeard)) {
     void setBeard(state.hair.beard);
+  } else if (pendingBeard === null) {
+    beardNote.textContent = "";
   }
 
   garmentMaterial?.color.setStyle(state.cloth);
@@ -2085,7 +2131,7 @@ buildChips("#probe-face-shapes", titled(Object.keys(FACE_SHAPES)), () => null, (
   });
 });
 buildMorphRanges("#probe-shape", SHAPE_SLIDERS);
-buildMorphRanges("#probe-face", [...REFERENCE_SLIDERS, ...FACE_SLIDERS]);
+buildMorphRanges("#probe-face", FACE_SLIDERS);
 buildChips("#probe-expressions", titled(Object.keys(EXPRESSIONS)), (state) => state.expression, (id) => {
   store.update((state) => {
     state.expression = id;
@@ -2330,7 +2376,8 @@ new GLTFLoader().load(
     progressLabel.textContent = "Ready";
     splash.classList.add("is-done");
     refreshStats();
-    void loadHair(LOOKS[0].hair).finally(() => {
+    // The style loader reports failures in the UI; expose inspection even then.
+    void loadHair(LOOKS[0].hair).catch(() => undefined).then(() => {
       (window as unknown as { __probe: unknown }).__probe = {
         scene,
         camera,
@@ -2358,7 +2405,7 @@ new GLTFLoader().load(
   (error) => {
     console.error(error);
     stateLabel.textContent = "Asset missing";
-    progressLabel.textContent = "The probe asset did not load. Start the showcase dev server.";
+    progressLabel.textContent = "The character could not load. Check your connection and reload this page.";
   },
 );
 
@@ -2368,7 +2415,7 @@ fetch(assetUrl, { method: "HEAD" })
     if (bytes > 0) sizeEl.textContent = (bytes / 1048576).toFixed(1);
   })
   .catch(() => {
-    sizeEl.textContent = "5.1";
+    sizeEl.textContent = "--";
   });
 
 animate();

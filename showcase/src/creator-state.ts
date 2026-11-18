@@ -110,15 +110,25 @@ function choice(value: unknown, allowed: readonly string[], fallback: string): s
   return typeof value === "string" && allowed.includes(value) ? value : fallback;
 }
 
-function record(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-// Imported files are untrusted: only known keys survive, numbers are clamped and
-// ids are checked against what exists. A hair id ends up in a fetch URL.
+function record(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+// Reject unrelated JSON before sanitizing values that can become asset URLs.
 export function sanitizeState(input: unknown, options: StateOptions): CharacterState {
+  if (
+    !isRecord(input) || input.version !== 1 ||
+    ["body", "skin", "eyes", "hair", "morphs"].some((key) => !isRecord(input[key])) ||
+    (input.outfit !== undefined && !isRecord(input.outfit))
+  ) {
+    throw new Error("Not a version 1 character document.");
+  }
   const base = defaultState();
-  const root = record(input);
+  const root = input;
   const body = record(root.body);
   const outfit = record(root.outfit);
   const skin = record(root.skin);

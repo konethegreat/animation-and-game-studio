@@ -106,7 +106,9 @@ def main():
             np.testing.assert_allclose(actual, expected, atol=2e-5)
             assert name in lashes.data.shape_keys.key_blocks, f"Lashes missing {name}"
             assert np.linalg.norm(probe.key_deltas(lashes, [name])[name], axis=1).max() > 0.03
-    print(f"PASS: portrait and six facial controls, lip seam, eye aperture, attachments, scalp residual {residual.max():.5f} cm")
+    skin_material, skin_sockets = probe.build_skin_material(Path(args.out))
+    assert len(skin_material.node_tree.links) > 0 and "sss_mask" in skin_sockets
+    print(f"PASS: portrait and six facial controls, lip seam, eye aperture, attachments, skin material, scalp residual {residual.max():.5f} cm")
 
 
 if __name__ == "__main__":

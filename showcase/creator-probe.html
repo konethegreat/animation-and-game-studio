@@ -6,19 +6,19 @@
     <meta name="theme-color" content="#f6f1e6" />
     <meta
       name="description"
-      content="A live character probe: one rigged head and body, editable shape, expressions, skin and eyes, rendered in the browser."
+      content="Character creator beta. Mouth and expressions are unfinished. Initial download is roughly 40 MB; desktop recommended."
     />
-    <title>Creator probe / Kone Studio</title>
+    <title>Creator beta / Kone Studio</title>
   </head>
   <body>
     <main class="probe">
       <header class="probe-head">
-        <div class="probe-brand">
+        <a class="probe-brand" href="/animation-and-game-studio/" aria-label="Kone Studio home">
           <span class="probe-mark" aria-hidden="true"></span>
           <span>Kone Studio</span>
-        </div>
+        </a>
         <div class="probe-head-meta">
-          <span class="probe-pill">Probe 01</span>
+          <span class="probe-pill">Beta 01</span>
           <span class="probe-state" id="probe-state">Loading rig</span>
         </div>
       </header>
@@ -26,7 +26,7 @@
       <section class="probe-layout">
         <div class="probe-view" id="probe-view" role="group" aria-label="Interactive 3D character lit in a studio">
           <div class="probe-splash" id="probe-splash">
-            <p class="probe-splash-label">Character probe</p>
+            <p class="probe-splash-label">Character creator beta</p>
             <div class="probe-track"><span id="probe-progress"></span></div>
             <p class="probe-splash-note" id="probe-progress-label">Preparing the stage</p>
           </div>
@@ -50,12 +50,13 @@
 
         <aside class="probe-panel" aria-label="Character controls">
           <div class="probe-intro">
-            <p class="probe-eyebrow">Stylized real</p>
-            <h1>One rig,<br />endless faces.</h1>
+            <p class="probe-eyebrow">Beta</p>
+            <h1>Character creator</h1>
             <p>
-              A working probe of the creator pipeline. Start from a look, then change the hair,
-              skin, features and body until the character is yours.
+              Mouth and expressions are unfinished in this beta. Start from a look, then
+              adjust hair, skin, features and body.
             </p>
+            <p>Initial download is roughly 40 MB. Desktop recommended.</p>
           </div>
 
           <section class="probe-block">
@@ -203,8 +204,9 @@
 
           <footer class="probe-foot">
             <p>
-              Base mesh and morph targets: Meta MHR, Apache 2.0. Hair, eyes, cloth and skin
-              generated in Blender for this probe. Asset is not final.
+              Beta assets are not final. See the
+              <a href="models/probe/NOTICE.txt">asset notices</a> and
+              <a href="models/probe/LICENSE.txt">license</a> for attribution and terms.
             </p>
           </footer>
         </aside>

@@ -78,6 +78,8 @@ button {
   gap: 10px;
   font-weight: 650;
   letter-spacing: 0.01em;
+  color: inherit;
+  text-decoration: none;
 }
 
 .probe-mark {

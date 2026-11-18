@@ -1,8 +1,4 @@
-"""Build the character probe asset: MHR body, eyes, hair and baked skin.
-
-Runs inside Blender 4.5 headless. The MHR base is Apache-2.0 and lives in the
-ignored embed lane; the generated GLB is a probe, not a shipped asset yet.
-"""
+"""Build the MHR-based creator asset inside Blender 4.5 headless."""
 
 from __future__ import annotations
 
@@ -104,7 +100,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--bake-ao", action="store_true")
     parser.add_argument("--hair-only", action="store_true")
     parser.add_argument("--styles", default=None, help="comma separated hair styles to regenerate")
-    parser.add_argument("--heads", default="assets/embed/valid/heads", help="head surfaces from extract_valid_heads.py")
+    parser.add_argument("--heads", help="local research only: head surfaces from extract_valid_heads.py, never for release")
     return parser.parse_args(argv)
 
 
@@ -2864,7 +2860,7 @@ def build_skin_material(out_dir: Path) -> tuple[bpy.types.Material, dict[str, bp
         math_node(nt, "MULTIPLY", 0.48, math_node(nt, "POWER", lash_t, 0.65, location=(-140, -2350)), location=(20, -2350)),
         0.04, location=(160, -2350))
     lash_s = math_node(nt, "DIVIDE",
-        math_node(nt, "ABSOLUTE", math_node(nt, "SUBTRACT", y, EYE_Y, location=(20, -2250)), location=(160, -2250)),
+        math_node(nt, "ABSOLUTE", math_node(nt, "SUBTRACT", y, LID_MID_Y, location=(20, -2250)), location=(160, -2250)),
         lash_half, location=(320, -2300))
     lash_band = math_node(nt, "MULTIPLY",
         smooth(nt, lash_s, 0.80, 0.98, (480, -2350)),
@@ -3045,7 +3041,8 @@ def main() -> None:
     add_shape_keys(body)
     pose_body(body)
     rims = open_eyes(body)
-    add_reference_faces(body, rims, Path(args.heads).resolve())
+    if args.heads:
+        add_reference_faces(body, rims, Path(args.heads).resolve())
     build_hair_styles(body, out_dir, args.styles)
     if args.hair_only:
         return

@@ -99,6 +99,7 @@ function head(active?: string): string {
               `<a href="${item.href}" data-link ${active === item.key ? 'aria-current="page"' : ""}>${item.label}</a>`,
           )
           .join("")}
+        <a href="${href("creator-probe.html")}">Creator beta</a>
       </nav>
       <a class="repo-pill mono" href="${href()}#ownership" data-link>
         <span class="live-dot" aria-hidden="true"></span>Original work
@@ -120,13 +121,14 @@ function foot(): string {
         <a href="${href()}#work" data-link>Work</a>
         <a href="${href("demo/three")}" data-link>3D demo</a>
         <a href="${href("play/011-bin-city")}" data-link>Play</a>
+        <a href="${href("creator-probe.html")}">Creator beta</a>
         <a href="${REPO}" target="_blank" rel="noreferrer">GitHub</a>
         <a href="${REPO}/blob/main/LICENSE" target="_blank" rel="noreferrer">Licence</a>
       </nav>
     </div>
     <div class="wrap foot-own" id="ownership">
       <p class="mono foot-own-label">Original work</p>
-      <p>Every film, model, game, score and line of code here is original work by Kone Tshivhinda. All rights reserved. Third party tools and fonts keep their own licences.</p>
+      <p>Original studio work is by Kone Tshivhinda. All rights reserved. Third party assets, tools and fonts keep their own licences. The creator beta includes an MHR-based body with separate asset notices.</p>
     </div>
     <div class="wrap foot-bottom mono">
       <span>© 2026 Kone Tshivhinda / All rights reserved</span>
