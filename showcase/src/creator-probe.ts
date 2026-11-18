@@ -22,6 +22,7 @@ type SliderDef = { name: string; label: string };
 type ViewName = "macro" | "face" | "three" | "bust" | "full";
 
 const SHAPE_SLIDERS: SliderDef[] = [
+  { name: "feat_portrait_b", label: "Portrait B blend" },
   { name: "shape_jaw_width", label: "Jaw width" },
   { name: "shape_jaw_angle", label: "Jaw corner" },
   { name: "shape_chin_length", label: "Chin length" },
@@ -247,6 +248,7 @@ type Look = {
 };
 
 const LOOKS: Look[] = [
+  { id: "portrait-b", label: "Portrait B", body: "female", skin: "Espresso", hair: "cornrows", hairColor: "Natural black", iris: "Dark brown", cloth: "Ink", shape: { feat_portrait_b: 1, feat_lips: 0.7, feat_lip_bow: 0.25, feat_lip_balance: -0.15, feat_nose_wide: 0.3, feat_nose_bridge: 0.5, feat_nose_tip: -0.1, feat_cheeks: 0.2, feat_eye_tilt: 0.1, feat_eye_hood: 0.1, feat_brow_arch: -0.3, shape_chin_width: 0.35, shape_chin_length: 0.6, shape_cheek_hollow: -0.15 } },
   { id: "amara", label: "Amara", body: "female", skin: "Umber", hair: "afro", hairColor: "Natural black", iris: "Dark brown", cloth: "Moss", shape: { face_chin: 0.05, face_midface: -0.25, face_eyes: 0.05, face_brow: -0.15, feat_lips: 0.65, feat_lip_bow: 0.65, feat_lip_balance: -0.35, feat_nose_wide: 0.7, feat_nose_bridge: 0.55, feat_nose_tip: 0.05, feat_cheeks: 0.3, feat_eye_tilt: 0.5, feat_eye_hood: 0.25, feat_brow_arch: 0.2, shape_jaw_width: -0.1, shape_chin_width: 0.3, shape_chin_length: 0.15 } },
   { id: "thabo", beard: "beard_short", stubble: 0.55, label: "Thabo", body: "male", skin: "Espresso", hair: "fade", hairColor: "Natural black", iris: "Dark brown", cloth: "Ink", shape: { face_chin: 0.35, face_brow: 0.3, face_midface: -0.2, face_mouth: -0.25, face_cheeks: 0.2, feat_lips: 0.6, feat_nose_wide: 0.8, feat_nose_bridge: 0.5, feat_cheeks: 0.3, shape_jaw_width: 0.35, shape_jaw_angle: 0.6 } },
   { id: "naledi", label: "Naledi", body: "female", skin: "Ebony", hair: "braids", hairColor: "Natural black", iris: "Dark brown", cloth: "Bone", shape: { face_midface: -0.35, face_mouth: 0.35, face_cheeks: 0.15, face_nose: 0.15, feat_lips: 0.9, feat_lip_bow: -0.3, feat_lip_balance: 0.4, feat_nose_wide: 0.95, feat_nose_bridge: 0.85, feat_nose_tip: -0.25, feat_cheeks: 0.55, feat_eye_tilt: 0.05, feat_eye_hood: 0.7, feat_brow_arch: -0.55, shape_jaw_width: 0.55, shape_jaw_angle: 0.45, shape_chin_width: 0.6, shape_cheek_hollow: -0.25 } },
@@ -473,7 +475,6 @@ const eyeParts: THREE.Object3D[] = [];
 const sssUniforms = {
   color: { value: new THREE.Color(0xff5a3a) },
   strength: { value: 0.24 },
-  keyDirection: { value: new THREE.Vector3(0, 0, 1) },
 };
 
 const skinUniforms = {
@@ -854,7 +855,6 @@ const hairCapMaterial = new THREE.ShaderMaterial({
   `,
 });
 
-let skinMaterial: THREE.MeshPhysicalMaterial | null = null;
 let browsMaterial: THREE.MeshStandardMaterial | null = null;
 let garmentMaterial: THREE.MeshPhysicalMaterial | null = null;
 let trouserMaterial: THREE.MeshPhysicalMaterial | null = null;
@@ -974,7 +974,7 @@ function buildSkin(mesh: THREE.Mesh): void {
     sheen: 0.02,
     sheenRoughness: 0.9,
     sheenColor: new THREE.Color(0xffe2d2),
-    specularIntensity: 0.62,
+    specularIntensity: 0.48,
     envMapIntensity: 0.42,
   });
   if (material.map) {
@@ -983,7 +983,6 @@ function buildSkin(mesh: THREE.Mesh): void {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uSssColor = sssUniforms.color;
     shader.uniforms.uSssStrength = sssUniforms.strength;
-    shader.uniforms.uKeyDirection = sssUniforms.keyDirection;
     shader.uniforms.uPores = { value: poreTexture };
     shader.uniforms.uSkinTone = skinUniforms.uSkinTone;
     shader.uniforms.uLipUpper = skinUniforms.uLipUpper;
@@ -1005,7 +1004,6 @@ function buildSkin(mesh: THREE.Mesh): void {
         `#include <common>
         uniform vec3 uSssColor;
         uniform float uSssStrength;
-        uniform vec3 uKeyDirection;
         uniform sampler2D uPores;
         uniform vec3 uSkinTone;
         uniform vec3 uLipUpper;
@@ -1108,7 +1106,7 @@ function buildSkin(mesh: THREE.Mesh): void {
         }
         vec4 probePore = texture2D( uPores, vNormalMapUv * 26.0 );
         normal = normalize( normal + ( tbn[ 0 ] * ( probePore.x * 2.0 - 1.0 ) + tbn[ 1 ] * ( probePore.y * 2.0 - 1.0 ) ) * 0.28 );
-        roughnessFactor = clamp( roughnessFactor * mix( 1.0, 0.68, uShine ) + ( 1.0 - probePore.a ) * 0.16, 0.0, 1.0 );
+        roughnessFactor = clamp( roughnessFactor * mix( 1.0, 0.82, uShine ) + ( 1.0 - probePore.a ) * 0.16, 0.0, 1.0 );
         diffuseColor.rgb *= mix( 0.95, 1.0, probePore.a );
         // Glossy or matte lips, satin eyeshadow, skin that dries a little with age.
         roughnessFactor = mix( roughnessFactor, mix( 0.62, 0.14, uLipGloss ), probeMask.r * uLipOpacity );
@@ -1116,18 +1114,26 @@ function buildSkin(mesh: THREE.Mesh): void {
         roughnessFactor = clamp( roughnessFactor + uAge * 0.06, 0.0, 1.0 );`,
       )
       .replace(
-        "#include <emissivemap_fragment>",
-        `#include <emissivemap_fragment>
-        vec3 probeView = normalize( vViewPosition );
-        float probeBack = pow( saturate( dot( -probeView, normalize( uKeyDirection ) ) ), 5.0 );
-        totalEmissiveRadiance += uSssColor * probeBack * uSssStrength * ( 0.35 + diffuseColor.rgb );
-        float probeNdl = dot( normal, normalize( uKeyDirection ) );
-        float probeScatter = smoothstep( -0.22, 0.03, probeNdl ) * ( 1.0 - smoothstep( 0.03, 0.40, probeNdl ) );
-        totalEmissiveRadiance += diffuseColor.rgb * vec3( 1.0, 0.24, 0.12 ) * probeScatter * uSssStrength * 0.8;`,
+        "#include <lights_physical_pars_fragment>",
+        `#include <lights_physical_pars_fragment>
+        void RE_Direct_Skin( const in IncidentLight directLight, const in vec3 geometryPosition,
+          const in vec3 geometryNormal, const in vec3 geometryViewDir,
+          const in vec3 geometryClearcoatNormal, const in PhysicalMaterial material,
+          inout ReflectedLight reflectedLight ) {
+          RE_Direct_Physical( directLight, geometryPosition, geometryNormal, geometryViewDir,
+            geometryClearcoatNormal, material, reflectedLight );
+          float probeNdl = dot( geometryNormal, directLight.direction );
+          float probeWrap = saturate( ( probeNdl + 0.35 ) / 1.35 );
+          float probeScatter = max( probeWrap - saturate( probeNdl ), 0.0 );
+          // Incident light already includes shadow attenuation; skin must never self-illuminate.
+          reflectedLight.directDiffuse += directLight.color * BRDF_Lambert( material.diffuseContribution )
+            * mix( vec3( 1.0 ), uSssColor, 0.6 ) * probeScatter * uSssStrength;
+        }
+        #undef RE_Direct
+        #define RE_Direct RE_Direct_Skin`,
       );
   };
   material.customProgramCacheKey = () => "probe-skin-sss";
-  skinMaterial = material;
   mesh.material = material;
 }
 
@@ -1166,8 +1172,8 @@ function buildIris(mesh: THREE.Mesh): void {
           vec2 probeSampleUv = 0.5 + 0.5 * probeDisc * ( probeSource / max( probeR, 0.0001 ) );
           vec4 probeIris = texture2D( map, probeSampleUv );
           float probeLum = dot( probeIris.rgb, vec3( 0.2126, 0.7152, 0.0722 ) );
-          float probeBody = smoothstep( 0.015, 0.1, probeLum );
-          diffuseColor.rgb = mix( uIrisTint * 0.04, uIrisTint * ( 0.26 + probeLum * 0.95 ), probeBody );
+          float probeBody = smoothstep( probeWant - 0.015, probeWant + 0.015, probeR );
+          diffuseColor.rgb = mix( vec3( 0.002 ), uIrisTint * ( 0.06 + probeLum * 0.75 ), probeBody );
           diffuseColor.rgb *= mix( 0.42, 1.0, smoothstep( 0.10, 0.46, vMapUv.y ) );
         #endif`,
       )
@@ -1179,6 +1185,7 @@ function buildIris(mesh: THREE.Mesh): void {
   };
   material.customProgramCacheKey = () => "probe-iris";
   mesh.material = material;
+  mesh.castShadow = false;
   mesh.renderOrder = 1;
 }
 
@@ -1189,8 +1196,7 @@ function buildSclera(mesh: THREE.Mesh): void {
     color: 0xc9c2ba,
     roughness: 0.34,
     metalness: 0,
-    clearcoat: 0.10,
-    clearcoatRoughness: 0.24,
+    specularIntensity: 0.35,
     envMapIntensity: 0.28,
   });
   scleraMaterials.push(material);
@@ -1717,7 +1723,6 @@ function syncScene(state: CharacterState): void {
   skinUniforms.uLipLower.value.setHex(tone.lipLower);
   skinUniforms.uPalm.value.setHex(tone.palm);
   skinUniforms.uShine.value = tone.shine;
-  if (skinMaterial) skinMaterial.specularIntensity = 0.36 + 0.34 * tone.shine;
   // Terminator colour follows the skin: warm brown in deep tones, red in pale ones.
   const depth = 1 - Math.min(1, new THREE.Color(tone.value).getHSL({ h: 0, s: 0, l: 0 }).l * 1.5);
   sssUniforms.color.value.set(0xff5a3a).lerp(new THREE.Color(0x9c5a38), depth);
@@ -1748,7 +1753,9 @@ function syncScene(state: CharacterState): void {
   irisUniforms.right.value.setStyle(state.eyes.right);
   irisUniforms.pupil.value = state.eyes.pupil;
   irisUniforms.glow.value = state.eyes.glow;
-  for (const material of scleraMaterials) material.color.setRGB(state.eyes.sclera, state.eyes.sclera * 0.965, state.eyes.sclera * 0.92);
+  for (const material of scleraMaterials) {
+    material.color.setRGB(state.eyes.sclera, state.eyes.sclera * 0.965, state.eyes.sclera * 0.92, THREE.SRGBColorSpace);
+  }
 
   // Hair.
   hairUniforms.uColor.value.setStyle(state.hair.color);
@@ -2293,12 +2300,6 @@ function animate(): void {
 
   controls.update();
   camera.updateMatrixWorld();
-
-  sssUniforms.keyDirection.value
-    .copy(key.position)
-    .sub(key.target.position)
-    .normalize()
-    .transformDirection(camera.matrixWorldInverse);
 
   renderer.render(scene, camera);
 

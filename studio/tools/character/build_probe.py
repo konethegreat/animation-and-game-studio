@@ -74,7 +74,7 @@ DEFAULT_FACE = {"face_jaw": -0.40, "face_cheeks": -0.35, "face_jawwidth": -0.25,
 FEATURE_KEYS = (
     "feat_lips", "feat_nose_wide", "feat_nose_bridge", "feat_cheeks",
     "feat_eye_tilt", "feat_eye_hood", "feat_brow_arch",
-    "feat_lip_bow", "feat_lip_balance", "feat_nose_tip",
+    "feat_lip_bow", "feat_lip_balance", "feat_nose_tip", "feat_portrait_b",
 )
 BUILD_KEYS = ("build_female", "build_male")
 # Baked into the default build or unused by any control, so not worth shipping.
@@ -613,6 +613,35 @@ def add_feature_keys(body) -> None:
     delta[:, 1] = 0.26 * tip
     delta[:, 2] = 0.25 * tip
     add_key(body, "feat_nose_tip", delta)
+
+    delta = np.zeros_like(co)
+    head = ss(148.0, 151.0, y) * ss(174.0, 168.0, y) * ss(11.0, 9.0, ax)
+    lateral = ss(3.8, 6.6, ax) * ss(-4.0, 5.0, z) * head
+    delta[:, 0] -= x * 0.10 * lateral
+    eye_span = np.exp(-(((ax - 3.2) / 2.0) ** 4 + ((y - LID_MID_Y) / 1.8) ** 4)) * ss(8.5, 10.5, z)
+    delta[:, 0] += np.sign(x) * (ax - 3.2) * 0.09 * eye_span
+    nasal_base = np.exp(-((y - 158.4) / 0.9) ** 2) * ss(3.2, 1.4, ax) * ss(10.5, 12.5, z)
+    delta[:, 1] -= 0.15 * nasal_base
+    lip_distance = y - line
+    vermilion = ss(2.7, 1.5, ax) * ss(11.0, 12.5, z)
+    upper_roll = np.exp(-((lip_distance - 0.48) / 0.32) ** 2)
+    lower_roll = np.exp(-((lip_distance + 0.52) / 0.40) ** 2)
+    delta[:, 2] += (0.22 * upper_roll + 0.30 * lower_roll) * vermilion
+    delta[:, 1] += lip_distance * 0.22 * np.exp(-(lip_distance / 1.05) ** 4) * vermilion
+    delta[:, 2] -= 0.10 * np.exp(-((lip_distance + 1.12) / 0.28) ** 2) * vermilion
+    density = hair_density(x, y, z)
+    scalp = density > 0.15
+    basis = np.column_stack((co, np.ones(len(co))))
+    affine, *_ = np.linalg.lstsq(basis[scalp], delta[scalp], rcond=None)
+    scalp_tree = kdtree.KDTree(int(scalp.sum()))
+    for index in np.flatnonzero(scalp):
+        scalp_tree.insert(co[index], int(index))
+    scalp_tree.balance()
+    distance = np.array([scalp_tree.find(point)[2] for point in co])
+    # Hair strands and their cap share one affine scalp transform.
+    follow = ss(2.0, 0.0, distance)[:, None]
+    delta = delta * (1.0 - follow) + (basis @ affine) * follow
+    add_key(body, "feat_portrait_b", delta)
 
 
 def profile_landmarks(points, eye_y, mouth_y):
@@ -1291,7 +1320,7 @@ def hair_follow(body, co, density_fn):
     """One fitted affine per shape key, so hair stays seated on the head sliders."""
     scalp = np.where(density_fn(co[:, 0], co[:, 1], co[:, 2]) > 0.15)[0]
     basis = np.concatenate((co[scalp] * 0.01, np.ones((len(scalp), 1))), axis=1)
-    deltas = key_deltas(body, [name for name in KEEP.values() if not name.startswith("expr_")] + list(BUILD_KEYS))
+    deltas = key_deltas(body, [name for name in KEEP.values() if not name.startswith("expr_")] + list(BUILD_KEYS) + ["feat_portrait_b"])
     follow = {}
     for name, delta in deltas.items():
         solved, *_ = np.linalg.lstsq(basis, delta[scalp] * 0.01, rcond=None)
@@ -3061,7 +3090,7 @@ def main() -> None:
         export_texcoords=True,
         export_normals=True,
         export_morph=True,
-        export_morph_normal=False,
+        export_morph_normal=True,
         export_morph_animation=False,
         export_materials="EXPORT",
         export_cameras=False,

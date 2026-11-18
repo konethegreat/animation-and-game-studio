@@ -38,6 +38,14 @@ Everything is authored as code, rendered headless and validated before it ships.
 - `studio publish` copies curated media into `showcase/public`, regenerates the gallery data and writes third party notices.
 - Vite and Three.js build the showcase, GitHub Actions deploys it to Pages.
 
+## Local character probe
+
+The unfinished character creator runs at `http://localhost:5200/animation-and-game-studio/creator-probe.html` with `pnpm --dir showcase dev --port 5200 --strictPort`. It requires the generated local assets in `showcase/public/models/probe/` and is not an entry in the production showcase build. The MHR base is Apache-2.0; local VALID references do not establish source-avatar redistribution rights.
+
+Skin scattering uses shadow-attenuated incident light, not emission. Eye-white brightness uses sRGB like the eye-colour swatches. Run `node showcase/scripts/check-creator-materials.mjs` with the dev server active to check unlit skin, scattering response and eye-white colour mapping in Chrome. This manual browser check requires an installed Playwright module; set `PLAYWRIGHT_MODULE` to its module specifier or absolute file URL if `playwright` is not resolvable. Generated assets remain local and are not included with this test.
+
+The Portrait B starting look is a local sculpt study based on the owner's selected AI portrait, not an approved likeness or an automatically reconstructed head. Its blend control changes facial proportions and lip contours without replacing the other presets. `studio/tools/character/check_face_shapes.py` runs inside Blender with `--source` pointing to the MHR FBX and `--out` to a local preview directory; it checks head-only deformation, mouth-seam stability, eye apertures, smoothness and attachment following. The reference is frontal only, so its profile remains unknown. Morph normals are exported so lighting follows the sculpt; scalp displacement is fitted to the affine transform shared by strands and their cap. Rebuild the GLB and all hair followers after changing the sculpt.
+
 ## Engine matrix
 
 Measured on this machine. `docs/engines.md` has paths, probe output and blockers.

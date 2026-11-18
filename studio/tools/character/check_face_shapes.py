@@ -61,6 +61,37 @@ def main():
     for name in ("feat_lip_bow", "feat_lip_balance"):
         assert np.linalg.norm(deltas[name][seam], axis=1).max(initial=0) < 0.02, f"{name}: opens mouth seam"
 
+    assert "feat_portrait_b" in keys, "Missing independently blendable portrait B sculpt"
+    portrait = probe.key_deltas(body, ["feat_portrait_b"])["feat_portrait_b"]
+    assert np.isfinite(portrait).all()
+    assert 0.5 < np.linalg.norm(portrait, axis=1).max() < 1.6
+    below = np.where(y < 145)[0]
+    leak = below[np.argmax(np.linalg.norm(portrait[below], axis=1))]
+    assert np.linalg.norm(portrait[leak]) < 1e-5, f"Portrait changes body vertex {co[leak]} by {portrait[leak]}"
+    sides = (np.abs(x) > 6.5) & (np.abs(x) < 8) & (y > 158) & (y < 165) & (z > 5)
+    assert (portrait[sides, 0] * np.sign(x[sides])).mean() < -0.55, "Portrait keeps the over-wide upper face"
+    assert np.abs(portrait[seam, 1]).max() < 0.015, "Portrait shifts the already matched mouth seam"
+    lip = (np.abs(x) < 1.4) & (np.abs(y - line) > 0.35) & (np.abs(y - line) < 0.7) & (z > 12)
+    assert portrait[lip, 2].mean() > 0.12, "Portrait lips have no modeled roll"
+    for end in (-1, 1):
+        points = co + female + portrait * end
+        for side_rim in rims.values():
+            aperture = points[side_rim]
+            assert 2.3 < np.ptp(aperture[:, 0]) < 3.5, f"Portrait collapses eye width at {end}"
+            assert 0.5 < np.ptp(aperture[:, 1]) < 1.6, f"Portrait collapses eye height at {end}"
+        assert points[chin, 2].mean() > 11.8, f"Portrait loses adult chin projection at {end}"
+    portrait_gradient = np.linalg.norm(portrait[edges[:, 0]] - portrait[edges[:, 1]], axis=1) / np.maximum(edge_length, 1e-6)
+    assert portrait_gradient.max() < 0.85, f"Portrait has a deformation seam: {portrait_gradient.max():.3f}"
+
+    follow = probe.hair_follow(body, co, probe.hair_density)
+    assert "feat_portrait_b" in follow, "Hair and cap do not follow Portrait B"
+    scalp = probe.hair_density(x, y, z) > 0.15
+    scalp_basis = np.column_stack((co[scalp] * 0.01, np.ones(scalp.sum())))
+    followed = scalp_basis @ np.array(follow["feat_portrait_b"]).reshape(3, 4).T * 100
+    residual = np.linalg.norm(followed - portrait[scalp], axis=1)
+    assert residual.max() < 0.15, f"Portrait hair separates from scalp by {residual.max():.3f} cm"
+
+    deltas["feat_portrait_b"] = portrait
     parts = probe.build_eyes(body, rims, Path(args.out))
     brows = probe.build_brows(body)[0]
     assert "feat_brow_arch" in brows.data.shape_keys.key_blocks, "Brow hairs do not follow arch"
@@ -68,14 +99,14 @@ def main():
     for side, tag in ((1.0, "L"), (-1.0, "R")):
         waterline = next(part for part in parts if part.name == f"waterline_{tag}")
         lashes = next(part for part in parts if part.name == f"lashes_{tag}")
-        for name in ("feat_eye_tilt", "feat_eye_hood"):
+        for name in ("feat_eye_tilt", "feat_eye_hood", "feat_portrait_b"):
             assert name in waterline.data.shape_keys.key_blocks, f"Waterline missing {name}"
             actual = probe.key_deltas(waterline, [name])[name]
             expected = np.repeat(deltas[name][rims[side]], 2, axis=0)
             np.testing.assert_allclose(actual, expected, atol=2e-5)
             assert name in lashes.data.shape_keys.key_blocks, f"Lashes missing {name}"
             assert np.linalg.norm(probe.key_deltas(lashes, [name])[name], axis=1).max() > 0.03
-    print("PASS: six bounded facial controls, lip seam, eye aperture, waterline, lashes and brow attachment")
+    print(f"PASS: portrait and six facial controls, lip seam, eye aperture, attachments, scalp residual {residual.max():.5f} cm")
 
 
 if __name__ == "__main__":
